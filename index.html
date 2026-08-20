@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aula Virtual EPT 2026</title>
+<style>
+:root{--primary:#2563eb;--dark:#0f172a;--bg:#f1f5f9;--card:#fff;--muted:#64748b;--line:#e2e8f0;--ok:#16a34a;--warn:#d97706}
+*{box-sizing:border-box}body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:#172033}
+.hidden{display:none!important}.app{min-height:100vh}.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#0f172a,#2563eb)}
+.login-card{width:min(430px,100%);background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px #0004}
+.logo{width:56px;height:56px;border-radius:15px;background:#2563eb;color:white;display:grid;place-items:center;font-size:28px;font-weight:800;margin-bottom:18px}
+h1,h2,h3{margin-top:0}.muted{color:var(--muted)}label{font-size:14px;font-weight:600;display:block;margin:14px 0 6px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;background:white}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;background:var(--primary);color:#fff}
+button.secondary{background:#e2e8f0;color:#172033}button.danger{background:#dc2626}button.small{padding:7px 10px;font-size:12px}
+.demo{margin-top:18px;padding:12px;border-radius:10px;background:#eff6ff;font-size:13px}
+.layout{display:flex;min-height:100vh}.sidebar{width:250px;background:var(--dark);color:#fff;padding:22px;position:fixed;top:0;bottom:0}
+.brand{font-size:19px;font-weight:800;margin-bottom:25px}.brand small{display:block;color:#94a3b8;font-size:12px;margin-top:4px}
+.nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:3px 0}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}
+.main{margin-left:250px;width:calc(100% - 250px);padding:28px}.topbar{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}
+.userpill{background:white;border:1px solid var(--line);padding:9px 12px;border-radius:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 8px #0f172a08}
+.stat{font-size:28px;font-weight:800;margin:5px 0}.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;background:#e2e8f0}.badge.ok{background:#dcfce7;color:#166534}.badge.warn{background:#fef3c7;color:#92400e}.badge.bad{background:#fee2e2;color:#991b1b}
+.list{display:grid;gap:12px}.item{padding:15px;border:1px solid var(--line);border-radius:12px;background:white;display:flex;justify-content:space-between;gap:15px;align-items:center}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.section{margin-bottom:24px}
+.chat{height:430px;display:flex;flex-direction:column}.messages{flex:1;overflow:auto;padding:12px;background:#f8fafc;border-radius:12px;margin-bottom:12px}.msg{max-width:75%;padding:10px 13px;border-radius:14px;margin:8px 0;background:#e2e8f0}.msg.me{margin-left:auto;background:#dbeafe}.msg b{display:block;font-size:12px;margin-bottom:3px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:14px}
+.modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:20px;z-index:5}.modal-card{width:min(650px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;padding:24px}
+@media(max-width:900px){.sidebar{width:70px;padding:12px}.brand span,.brand small,.nav button span{display:none}.main{margin-left:70px;width:calc(100% - 70px);padding:18px}.grid,.grid3{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid,.grid3{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.item{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="login-card">
+    <div class="logo">E</div>
+    <h1>Aula Virtual EPT</h1>
+    <p class="muted">Plataforma educativa 2026</p>
+    <label>Usuario</label><input id="username" placeholder="Ej.: juan.perez">
+    <label>Contraseña</label><input id="password" type="password" placeholder="Contraseña">
+    <button style="width:100%;margin-top:18px" onclick="login()">Ingresar</button>
+    <div class="demo"><b>Usuarios de prueba</b><br>Docente: <b>profesor</b> / <b>1234</b><br>Estudiante: <b>juan.perez</b> / <b>1234</b></div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">🎓 <span>Aula EPT</span><small>2026</small></div>
+      <div class="nav" id="nav"></div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div><h2 id="pageTitle">Inicio</h2><div class="muted" id="pageSub"></div></div>
+        <div class="userpill">👤 <span id="currentUser"></span> &nbsp; <button class="small secondary" onclick="logout()">Salir</button></div>
+      </div>
+      <div id="content"></div>
+    </main>
+  </div>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card" id="modalBody"></div></div>
+
+<script>
+const seed = {
+ users:[
+  {u:"profesor",p:"1234",role:"teacher",name:"Prof. Frank Carlos Tito Chávez"},
+  {u:"juan.perez",p:"1234",role:"student",name:"Juan Pérez",grade:"2.º",section:"A"},
+  {u:"maria.quispe",p:"1234",role:"student",name:"María Quispe",grade:"2.º",section:"A"},
+  {u:"ana.condori",p:"1234",role:"student",name:"Ana Condori",grade:"5.º",section:"B"},
+  {u:"pedro.huamani",p:"1234",role:"student",name:"Pedro Huamani",grade:"1.º",section:"A"}
+ ],
+ materials:[
+  {id:1,title:"Introducción a Excel",type:"Video",course:"Educación para el Trabajo",desc:"Conceptos básicos y entorno de trabajo."},
+  {id:2,title:"Fórmulas básicas",type:"PDF",course:"Educación para el Trabajo",desc:"Guía práctica de fórmulas."},
+  {id:3,title:"Design Thinking",type:"Video",course:"Educación para el Trabajo",desc:"Empatizar, definir, idear, prototipar y evaluar."}
+ ],
+ activities:[
+  {id:1,title:"Actividad 01 – Tabla en Excel",course:"Educación para el Trabajo",due:"2026-08-20",desc:"Crear una tabla con 10 productos y calcular el total."},
+  {id:2,title:"Actividad 02 – Propuesta de valor",course:"Educación para el Trabajo",due:"2026-08-27",desc:"Elabora una propuesta de valor para una necesidad de tu comunidad."}
+ ],
+ submissions:[
+  {id:1,activity:1,user:"juan.perez",file:"tabla_excel.xlsx",status:"Entregado",grade:null,feedback:""},
+  {id:2,activity:1,user:"maria.quispe",file:"tabla_maria.xlsx",status:"Revisado",grade:18,feedback:"Muy buen trabajo."}
+ ],
+ messages:[
+  {from:"profesor",to:"2A",text:"Bienvenidos a la plataforma. Revisen la Actividad 01.",date:"12/08/2026 18:00"},
+  {from:"juan.perez",to:"profesor",text:"Profesor, ¿puedo enviar la actividad desde mi casa?",date:"12/08/2026 18:10"},
+  {from:"profesor",to:"juan.perez",text:"Sí. La plataforma funciona desde cualquier lugar con Internet.",date:"12/08/2026 18:12"}
+ ]
+};
+let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
+let me=null, page="home";
+function save(){localStorage.setItem("aulaEPT",JSON.stringify(db))}
+function login(){
+ const u=username.value.trim(), p=password.value;
+ const x=db.users.find(a=>a.u===u&&a.p===p);
+ if(!x){alert("Usuario o contraseña incorrectos.");return}
+ me=x; localStorage.setItem("session",x.u); start();
+}
+function start(){
+ document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
+ currentUser.textContent=me.name; buildNav(); render();
+}
+function logout(){me=null;localStorage.removeItem("session");app.classList.add("hidden");login.classList.remove("hidden")}
+function buildNav(){
+ const items=me.role==="teacher"?[
+  ["home","🏠","Inicio"],["students","👥","Estudiantes"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📥","Entregas"],["chat","💬","Mensajes"],["grades","📊","Evaluaciones"]
+ ]:[
+  ["home","🏠","Inicio"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📤","Mis entregas"],["chat","💬","Mensajes"],["grades","📊","Mis notas"]
+ ];
+ nav.innerHTML=items.map(x=>`<button class="${page===x[0]?'active':''}" onclick="go('${x[0]}')">${x[1]} <span>${x[2]}</span></button>`).join("");
+}
+function go(p){page=p;buildNav();render()}
+function render(){
+ const titles={home:"Inicio",students:"Estudiantes",materials:"Materiales",activities:"Actividades",submissions:me.role==="teacher"?"Entregas":"Mis entregas",chat:"Mensajes",grades:me.role==="teacher"?"Evaluaciones":"Mis calificaciones"};
+ pageTitle.textContent=titles[page]||"Aula Virtual";pageSub.textContent=me.role==="teacher"?"Panel del docente":"Espacio del estudiante";
+ const fn={home:home,students:students,materials:materials,activities:activities,submissions:submissions,chat:chat,grades:grades}[page];content.innerHTML=fn();
+}
+function home(){
+ if(me.role==="teacher") return `<div class="grid">
+  <div class="card"><div class="muted">Estudiantes</div><div class="stat">${db.users.filter(x=>x.role==="student").length}</div><span class="badge ok">Activos</span></div>
+  <div class="card"><div class="muted">Secciones</div><div class="stat">10</div><span class="badge">1.º A – 5.º B</span></div>
+  <div class="card"><div class="muted">Actividades</div><div class="stat">${db.activities.length}</div><span class="badge">Publicadas</span></div>
+  <div class="card"><div class="muted">Entregas</div><div class="stat">${db.submissions.length}</div><span class="badge warn">Revisar</span></div>
+ </div>
+ <div class="section" style="margin-top:22px"><div class="card"><h3>🚀 Acciones rápidas</h3><div class="actions"><button onclick="go('activities')">Crear actividad</button><button onclick="go('materials')">Agregar material</button><button onclick="go('submissions')">Revisar entregas</button><button onclick="go('chat')">Ver mensajes</button></div></div></div>
+ <div class="card"><h3>📢 Aviso del aula</h3><p>La plataforma está lista para organizar materiales, actividades, entregas, mensajes y evaluaciones.</p></div>`;
+ const mine=db.submissions.filter(s=>s.user===me.u);
+ return `<div class="grid3">
+ <div class="card"><div class="muted">Actividades</div><div class="stat">${db.activities.length}</div><span class="badge warn">Revisa pendientes</span></div>
+ <div class="card"><div class="muted">Entregas</div><div class="stat">${mine.length}</div><span class="badge ok">Registradas</span></div>
+ <div class="card"><div class="muted">Promedio</div><div class="stat">${avgMine()}</div><span class="badge">Mi progreso</span></div>
+ </div>
+ <div class="section" style="margin-top:22px"><div class="card"><h3>📌 Próximas actividades</h3>${db.activities.map(a=>`<div class="item"><div><b>${a.title}</b><div class="muted">${a.desc}</div></div><span class="badge">${a.due}</span></div>`).join("")}</div></div>`;
+}
+function avgMine(){const x=db.submissions.filter(s=>s.user===me.u&&s.grade!=null);return x.length?(x.reduce((a,b)=>a+b.grade,0)/x.length).toFixed(1):"—"}
+function materials(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addMaterial()">＋ Agregar material</button>`:""} </div>
+ <div class="grid3">${db.materials.map(m=>`<div class="card"><div style="font-size:30px">${m.type==="Video"?"🎬":"📄"}</div><h3>${m.title}</h3><span class="badge">${m.type}</span><p class="muted">${m.desc}</p><button onclick="openMaterial(${m.id})">Abrir</button></div>`).join("")}</div>`;
+}
+function openMaterial(id){const m=db.materials.find(x=>x.id===id);modalBody.innerHTML=`<h2>${m.title}</h2><span class="badge">${m.type}</span><p>${m.desc}</p><p class="muted">En la versión conectada podrás asociar aquí un video, PDF o archivo real almacenado en la plataforma.</p><button onclick="closeModal()">Cerrar</button>`;modal.classList.remove("hidden")}
+function addMaterial(){modalBody.innerHTML=`<h2>Nuevo material</h2><label>Título</label><input id="mtitle"><label>Tipo</label><select id="mtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="mdesc"></textarea><div class="actions" style="margin-top:15px"><button onclick="saveMaterial()">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveMaterial(){db.materials.push({id:Date.now(),title:mtitle.value,type:mtype.value,course:"Educación para el Trabajo",desc:mdesc.value});save();closeModal();render()}
+function activities(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addActivity()">＋ Crear actividad</button>`:""} </div><div class="list">${db.activities.map(a=>{
+ const s=db.submissions.find(x=>x.activity===a.id&&x.user===me.u);
+ return `<div class="item"><div><h3>${a.title}</h3><div class="muted">${a.desc}</div><small>Entrega: ${a.due}</small></div><div class="actions">${me.role==="student"?`<span class="badge ${s?"ok":"warn"}">${s?s.status:"Pendiente"}</span><button onclick="submitActivity(${a.id})">${s?"Ver entrega":"Entregar"}</button>`:`<span class="badge">${db.submissions.filter(x=>x.activity===a.id).length} entregas</span>`}</div></div>`}).join("")}</div>`;
+}
+function addActivity(){modalBody.innerHTML=`<h2>Nueva actividad</h2><label>Título</label><input id="atitle"><label>Descripción</label><textarea id="adesc"></textarea><label>Fecha de entrega</label><input id="adue" type="date"><div class="actions" style="margin-top:15px"><button onclick="saveActivity()">Publicar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveActivity(){db.activities.push({id:Date.now(),title:atitle.value,course:"Educación para el Trabajo",due:adue.value,desc:adesc.value});save();closeModal();render()}
+function submitActivity(id){const a=db.activities.find(x=>x.id===id), old=db.submissions.find(x=>x.activity===id&&x.user===me.u);modalBody.innerHTML=`<h2>${a.title}</h2><p>${a.desc}</p><label>Archivo (prototipo)</label><input id="file" type="file"><p class="muted">En esta primera versión el archivo se registra en el navegador. Para uso real desde casa conectaremos almacenamiento de servidor.</p><button onclick="saveSubmission(${id})">${old?"Actualizar entrega":"Enviar actividad"}</button> <button class="secondary" onclick="closeModal()">Cancelar</button>`;modal.classList.remove("hidden")}
+function saveSubmission(id){const f=file.files[0];if(!f){alert("Selecciona un archivo.");return}let s=db.submissions.find(x=>x.activity===id&&x.user===me.u);if(s){s.file=f.name;s.status="Entregado"}else db.submissions.push({id:Date.now(),activity:id,user:me.u,file:f.name,status:"Entregado",grade:null,feedback:""});save();closeModal();render()}
+function submissions(){
+ if(me.role==="student"){const mine=db.submissions.filter(s=>s.user===me.u);return `<div class="card"><h3>Mis entregas</h3><table><tr><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Nota</th><th>Retroalimentación</th></tr>${mine.map(s=>{const a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${a?.title||""}</td><td>📎 ${s.file}</td><td><span class="badge ${s.grade!=null?"ok":"warn"}">${s.status}</span></td><td>${s.grade??"—"}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
+ return `<div class="card"><h3>Trabajos entregados</h3><table><tr><th>Estudiante</th><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Acción</th></tr>${db.submissions.map(s=>{const u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${u?.name||s.user}</td><td>${a?.title||""}</td><td>📎 ${s.file}</td><td>${s.grade!=null?`<span class="badge ok">Revisado</span>`:`<span class="badge warn">Pendiente</span>`}</td><td><button class="small" onclick="review(${s.id})">Revisar</button></td></tr>`}).join("")}</table></div>`;
+}
+function review(id){const s=db.submissions.find(x=>x.id===id),u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);modalBody.innerHTML=`<h2>Revisar entrega</h2><p><b>${u.name}</b><br>${a.title}<br>📎 ${s.file}</p><label>Nota (0–20)</label><input id="grade" type="number" min="0" max="20" value="${s.grade??""}"><label>Retroalimentación</label><textarea id="feedback">${s.feedback||""}</textarea><div class="actions" style="margin-top:15px"><button onclick="saveReview(${id})">Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveReview(id){const s=db.submissions.find(x=>x.id===id);s.grade=Number(grade.value);s.feedback=feedback.value;s.status="Revisado";save();closeModal();render()}
+function students(){
+ if(me.role!=="teacher") return `<div class="card"><h3>Acceso no disponible</h3></div>`;
+ return `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
+   <button onclick="addStudent()">＋ Registrar estudiante</button>
+   <button class="secondary" onclick="openImport()">📥 Importar desde Excel</button>
+   <button class="secondary" onclick="exportStudents()">📤 Exportar lista</button>
+ </div>
+ <div class="card">
+   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
+     <select id="filterGrade" onchange="renderStudentList()" style="max-width:180px">
+       <option value="">Todos los grados</option>
+       <option>1.º</option><option>2.º</option><option>3.º</option><option>4.º</option><option>5.º</option>
+     </select>
+     <select id="filterSection" onchange="renderStudentList()" style="max-width:180px">
+       <option value="">Todas las secciones</option><option>A</option><option>B</option>
+     </select>
+     <input id="filterName" oninput="renderStudentList()" placeholder="Buscar por nombre..." style="max-width:280px">
+   </div>
+   <div id="studentList"></div>
+ </div>
+ <script>setTimeout(renderStudentList,0)<\/script>`;
+}
+function renderStudentList(){
+ const box=document.getElementById("studentList"); if(!box)return;
+ const g=document.getElementById("filterGrade").value;
+ const sec=document.getElementById("filterSection").value;
+ const q=(document.getElementById("filterName").value||"").toLowerCase();
+ const arr=db.users.filter(x=>x.role==="student"&&(!g||x.grade===g)&&(!sec||x.section===sec)&&x.name.toLowerCase().includes(q));
+ box.innerHTML=`<div style="overflow:auto"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Promedio</th><th>Acción</th></tr>
+ ${arr.map(u=>`<tr><td>${u.name}</td><td>${u.grade||"—"}</td><td>${u.section||"—"}</td><td>${u.u}</td><td>${avgUser(u.u)}</td><td><button class="small" onclick="editStudent(${u.id||0})">Editar</button></td></tr>`).join("")}
+ </table></div>`;
+}
+function avgUser(u){const x=db.submissions.filter(s=>s.user===u&&s.grade!=null);return x.length?(x.reduce((a,b)=>a+b.grade,0)/x.length).toFixed(1):"—"}
+function addStudent(editId){
+ const u=editId?db.users.find(x=>x.id===editId):null;
+ modalBody.innerHTML=`<h2>${u?"Editar estudiante":"Registrar estudiante"}</h2>
+ <label>Apellidos y nombres</label><input id="sn" value="${u?u.name:""}">
+ <label>Usuario</label><input id="su" value="${u?u.u:""}" ${u?"readonly":""}>
+ <label>Contraseña inicial</label><input id="sp" value="${u?u.p:"1234"}">
+ <label>Grado</label><select id="sg">${["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option ${u&&u.grade===x?"selected":""}>${x}</option>`).join("")}</select>
+ <label>Sección</label><select id="ss"><option ${u&&u.section==="A"?"selected":""}>A</option><option ${u&&u.section==="B"?"selected":""}>B</option></select>
+ <div class="actions" style="margin-top:15px"><button onclick="saveStudent(${editId||"null"})">${u?"Guardar cambios":"Registrar"}</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+ modal.classList.remove("hidden");
+}
+function editStudent(id){addStudent(id)}
+function saveStudent(editId){
+ const name=document.getElementById("sn").value.trim(), user=document.getElementById("su").value.trim(), pass=document.getElementById("sp").value.trim();
+ const grade=document.getElementById("sg").value, section=document.getElementById("ss").value;
+ if(!name||!user||!pass){alert("Completa todos los campos.");return}
+ if(editId){const u=db.users.find(x=>x.id===editId);if(u){u.name=name;u.p=pass;u.grade=grade;u.section=section}}
+ else {if(db.users.some(x=>x.u===user)){alert("Ese usuario ya existe.");return}db.users.push({id:Date.now(),u:user,p:pass,role:"student",name,grade,section})}
+ save();closeModal();render();
+}
+function openImport(){
+ modalBody.innerHTML=`<h2>📥 Importar estudiantes desde Excel</h2>
+ <p>Abre tu Excel, selecciona y copia las filas de estas columnas:</p>
+ <p><b>Apellidos y nombres | Usuario | Contraseña | Grado | Sección</b></p>
+ <textarea id="importData" rows="10" placeholder="ALA AROTAYPE, YULI YANET&#9;yuli.arotaype&#9;1234&#9;1.º&#9;A"></textarea>
+ <p class="muted" style="font-size:12px">Pega directamente las celdas copiadas desde Excel. Cada columna debe quedar separada por tabulación.</p>
+ <div class="actions"><button onclick="importStudents()">Importar estudiantes</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+ modal.classList.remove("hidden");
+}
+function importStudents(){
+ const raw=document.getElementById("importData").value.trim(); if(!raw){alert("Pega primero los datos de Excel.");return}
+ let added=0,updated=0,skipped=0;
+ raw.split(/\r?\n/).filter(x=>x.trim()).forEach((line,i)=>{
+  const c=line.split(/\t/).map(x=>x.trim()); if(c.length<5){skipped++;return}
+  let [name,user,pass,grade,section]=c;
+  if(i===0 && /apellidos/i.test(name))return;
+  grade=grade.replace(/^(\d)[°ºo]\.?$/,"$1.º");section=section.toUpperCase();
+  if(!name||!user||!pass||!["1.º","2.º","3.º","4.º","5.º"].includes(grade)||!["A","B"].includes(section)){skipped++;return}
+  const ex=db.users.find(x=>x.u===user);
+  if(ex&&ex.role==="student"){ex.name=name;ex.p=pass;ex.grade=grade;ex.section=section;updated++}
+  else if(!ex){db.users.push({id:Date.now()+Math.random(),u:user,p:pass,role:"student",name,grade,section});added++}
+  else skipped++;
+ });
+ save();closeModal();render();alert(`Importación terminada.\n\nAgregados: ${added}\nActualizados: ${updated}\nOmitidos: ${skipped}`);
+}
+function exportStudents(){
+ const rows=[["Apellidos y nombres","Usuario","Contraseña","Grado","Sección"]];
+ db.users.filter(x=>x.role==="student").forEach(u=>rows.push([u.name,u.u,u.p,u.grade||"",u.section||""]));
+ const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+ const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);a.download="Estudiantes_Aula_EPT_2026.csv";a.click();URL.revokeObjectURL(a.href);
+}
+function materials(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addMaterial()">＋ Agregar material</button>`:""} </div>
+ <div class="grid3">${db.materials.map(m=>`<div class="card"><div style="font-size:30px">${m.type==="Video"?"🎬":"📄"}</div><h3>${m.title}</h3><span class="badge">${m.type}</span><p class="muted">${m.desc}</p><button onclick="openMaterial(${m.id})">Abrir</button></div>`).join("")}</div>`;
+}
+function openMaterial(id){const m=db.materials.find(x=>x.id===id);modalBody.innerHTML=`<h2>${m.title}</h2><span class="badge">${m.type}</span><p>${m.desc}</p><p class="muted">En la versión conectada podrás asociar aquí un video, PDF o archivo real almacenado en la plataforma.</p><button onclick="closeModal()">Cerrar</button>`;modal.classList.remove("hidden")}
+function addMaterial(){modalBody.innerHTML=`<h2>Nuevo material</h2><label>Título</label><input id="mtitle"><label>Tipo</label><select id="mtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="mdesc"></textarea><div class="actions" style="margin-top:15px"><button onclick="saveMaterial()">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveMaterial(){db.materials.push({id:Date.now(),title:mtitle.value,type:mtype.value,course:"Educación para el Trabajo",desc:mdesc.value});save();closeModal();render()}
+function activities(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addActivity()">＋ Crear actividad</button>`:""} </div><div class="list">${db.activities.map(a=>{
+ const s=db.submissions.find(x=>x.activity===a.id&&x.user===me.u);
+ return `<div class="item"><div><h3>${a.title}</h3><div class="muted">${a.desc}</div><small>Entrega: ${a.due}</small></div><div class="actions">${me.role==="student"?`<span class="badge ${s?"ok":"warn"}">${s?s.status:"Pendiente"}</span><button onclick="submitActivity(${a.id})">${s?"Ver entrega":"Entregar"}</button>`:`<span class="badge">${db.submissions.filter(x=>x.activity===a.id).length} entregas</span>`}</div></div>`}).join("")}</div>`;
+}
+function addActivity(){modalBody.innerHTML=`<h2>Nueva actividad</h2><label>Título</label><input id="atitle"><label>Descripción</label><textarea id="adesc"></textarea><label>Fecha de entrega</label><input id="adue" type="date"><div class="actions" style="margin-top:15px"><button onclick="saveActivity()">Publicar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveActivity(){db.activities.push({id:Date.now(),title:atitle.value,course:"Educación para el Trabajo",due:adue.value,desc:adesc.value});save();closeModal();render()}
+function submitActivity(id){const a=db.activities.find(x=>x.id===id), old=db.submissions.find(x=>x.activity===id&&x.user===me.u);modalBody.innerHTML=`<h2>${a.title}</h2><p>${a.desc}</p><label>Archivo (prototipo)</label><input id="file" type="file"><p class="muted">En esta primera versión el archivo se registra en el navegador. Para uso real desde casa conectaremos almacenamiento de servidor.</p><button onclick="saveSubmission(${id})">${old?"Actualizar entrega":"Enviar actividad"}</button> <button class="secondary" onclick="closeModal()">Cancelar</button>`;modal.classList.remove("hidden")}
+function saveSubmission(id){const f=file.files[0];if(!f){alert("Selecciona un archivo.");return}let s=db.submissions.find(x=>x.activity===id&&x.user===me.u);if(s){s.file=f.name;s.status="Entregado"}else db.submissions.push({id:Date.now(),activity:id,user:me.u,file:f.name,status:"Entregado",grade:null,feedback:""});save();closeModal();render()}
+function submissions(){
+ if(me.role==="student"){const mine=db.submissions.filter(s=>s.user===me.u);return `<div class="card"><h3>Mis entregas</h3><table><tr><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Nota</th><th>Retroalimentación</th></tr>${mine.map(s=>{const a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${a?.title||""}</td><td>📎 ${s.file}</td><td><span class="badge ${s.grade!=null?"ok":"warn"}">${s.status}</span></td><td>${s.grade??"—"}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
+ return `<div class="card"><h3>Trabajos entregados</h3><table><tr><th>Estudiante</th><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Acción</th></tr>${db.submissions.map(s=>{const u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${u?.name||s.user}</td><td>${a?.title||""}</td><td>📎 ${s.file}</td><td>${s.grade!=null?`<span class="badge ok">Revisado</span>`:`<span class="badge warn">Pendiente</span>`}</td><td><button class="small" onclick="review(${s.id})">Revisar</button></td></tr>`}).join("")}</table></div>`;
+}
+function review(id){const s=db.submissions.find(x=>x.id===id),u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);modalBody.innerHTML=`<h2>Revisar entrega</h2><p><b>${u.name}</b><br>${a.title}<br>📎 ${s.file}</p><label>Nota (0–20)</label><input id="grade" type="number" min="0" max="20" value="${s.grade??""}"><label>Retroalimentación</label><textarea id="feedback">${s.feedback||""}</textarea><div class="actions" style="margin-top:15px"><button onclick="saveReview(${id})">Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveReview(id){const s=db.submissions.find(x=>x.id===id);s.grade=Number(grade.value);s.feedback=feedback.value;s.status="Revisado";save();closeModal();render()}
+function students(){
+ const arr=db.users.filter(x=>x.role==="student");
+ return `<div class="toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
+   <select id="filterGrade" onchange="renderStudentList()" style="max-width:180px">
+     <option value="">Todos los grados</option>
+     ${["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option>${x}</option>`).join("")}
+   </select>
+   <select id="filterSection" onchange="renderStudentList()" style="max-width:180px">
+     <option value="">Todas las secciones</option><option>A</option><option>B</option>
+   </select>
+   <input id="filterName" oninput="renderStudentList()" placeholder="Buscar por nombre..." style="max-width:280px">
+   <button onclick="addStudent()">＋ Registrar estudiante</button>
+ </div>
+ <div class="card"><div id="studentList"></div></div>
+ <script>setTimeout(renderStudentList,0)<\/script>`;
+}
+function renderStudentList(){
+ const box=document.getElementById("studentList");
+ if(!box)return;
+ const g=document.getElementById("filterGrade").value;
+ const sec=document.getElementById("filterSection").value;
+ const q=document.getElementById("filterName").value.toLowerCase();
+ const arr=db.users.filter(x=>x.role==="student"&&(!g||x.grade===g)&&(!sec||x.section===sec)&&x.name.toLowerCase().includes(q));
+ box.innerHTML=`<div style="overflow:auto"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Promedio</th><th>Acción</th></tr>
+ ${arr.map(u=>`<tr><td>${u.name}</td><td>${u.grade||"—"}</td><td>${u.section||"—"}</td><td>${u.u}</td><td>${avgUser(u.u)}</td><td><button class="small" onclick="editStudent(${u.id||0})">Editar</button></td></tr>`).join("")}
+ </table></div>`;
+}
+function avgUser(u){const x=db.submissions.filter(s=>s.user===u&&s.grade!=null);return x.length?(x.reduce((a,b)=>a+b.grade,0)/x.length).toFixed(1):"—"}
+function addStudent(editId){
+ const u=editId?db.users.find(x=>x.id===editId):null;
+ modalBody.innerHTML=`<h2>${u?"Editar estudiante":"Registrar estudiante"}</h2>
+ <label>Apellidos y nombres</label><input id="sn" value="${u?u.name:""}">
+ <label>Usuario</label><input id="su" value="${u?u.u:""}" ${u?"readonly":""}>
+ <label>Contraseña</label><input id="sp" value="${u?u.p:"1234"}">
+ <label>Grado</label><select id="sg">${["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option ${u&&u.grade===x?"selected":""}>${x}</option>`).join("")}</select>
+ <label>Sección</label><select id="ss"><option ${u&&u.section==="A"?"selected":""}>A</option><option ${u&&u.section==="B"?"selected":""}>B</option></select>
+ <div class="actions" style="margin-top:15px"><button onclick="saveStudent(${editId||"null"})">${u?"Guardar cambios":"Registrar"}</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+ modal.classList.remove("hidden");
+}
+function saveStudent(editId){
+ const name=document.getElementById("sn").value.trim(), user=document.getElementById("su").value.trim(), pass=document.getElementById("sp").value.trim();
+ const grade=document.getElementById("sg").value, section=document.getElementById("ss").value;
+ if(!name||!user||!pass){alert("Completa todos los campos.");return}
+ if(editId){
+   const u=db.users.find(x=>x.id===editId);
+   if(u){u.name=name;u.p=pass;u.grade=grade;u.section=section;}
+ }else{
+   if(db.users.some(x=>x.u===user)){alert("Ese usuario ya existe.");return}
+   db.users.push({id:Date.now(),u:user,p:pass,role:"student",name:name,grade:grade,section:section});
+ }
+ save();closeModal();render();
+}
+function materials(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addMaterial()">＋ Agregar material</button>`:""} </div>
+ <div class="grid3">${db.materials.map(m=>`<div class="card"><div style="font-size:30px">${m.type==="Video"?"🎬":"📄"}</div><h3>${m.title}</h3><span class="badge">${m.type}</span><p class="muted">${m.desc}</p><button onclick="openMaterial(${m.id})">Abrir</button></div>`).join("")}</div>`;
+}
+function openMaterial(id){const m=db.materials.find(x=>x.id===id);modalBody.innerHTML=`<h2>${m.title}</h2><span class="badge">${m.type}</span><p>${m.desc}</p><p class="muted">En la versión conectada podrás asociar aquí un video, PDF o archivo real almacenado en la plataforma.</p><button onclick="closeModal()">Cerrar</button>`;modal.classList.remove("hidden")}
+function addMaterial(){modalBody.innerHTML=`<h2>Nuevo material</h2><label>Título</label><input id="mtitle"><label>Tipo</label><select id="mtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="mdesc"></textarea><div class="actions" style="margin-top:15px"><button onclick="saveMaterial()">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveMaterial(){db.materials.push({id:Date.now(),title:mtitle.value,type:mtype.value,course:"Educación para el Trabajo",desc:mdesc.value});save();closeModal();render()}
+function activities(){
+ return `<div class="section">${me.role==="teacher"?`<button onclick="addActivity()">＋ Crear actividad</button>`:""} </div><div class="list">${db.activities.map(a=>{
+ const s=db.submissions.find(x=>x.activity===a.id&&x.user===me.u);
+ return `<div class="item"><div><h3>${a.title}</h3><div class="muted">${a.desc}</div><small>Entrega: ${a.due}</small></div><div class="actions">${me.role==="student"?`<span class="badge ${s?"ok":"warn"}">${s?s.status:"Pendiente"}</span><button onclick="submitActivity(${a.id})">${s?"Ver entrega":"Entregar"}</button>`:`<span class="badge">${db.submissions.filter(x=>x.activity===a.id).length} entregas</span>`}</div></div>`}).join("")}</div>`;
+}
+function addActivity(){modalBody.innerHTML=`<h2>Nueva actividad</h2><label>Título</label><input id="atitle"><label>Descripción</label><textarea id="adesc"></textarea><label>Fecha de entrega</label><input id="adue" type="date"><div class="actions" style="margin-top:15px"><button onclick="saveActivity()">Publicar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveActivity(){db.activities.push({id:Date.now(),title:atitle.value,course:"Educación para el Trabajo",due:adue.value,desc:adesc.value});save();closeModal();render()}
+function submitActivity(id){const a=db.activities.find(x=>x.id===id), old=db.submissions.find(x=>x.activity===id&&x.user===me.u);modalBody.innerHTML=`<h2>${a.title}</h2><p>${a.desc}</p><label>Archivo (prototipo)</label><input id="file" type="file"><p class="muted">En esta primera versión el archivo se registra en el navegador. Para uso real desde casa conectaremos almacenamiento de servidor.</p><button onclick="saveSubmission(${id})">${old?"Actualizar entrega":"Enviar actividad"}</button> <button class="secondary" onclick="closeModal()">Cancelar</button>`;modal.classList.remove("hidden")}
+function saveSubmission(id){const f=file.files[0];if(!f){alert("Selecciona un archivo.");return}let s=db.submissions.find(x=>x.activity===id&&x.user===me.u);if(s){s.file=f.name;s.status="Entregado"}else db.submissions.push({id:Date.now(),activity:id,user:me.u,file:f.name,status:"Entregado",grade:null,feedback:""});save();closeModal();render()}
+function submissions(){
+ if(me.role==="student"){const mine=db.submissions.filter(s=>s.user===me.u);return `<div class="card"><h3>Mis entregas</h3><table><tr><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Nota</th><th>Retroalimentación</th></tr>${mine.map(s=>{const a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${a?.title||""}</td><td>📎 ${s.file}</td><td><span class="badge ${s.grade!=null?"ok":"warn"}">${s.status}</span></td><td>${s.grade??"—"}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
+ return `<div class="card"><h3>Trabajos entregados</h3><table><tr><th>Estudiante</th><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Acción</th></tr>${db.submissions.map(s=>{const u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${u?.name||s.user}</td><td>${a?.title||""}</td><td>📎 ${s.file}</td><td>${s.grade!=null?`<span class="badge ok">Revisado</span>`:`<span class="badge warn">Pendiente</span>`}</td><td><button class="small" onclick="review(${s.id})">Revisar</button></td></tr>`}).join("")}</table></div>`;
+}
+function review(id){const s=db.submissions.find(x=>x.id===id),u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);modalBody.innerHTML=`<h2>Revisar entrega</h2><p><b>${u.name}</b><br>${a.title}<br>📎 ${s.file}</p><label>Nota (0–20)</label><input id="grade" type="number" min="0" max="20" value="${s.grade??""}"><label>Retroalimentación</label><textarea id="feedback">${s.feedback||""}</textarea><div class="actions" style="margin-top:15px"><button onclick="saveReview(${id})">Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveReview(id){const s=db.submissions.find(x=>x.id===id);s.grade=Number(grade.value);s.feedback=feedback.value;s.status="Revisado";save();closeModal();render()}
+function students(){
+ const arr=db.users.filter(x=>x.role==="student");
+ return `<div class="section"><button onclick="addStudent()">＋ Registrar estudiante</button></div><div class="card"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Promedio</th></tr>${arr.map(u=>`<tr><td>${u.name}</td><td>${u.grade}</td><td>${u.section}</td><td>${u.u}</td><td>${avgUser(u.u)}</td></tr>`).join("")}</table></div>`;
+}
+function avgUser(u){const x=db.submissions.filter(s=>s.user===u&&s.grade!=null);return x.length?(x.reduce((a,b)=>a+b.grade,0)/x.length).toFixed(1):"—"}
+function addStudent(){modalBody.innerHTML=`<h2>Registrar estudiante</h2><label>Apellidos y nombres</label><input id="sn"><label>Usuario</label><input id="su"><label>Contraseña inicial</label><input id="sp" value="1234"><label>Grado</label><select id="sg">${["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option>${x}</option>`).join("")}</select><label>Sección</label><select id="ss"><option>A</option><option>B</option></select><div class="actions" style="margin-top:15px"><button onclick="saveStudent()">Registrar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveStudent(){db.users.push({u:su.value,p:sp.value,role:"student",name:sn.value,grade:sg.value,section:ss.value});save();closeModal();render()}
+function grades(){
+ if(me.role==="student"){const x=db.submissions.filter(s=>s.user===me.u&&s.grade!=null);return `<div class="card"><h3>Mis calificaciones</h3><table><tr><th>Actividad</th><th>Nota</th><th>Logro</th><th>Retroalimentación</th></tr>${x.map(s=>{const a=db.activities.find(y=>y.id===s.activity);return `<tr><td>${a?.title||""}</td><td><b>${s.grade}</b>/20</td><td>${level(s.grade)}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
+ return `<div class="card"><h3>Resumen de evaluación</h3><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Promedio</th><th>Logro</th></tr>${db.users.filter(x=>x.role==="student").map(u=>{const av=avgUser(u.u);return `<tr><td>${u.name}</td><td>${u.grade}</td><td>${u.section}</td><td>${av}</td><td>${av==="—"?"—":level(Number(av))}</td></tr>`}).join("")}</table></div>`;
+}
+function level(n){return n>=18?"AD":n>=15?"A":n>=11?"B":"C"}
+function chat(){
+ const target=me.role==="teacher"?"2A":me.u;
+ const msgs=db.messages.filter(m=>m.to===target||m.from===target||m.to==="2A"&&me.role==="student"&&me.grade==="2.º"&&me.section==="A");
+ return `<div class="card chat"><div class="messages">${msgs.map(m=>`<div class="msg ${m.from===me.u?"me":""}"><b>${m.from==="profesor"?"👨‍🏫 Profesor":(db.users.find(x=>x.u===m.from)?.name||m.from)}</b>${m.text}<small class="muted" style="display:block;margin-top:4px">${m.date}</small></div>`).join("")}</div><div class="actions"><input id="chatText" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')sendMessage()" style="flex:1"><button onclick="sendMessage()">Enviar</button></div></div>`;
+}
+function sendMessage(){const t=chatText.value.trim();if(!t)return;db.messages.push({from:me.u,to:me.role==="teacher"?"2A":"profesor",text:t,date:new Date().toLocaleString("es-PE")});save();render()}
+function closeModal(){modal.classList.add("hidden")}
+const session=localStorage.getItem("session");if(session){const x=db.users.find(u=>u.u===session);if(x){me=x;start()}}
+</script>
+</body>
+</html>
