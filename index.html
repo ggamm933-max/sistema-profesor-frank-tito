@@ -31,6 +31,36 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 @media(max-width:900px){.sidebar{width:70px;padding:12px}.brand span,.brand small,.nav button span{display:none}.main{margin-left:70px;width:calc(100% - 70px);padding:18px}.grid,.grid3{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.grid,.grid3{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.item{flex-direction:column;align-items:flex-start}}
 </style>
+
+<!-- Firebase: sincronización entre PC, celular y otros dispositivos -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCgmXnP3MW7tOtjEY6izU1wUKzKw2vgB68",
+    authDomain: "sistema-profesor-frank-tito.firebaseapp.com",
+    projectId: "sistema-profesor-frank-tito",
+    storageBucket: "sistema-profesor-frank-tito.firebasestorage.app",
+    messagingSenderId: "403594585544",
+    appId: "1:403594585544:web:3ad952eb88b3805aae4cfd"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const firestore = getFirestore(firebaseApp);
+
+  window.firebaseDB = firestore;
+  window.firebaseDoc = doc;
+  window.firebaseGetDoc = getDoc;
+  window.firebaseSetDoc = setDoc;
+  window.firebaseOnSnapshot = onSnapshot;
+  window.firebaseReady = true;
+
+  window.dispatchEvent(new Event("firebase-ready"));
+</script>
+
 </head>
 <body>
 <div id="login" class="login">
@@ -81,7 +111,65 @@ const seed = {
 };
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
 let me=null, page="home";
-function save(){localStorage.setItem("aulaEPT",JSON.stringify(db))}
+function save(){
+  localStorage.setItem("aulaEPT",JSON.stringify(db));
+  if(typeof saveToFirebase === "function") saveToFirebase();
+}
+
+/* ===== SINCRONIZACIÓN FIREBASE ===== */
+const FIREBASE_DOCUMENT = "aulaEPT/main";
+
+async function saveToFirebase(){
+  try{
+    if(!window.firebaseReady) return;
+    await window.firebaseSetDoc(
+      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
+      { data: db, updatedAt: Date.now() }
+    );
+  }catch(error){
+    console.error("Firebase: no se pudo guardar", error);
+  }
+}
+
+async function loadFromFirebase(){
+  try{
+    if(!window.firebaseReady) return false;
+    const snap = await window.firebaseGetDoc(
+      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main")
+    );
+    if(snap.exists() && snap.data().data){
+      db = snap.data().data;
+      localStorage.setItem("aulaEPT", JSON.stringify(db));
+      if(typeof render === "function") render();
+      return true;
+    }
+  }catch(error){
+    console.error("Firebase: no se pudo cargar", error);
+  }
+  return false;
+}
+
+function startFirebaseSync(){
+  if(!window.firebaseReady) return;
+  window.firebaseOnSnapshot(
+    window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
+    (snap)=>{
+      if(snap.exists() && snap.data().data){
+        db = snap.data().data;
+        localStorage.setItem("aulaEPT", JSON.stringify(db));
+        if(typeof render === "function") render();
+      }
+    },
+    (error)=>console.error("Firebase: error de sincronización", error)
+  );
+}
+
+window.addEventListener("firebase-ready", async ()=>{
+  const exists = await loadFromFirebase();
+  if(!exists) await saveToFirebase();
+  startFirebaseSync();
+});
+
 function refreshDB29(){
  try{
   const raw=localStorage.getItem("aulaEPT");
