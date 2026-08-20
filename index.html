@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
     <label>Usuario</label><input id="username" placeholder="Ej.: juan.perez">
     <label>Contraseña</label><input id="password" type="password" placeholder="Contraseña">
     <button style="width:100%;margin-top:18px" onclick="login()">Ingresar</button>
-    <div class="demo"><b>Usuarios de prueba</b><br>Docente: <b>profesor</b> / <b>1234</b><br>Estudiante: <b>juan.perez</b> / <b>1234</b></div>
+    
   </div>
 </div>
 
@@ -2162,6 +2162,112 @@ window.addEventListener("storage",e=>{
  if(e.key==="aulaEPT"){refreshDB29();if(me){buildNav();if(page==="announcements")render();}}
 });
 
+
+function openImportStudentsModal(){
+  openModal(`
+    <h3>📋 Importar estudiantes desde Excel</h3>
+    <p class="muted">Copia desde Excel las filas de tus estudiantes y pégalas aquí. Puedes incluir columnas: Apellidos y nombres, Usuario, Contraseña, Grado y Sección.</p>
+    <textarea id="excelStudentsPaste" rows="12" placeholder="Pega aquí las filas copiadas desde Excel..."></textarea>
+    <p class="muted" style="font-size:12px">Ejemplo: Juan Pérez&#9;juan.perez&#9;1234&#9;2.º&#9;A</p>
+    <div class="actions">
+      <button onclick="importStudentsFromExcel()">📥 Importar estudiantes</button>
+      <button class="secondary" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+}
+
+function importStudentsFromExcel(){
+  const box=document.getElementById("excelStudentsPaste");
+  if(!box) return;
+
+  const raw=box.value.trim();
+  if(!raw){
+    alert("Pega primero la lista copiada desde Excel.");
+    return;
+  }
+
+  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  let added=0, skipped=0;
+
+  lines.forEach((line,index)=>{
+    let cols=line.split("\t").map(x=>x.trim());
+
+    // También acepta ; o | si la lista no viene directamente desde Excel.
+    if(cols.length<2){
+      if(line.includes(";")) cols=line.split(";").map(x=>x.trim());
+      else if(line.includes("|")) cols=line.split("|").map(x=>x.trim());
+    }
+
+    // Saltar encabezados habituales.
+    const first=(cols[0]||"").toLowerCase();
+    if(index===0 && (
+      first.includes("nombre") ||
+      first.includes("apellidos") ||
+      first.includes("estudiante")
+    )){
+      skipped++;
+      return;
+    }
+
+    if(cols.length<1 || !cols[0]) {
+      skipped++;
+      return;
+    }
+
+    const name=cols[0];
+    const username=cols[1] || makeUsernameFromName(name);
+    const password=cols[2] || "1234";
+    const grade=cols[3] || "";
+    const section=cols[4] || "";
+
+    if(!db.users) db.users=[];
+
+    // Evitar duplicados por usuario.
+    if(db.users.some(u=>u.u===username)){
+      skipped++;
+      return;
+    }
+
+    db.users.push({
+      u:username,
+      p:password,
+      role:"student",
+      name:name,
+      grade:grade,
+      section:section
+    });
+
+    added++;
+  });
+
+  if(added===0){
+    alert("No se importaron estudiantes. Revisa que las columnas estén separadas por tabulaciones.");
+    return;
+  }
+
+  save();
+  closeModal();
+  render();
+
+  alert(`✅ Se importaron ${added} estudiante(s).${skipped ? ` Se omitieron ${skipped}.` : ""}`);
+}
+
+function makeUsernameFromName(name){
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,".")
+    .replace(/^\.+|\.+$/g,"");
+}
+
 </script>
+
+<div class="developer-credit" style="margin-top:18px;padding:12px;border-top:1px solid #ddd;text-align:center;font-size:12px;opacity:.85">
+  <strong>Sistema Aula EPT</strong><br>
+  Desarrollado y propiedad de <strong>Frank Carlos Tito Chavez</strong><br>
+  Licenciado en Computación e Informática
+</div>
+
 </body>
 </html>
