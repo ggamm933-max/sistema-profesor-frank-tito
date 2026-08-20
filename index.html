@@ -66,30 +66,18 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 <script>
 const seed = {
  users:[
-  {u:"profesor",p:"1234",role:"teacher",name:"Prof. Frank Carlos Tito Chávez"},
-  {u:"juan.perez",p:"1234",role:"student",name:"Juan Pérez",grade:"2.º",section:"A"},
-  {u:"maria.quispe",p:"1234",role:"student",name:"María Quispe",grade:"2.º",section:"A"},
-  {u:"ana.condori",p:"1234",role:"student",name:"Ana Condori",grade:"5.º",section:"B"},
-  {u:"pedro.huamani",p:"1234",role:"student",name:"Pedro Huamani",grade:"1.º",section:"A"}
+  {u:"profesor",p:"1234",role:"teacher",name:"Prof. Frank Carlos Tito Chávez"}
  ],
- materials:[
-  {id:1,title:"Introducción a Excel",type:"Video",course:"Educación para el Trabajo",desc:"Conceptos básicos y entorno de trabajo."},
-  {id:2,title:"Fórmulas básicas",type:"PDF",course:"Educación para el Trabajo",desc:"Guía práctica de fórmulas."},
-  {id:3,title:"Design Thinking",type:"Video",course:"Educación para el Trabajo",desc:"Empatizar, definir, idear, prototipar y evaluar."}
- ],
- activities:[
-  {id:1,title:"Actividad 01 – Tabla en Excel",course:"Educación para el Trabajo",due:"2026-08-20",desc:"Crear una tabla con 10 productos y calcular el total."},
-  {id:2,title:"Actividad 02 – Propuesta de valor",course:"Educación para el Trabajo",due:"2026-08-27",desc:"Elabora una propuesta de valor para una necesidad de tu comunidad."}
- ],
- submissions:[
-  {id:1,activity:1,user:"juan.perez",file:"tabla_excel.xlsx",status:"Entregado",grade:null,feedback:""},
-  {id:2,activity:1,user:"maria.quispe",file:"tabla_maria.xlsx",status:"Revisado",grade:18,feedback:"Muy buen trabajo."}
- ],
- messages:[
-  {from:"profesor",to:"2A",text:"Bienvenidos a la plataforma. Revisen la Actividad 01.",date:"12/08/2026 18:00"},
-  {from:"juan.perez",to:"profesor",text:"Profesor, ¿puedo enviar la actividad desde mi casa?",date:"12/08/2026 18:10"},
-  {from:"profesor",to:"juan.perez",text:"Sí. La plataforma funciona desde cualquier lugar con Internet.",date:"12/08/2026 18:12"}
- ]
+ materials:[],
+ activities:[],
+ submissions:[],
+ messages:[],
+ courses:[{id:1,name:"Educación para el Trabajo",area:"EPT",description:"Computación e Informática"}],
+ units:[],
+ sessions:[],
+ attendance:{},
+ incidents:[],
+ announcements:[]
 };
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
 let me=null, page="home";
@@ -1949,7 +1937,7 @@ function backup(){
   <div class="item" style="margin-top:18px"><div><b>⬇️ Exportar datos</b><div class="muted">Descarga estudiantes, actividades, entregas, notas, asistencia e incidentes.</div></div><button onclick="exportBackup28()">Descargar respaldo</button></div>
   <div class="item" style="margin-top:10px"><div><b>⬆️ Importar respaldo</b><div class="muted">Restaura una copia que hayas descargado anteriormente.</div></div><button onclick="document.getElementById('backupFile28').click()">Elegir archivo</button></div>
   <input id="backupFile28" type="file" accept=".json,application/json" style="display:none" onchange="importBackup28(this)">
-  <div class="item" style="margin-top:10px"><div><b>⚠️ Restablecer datos de prueba</b><div class="muted">Esta opción se usará al terminar las pruebas para limpiar los ejemplos.</div></div><button class="secondary" onclick="clearTestData28()">Limpiar datos de prueba</button></div>
+  <div class="item" style="margin-top:10px"><div><b>🧹 Limpiar sistema</b><div class="muted">Elimina los datos de prueba y conserva solamente la cuenta del profesor.</div></div><button class="secondary" onclick="clearTestData28()">Limpiar datos de prueba</button></div>
  </div>`;
 }
 function exportBackup28(){
@@ -1970,13 +1958,55 @@ function importBackup28(input){
  };
  reader.readAsText(file);
 }
-function clearTestData28(){
- if(!confirm("Esta opción eliminará los datos de prueba actuales de este navegador. Antes de hacerlo, descarga un respaldo. ¿Continuar?"))return;
- // Preserve the teacher account and remove common demo/test records.
- const keep=(db.users||[]).filter(u=>u.role==="teacher");
- db.users=keep;
- db.submissions=[];db.attendance={};db.incidents=[];
- save();alert("Datos de prueba eliminados. El profesor se ha conservado.");render();
+async function clearTestData28(){
+  if(!confirm("⚠️ Esto eliminará estudiantes, actividades, materiales, entregas, mensajes, notas, asistencia, incidentes, sesiones, unidades y avisos de prueba. Se conservará solamente la cuenta del profesor. ¿Continuar?"))return;
+
+  const teacher=(db.users||[]).find(u=>u.role==="teacher")||{
+    u:"profesor",p:"1234",role:"teacher",name:"Prof. Frank Carlos Tito Chávez"
+  };
+
+  db={
+    users:[teacher],
+    materials:[],
+    activities:[],
+    submissions:[],
+    messages:[],
+    courses:[{id:1,name:"Educación para el Trabajo",area:"EPT",description:"Computación e Informática"}],
+    units:[],
+    sessions:[],
+    attendance:{},
+    incidents:[],
+    announcements:[]
+  };
+
+  save();
+
+  // Limpiar archivos locales guardados en IndexedDB, si existen.
+  try{
+    const dbFiles=await openAulaFileDB();
+    await new Promise((resolve,reject)=>{
+      const tx=dbFiles.transaction("files","readwrite");
+      tx.objectStore("files").clear();
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){}
+
+  try{
+    const dbSubs=await openSubFileDB();
+    await new Promise((resolve,reject)=>{
+      const tx=dbSubs.transaction("files","readwrite");
+      tx.objectStore("files").clear();
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){}
+
+  me=teacher;
+  localStorage.setItem("session",teacher.u);
+  alert("✅ Sistema limpiado correctamente. Se conservó la cuenta del profesor y se eliminaron los datos de prueba.");
+  buildNav();
+  render();
 }
 /* ===== FIN REPORTES Y RESPALDO ===== */
 
