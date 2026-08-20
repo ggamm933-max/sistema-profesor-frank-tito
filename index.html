@@ -17,7 +17,7 @@ button.secondary{background:#e2e8f0;color:#172033}button.danger{background:#dc26
 .demo{margin-top:18px;padding:12px;border-radius:10px;background:#eff6ff;font-size:13px}
 .layout{display:flex;min-height:100vh}.sidebar{width:250px;background:var(--dark);color:#fff;padding:22px;position:fixed;top:0;bottom:0}
 .brand{font-size:19px;font-weight:800;margin-bottom:25px}.brand small{display:block;color:#94a3b8;font-size:12px;margin-top:4px}
-.nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:3px 0}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}
+.nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:3px 0}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}.nav-group-title{font-weight:800;color:#94a3b8;font-size:12px;text-transform:uppercase;padding:14px 10px 5px;letter-spacing:.3px}.nav-sub{padding-left:10px}.nav-sub button{font-size:14px}.nav-group-toggle{font-weight:800!important;color:#fff!important;background:#172033!important}.nav-group-toggle:hover{background:#1e293b!important}
 .main{margin-left:250px;width:calc(100% - 250px);padding:28px}.topbar{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}
 .userpill{background:white;border:1px solid var(--line);padding:9px 12px;border-radius:12px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -196,20 +196,30 @@ function start(){
 }
 function logout(){me=null;localStorage.removeItem("session");app.classList.add("hidden");login.classList.remove("hidden")}
 function buildNav(){
- const items=me.role==="teacher"?[
-  ["home","🏠","Inicio"],["students","👥","Estudiantes"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📥","Entregas"],["chat","💬","Mensajes"],["grades","📊","Evaluaciones"],["tracking","📈","Seguimiento"],["attendance","🗓️","Asistencia"],["incidents","📝","Incidentes"],["reports","📑","Reportes"],["backup","💾","Respaldo"],["announcements","📢","Avisos"]
- ]:[
-  ["home","🏠","Inicio"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📤","Mis entregas"],["chat","💬","Mensajes"],["grades","📊","Mis notas"],["announcements","📢","Avisos"]
- ];
- nav.innerHTML=items.map(x=>`<button class="${page===x[0]?'active':''}" onclick="go('${x[0]}')">${x[1]} <span>${x[2]}</span></button>`).join("");
+  if(me.role!=='teacher'){
+    const arr=[['home','🏠','Inicio'],['courses','📚','Mis cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📤','Mis entregas'],['chat','💬','Mensajes'],['announcements','📢','Avisos']];
+    nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join('');
+    return;
+  }
+  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades']];
+  const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
+  const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
+  const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
+  nav.innerHTML=top.map(b).join('')+
+    `<div class="nav-group-title">📊 Evaluación</div>`+
+    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación 30 %</span></button>`+
+    `<div id="evalMenu" class="nav-sub" style="display:block">${process.map(b).join('')}</div>`+
+    b(['project','🚀','Proyecto 70 %'])+
+    extra.map(b).join('');
 }
+function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
 function go(p){page=p;buildNav();render()}
 function render(){
  const titles={
    home:"Inicio",students:"Estudiantes",courses:me.role==="teacher"?"Cursos":"Mis cursos",
    materials:"Materiales",activities:"Actividades",
    submissions:me.role==="teacher"?"Entregas":"Mis entregas",
-   chat:"Mensajes",grades:me.role==="teacher"?"Evaluaciones":"Mis calificaciones",
+   chat:"Mensajes",grades:"Evaluaciones",
    tracking:"Seguimiento",attendance:"Asistencia",incidents:"Incidentes",
    reports:"Reportes",backup:"Respaldo",announcements:"Avisos"
  };
@@ -237,7 +247,7 @@ function home(){
  return `<div class="grid3">
  <div class="card"><div class="muted">Actividades</div><div class="stat">${db.activities.length}</div><span class="badge warn">Revisa pendientes</span></div>
  <div class="card"><div class="muted">Entregas</div><div class="stat">${mine.length}</div><span class="badge ok">Registradas</span></div>
- <div class="card"><div class="muted">Promedio</div><div class="stat">${avgMine()}</div><span class="badge">Mi progreso</span></div>
+
  </div>
  <div class="section" style="margin-top:22px"><div class="card"><h3>📌 Próximas actividades</h3>${db.activities.map(a=>`<div class="item"><div><b>${a.title}</b><div class="muted">${a.desc}</div></div><span class="badge">${a.due}</span></div>`).join("")}</div></div>`;
 }
@@ -455,7 +465,7 @@ function avgUser(u){const x=db.submissions.filter(s=>s.user===u&&s.grade!=null);
 function addStudent(){modalBody.innerHTML=`<h2>Registrar estudiante</h2><label>Apellidos y nombres</label><input id="sn"><label>Usuario</label><input id="su"><label>Contraseña inicial</label><input id="sp" value="1234"><label>Grado</label><select id="sg">${["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option>${x}</option>`).join("")}</select><label>Sección</label><select id="ss"><option>A</option><option>B</option></select><div class="actions" style="margin-top:15px"><button onclick="saveStudent()">Registrar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
 function saveStudent(){db.users.push({u:su.value,p:sp.value,role:"student",name:sn.value,grade:sg.value,section:ss.value});save();closeModal();render()}
 function grades(){
- if(me.role==="student"){const x=db.submissions.filter(s=>s.user===me.u&&s.grade!=null);return `<div class="card"><h3>Mis calificaciones</h3><table><tr><th>Actividad</th><th>Nota</th><th>Logro</th><th>Retroalimentación</th></tr>${x.map(s=>{const a=db.activities.find(y=>y.id===s.activity);return `<tr><td>${a?.title||""}</td><td><b>${s.grade}</b>/20</td><td>${level(s.grade)}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
+ if(me.role==="student"){page="home";return home();}
  return `<div class="card"><h3>Resumen de evaluación</h3><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Promedio</th><th>Logro</th></tr>${db.users.filter(x=>x.role==="student").map(u=>{const av=avgUser(u.u);return `<tr><td>${u.name}</td><td>${u.grade}</td><td>${u.section}</td><td>${av}</td><td>${av==="—"?"—":level(Number(av))}</td></tr>`}).join("")}</table></div>`;
 }
 function level(n){return n>=18?"AD":n>=15?"A":n>=11?"B":"C"}
@@ -642,8 +652,6 @@ function home(){
  }
  const acts=typeof studentActivities==="function"?studentActivities():db.activities.filter(a=>(a.grade==="Todos"||a.grade===me.grade)&&(a.section==="Todas"||a.section===me.section));
  const mySubs=db.submissions.filter(x=>x.user===me.id);
- const reviewed=mySubs.filter(x=>x.grade!=null);
- const avg=reviewed.length?(reviewed.reduce((a,b)=>a+b.grade,0)/reviewed.length).toFixed(1):"—";
  const pending=acts.filter(a=>!mySubs.some(s=>s.activity===a.id)).length;
  return `<div class="card" style="background:linear-gradient(135deg,#eff6ff,#ffffff);border:1px solid #bfdbfe">
    <h2 style="margin-top:0">👋 Bienvenido, ${me.name}</h2>
@@ -653,7 +661,7 @@ function home(){
  <div class="grid3" style="margin-top:18px">
    <div class="card"><div class="muted">Actividades</div><div class="stat">${acts.length}</div><span class="badge">Asignadas</span></div>
    <div class="card"><div class="muted">Pendientes</div><div class="stat">${pending}</div><span class="badge warn">Por entregar</span></div>
-   <div class="card"><div class="muted">Promedio</div><div class="stat">${avg}</div><span class="badge">${avg==="—"?"Sin notas":"Sobre 20"}</span></div>
+   <div class="card"><div class="muted">Entregas</div><div class="stat">${mySubs.length}</div><span class="badge">Mis trabajos</span></div>
  </div>
  <div class="grid3" style="margin-top:18px">
    <div class="card"><h3>🎬 Mis materiales</h3><p class="muted">Consulta videos, documentos y fichas asignadas a tu aula.</p><button onclick="go('materials')">Ver materiales</button></div>
@@ -685,7 +693,7 @@ function grades(){
 function buildNav(){
  const arr=me.role==="teacher"
  ?[["home","🏠","Inicio"],["students","👥","Estudiantes"],["courses","📚","Cursos"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📥","Entregas"],["chat","💬","Mensajes"],["grades","📊","Evaluaciones"],["tracking","📈","Seguimiento"],["attendance","🗓️","Asistencia"],["incidents","📝","Incidentes"],["reports","📑","Reportes"],["backup","💾","Respaldo"],["announcements","📢","Avisos"]]
- :[["home","🏠","Inicio"],["courses","📚","Mis cursos"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📤","Mis entregas"],["chat","💬","Mensajes"],["grades","📊","Mis notas"],["announcements","📢","Avisos"]];
+ :[["home","🏠","Inicio"],["courses","📚","Mis cursos"],["materials","🎬","Materiales"],["activities","📝","Actividades"],["submissions","📤","Mis entregas"],["chat","💬","Mensajes"],["announcements","📢","Avisos"]];
  nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join("");
 }
 function courses(){
@@ -1482,39 +1490,22 @@ function saveReview9(id){
 }
 /* ===== FIN ACTIVIDADES Y ENTREGAS ===== */
 
-/* ===== MIS NOTAS DEL ESTUDIANTE v1.9.2 ===== */
+/* ===== EVALUACIONES: SOLO DOCENTE ===== */
 function grades(){
- if(!db.submissions)db.submissions=[];
- if(me.role==="teacher"){
-   const graded=db.submissions.filter(x=>x.grade!=null);
-   const avg=graded.length?(graded.reduce((t,x)=>t+Number(x.grade),0)/graded.length).toFixed(1):"—";
-   return `<div class="card"><h2>📊 Evaluaciones</h2>
-    <p class="muted">Resumen de calificaciones registradas.</p>
-    <div class="item"><div><b>Trabajos calificados</b><div class="muted">${graded.length}</div></div><div><b>Promedio</b><div class="muted">${avg}</div></div></div>
-   </div>`;
+ if(me.role!=="teacher"){
+   page="home";
+   buildNav();
+   return home();
  }
- const mine=db.submissions.filter(x=>x.user===me.u && x.grade!=null);
- const rows=mine.map(s=>{
-   const a=(db.activities||[]).find(x=>x.id===s.activity);
-   return `<tr><td>${a?a.title:"Actividad"}</td><td>${s.grade}/20</td><td>${s.reviewedAt?new Date(s.reviewedAt).toLocaleDateString():"—"}</td></tr>`;
- }).join("");
- const avg=mine.length?(mine.reduce((t,x)=>t+Number(x.grade),0)/mine.length).toFixed(1):"—";
- return `<div class="card">
-   <h2>📊 Mis notas</h2>
-   <p class="muted">Aquí puedes consultar las calificaciones que el profesor ya ha registrado.</p>
-   <div class="item" style="margin-bottom:16px">
-     <div><b>Actividades calificadas</b><div class="muted">${mine.length}</div></div>
-     <div><b>Promedio</b><div class="muted" style="font-size:22px">${avg}</div></div>
-   </div>
-   <div style="overflow:auto">
-    <table>
-      <tr><th>Actividad</th><th>Calificación</th><th>Fecha de revisión</th></tr>
-      ${rows||`<tr><td colspan="3">Todavía no tienes actividades calificadas.</td></tr>`}
-    </table>
-   </div>
+ if(!db.submissions)db.submissions=[];
+ const graded=db.submissions.filter(x=>x.grade!=null);
+ const avg=graded.length?(graded.reduce((t,x)=>t+Number(x.grade),0)/graded.length).toFixed(1):"—";
+ return `<div class="card"><h2>📊 Evaluaciones</h2>
+   <p class="muted">Resumen de calificaciones registradas.</p>
+   <div class="item"><div><b>Trabajos calificados</b><div class="muted">${graded.length}</div></div><div><b>Promedio</b><div class="muted">${avg}</div></div></div>
  </div>`;
 }
-/* ===== FIN MIS NOTAS ===== */
+/* ===== FIN EVALUACIONES: SOLO DOCENTE ===== */
 
 /* ===== ARCHIVOS DE ENTREGAS v2.0 ===== */
 const AULA_SUB_DB="AulaEPT_Submissions_v1";
@@ -2064,7 +2055,19 @@ async function clearTestData28(){
     sessions:[],
     attendance:{},
     incidents:[],
-    announcements:[]
+    announcements:[],
+    classEvaluations:[],
+    classRecords:[],
+    groups:[],
+    activitiesGrades:[],
+    participations:[],
+    behaviorGrades:[],
+    uniformGrades:[],
+    notebookGrades:[],
+    folderGrades:[],
+    examGrades:[],
+    projectGrades:[],
+    evaluationWeights:{class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7}
   };
 
   save();
@@ -2260,6 +2263,336 @@ function makeUsernameFromName(name){
     .replace(/[^a-z0-9]+/g,".")
     .replace(/^\.+|\.+$/g,"");
 }
+
+
+/* ===== EVALUACIÓN COMPLETA 70/30 + GRUPOS ===== */
+function ensureClassData(){
+  if(!Array.isArray(db.classEvaluations))db.classEvaluations=[];
+  if(!Array.isArray(db.classRecords))db.classRecords=[];
+  if(!Array.isArray(db.groups))db.groups=[];
+  if(!Array.isArray(db.activitiesGrades))db.activitiesGrades=[];
+  if(!Array.isArray(db.participations))db.participations=[];
+  if(!Array.isArray(db.behaviorGrades))db.behaviorGrades=[];
+  if(!Array.isArray(db.uniformGrades))db.uniformGrades=[];
+  if(!Array.isArray(db.notebookGrades))db.notebookGrades=[];
+  if(!Array.isArray(db.folderGrades))db.folderGrades=[];
+  if(!Array.isArray(db.examGrades))db.examGrades=[];
+  if(!Array.isArray(db.projectGrades))db.projectGrades=[];
+  if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7};
+}
+function classLevel(n){n=Number(n);return n>=18?'AD':n>=15?'A':n>=11?'B':'C'}
+function escClass(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function todayLocal30(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function classRecordById(id){ensureClassData();return db.classRecords.find(x=>String(x.id)===String(id))}
+function classEvalRecord(classId,u){ensureClassData();return db.classEvaluations.find(x=>String(x.classId)===String(classId)&&x.user===u)}
+function avgNums(a){const x=a.map(Number).filter(Number.isFinite);return x.length?x.reduce((s,n)=>s+n,0)/x.length:null}
+function componentAvg(arr,u){
+  const vals=(arr||[]).filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="").map(x=>Number(x.grade));
+  return avgNums(vals);
+}
+function classAvg(u){return componentAvg(db.classEvaluations,u)}
+function activitiesAvg(u){return componentAvg(db.activitiesGrades,u)}
+function participationAvg(u){return componentAvg(db.participations,u)}
+function behaviorAvg(u){return componentAvg(db.behaviorGrades,u)}
+function uniformAvg(u){return componentAvg(db.uniformGrades,u)}
+function notebookAvg(u){return componentAvg(db.notebookGrades,u)}
+function folderAvg(u){return componentAvg(db.folderGrades,u)}
+function examAvg(u){return componentAvg(db.examGrades,u)}
+function projectAvg(u){
+  const p=(db.projectGrades||[]).filter(x=>x.user===u);
+  const vals=[];
+  ['portfolio','product','exposition'].forEach(k=>{
+    const x=p.filter(r=>r[k]!==null&&r[k]!==undefined&&r[k]!=="").map(r=>Number(r[k]));
+    const av=avgNums(x); if(av!==null) vals.push(av);
+  });
+  return avgNums(vals);
+}
+function processAvg(u){
+  return avgNums([classAvg(u),activitiesAvg(u),participationAvg(u),behaviorAvg(u),uniformAvg(u),notebookAvg(u),folderAvg(u),examAvg(u)].filter(x=>x!==null));
+}
+function finalGrade(u){
+  const p=projectAvg(u), pr=processAvg(u);
+  if(p===null&&pr===null)return null;
+  return (p===null?0:p*.70)+(pr===null?0:pr*.30);
+}
+function evaluationDetail(u){
+  const p=projectAvg(u), pr=processAvg(u), f=finalGrade(u);
+  return {project:p,process:pr,final:f,level:f===null?'—':classLevel(f)};
+}
+function saveAndRenderEval(){save();render()}
+
+function registroClase(){
+  if(me.role!=='teacher')return `<div class="card"><h2>📝 Registro de clase</h2><p class="muted">Solo para el docente.</p></div>`;
+  ensureClassData();
+  const recs=db.classRecords.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.createdAt||0)-Number(a.createdAt||0));
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h2>📝 Registro de clase</h2><p class="muted">Cada fecha es un registro independiente y se acumula para el promedio del estudiante.</p></div>
+      <button onclick="newClassRecord30()">＋ Nueva clase</button>
+    </div>
+    ${recs.length?`
+      <label>Selecciona una clase</label>
+      <select id="ceClass30" onchange="renderClass30()">
+        ${recs.map((r,i)=>`<option value="${escClass(r.id)}" ${i?'':'selected'}>${escClass(r.date)} — ${escClass(r.title)} — ${escClass(r.grade)} ${escClass(r.section)}</option>`).join('')}
+      </select>
+      <div class="card" style="margin-top:15px;background:#f8fafc" id="ceInfo30"></div>
+      <div class="grid3" style="margin-top:12px">
+        <div><label>Grado</label><select id="ceGrade30" onchange="renderClass30()"><option>Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+        <div><label>Sección</label><select id="ceSec30" onchange="renderClass30()"><option>Todas</option><option>A</option><option>B</option></select></div>
+        <div><label>Buscar estudiante</label><input id="ceSearch30" oninput="renderClass30()" placeholder="Nombre"></div>
+      </div>
+      <div id="ceTable30" style="margin-top:18px"></div>
+      <div class="actions" style="margin-top:15px"><button onclick="saveClassEval30()">💾 Guardar evaluaciones</button><button class="secondary" onclick="editClassRecord30()">✏️ Editar clase</button></div>
+    `:`<div class="card" style="margin-top:15px"><p class="muted">Todavía no hay clases registradas.</p></div>`}
+  </div>`;
+}
+function newClassRecord30(){
+  modalBody.innerHTML=`<h2>＋ Nueva clase</h2>
+  <label>Fecha</label><input id="crDate30" type="date" value="${todayLocal30()}">
+  <label>Título de la sesión</label><input id="crTitle30" placeholder="Ej.: Diseño Pensativo">
+  <label>Propósito de aprendizaje</label><textarea id="crPurpose30" rows="3"></textarea>
+  <label>Criterios de evaluación</label><textarea id="crCriteria30" rows="3"></textarea>
+  <div class="grid3">
+    <div><label>Grado</label><select id="crGrade30"><option value="">Seleccionar</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div><label>Sección</label><select id="crSec30"><option value="">Seleccionar</option><option>A</option><option>B</option></select></div>
+    <div><label>Actividad vinculada (opcional)</label><select id="crAct30"><option value="">Ninguna</option>${(db.activities||[]).map(a=>`<option value="${escClass(a.id)}">${escClass(a.title)}</option>`).join('')}</select></div>
+  </div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveClassRecord30()">Guardar clase</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveClassRecord30(){
+  const date=document.getElementById('crDate30')?.value,title=document.getElementById('crTitle30')?.value.trim(),purpose=document.getElementById('crPurpose30')?.value.trim(),criteria=document.getElementById('crCriteria30')?.value.trim(),grade=document.getElementById('crGrade30')?.value,section=document.getElementById('crSec30')?.value,activity=document.getElementById('crAct30')?.value||'';
+  if(!date||!title||!grade||!section){alert('Completa fecha, título, grado y sección.');return}
+  ensureClassData();
+  db.classRecords.push({id:'class_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date,title,purpose,criteria,grade,section,activity,createdAt:Date.now()});
+  save();closeModal();render();
+}
+function editClassRecord30(){
+  const id=document.getElementById('ceClass30')?.value,r=classRecordById(id);if(!r)return;
+  modalBody.innerHTML=`<h2>✏️ Editar clase</h2>
+    <label>Fecha</label><input id="crDate30" type="date" value="${escClass(r.date)}">
+    <label>Título de la sesión</label><input id="crTitle30" value="${escClass(r.title)}">
+    <label>Propósito de aprendizaje</label><textarea id="crPurpose30" rows="3">${escClass(r.purpose||'')}</textarea>
+    <label>Criterios de evaluación</label><textarea id="crCriteria30" rows="3">${escClass(r.criteria||'')}</textarea>
+    <div class="grid3"><div><label>Grado</label><select id="crGrade30">${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${r.grade===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div><label>Sección</label><select id="crSec30"><option ${r.section==='A'?'selected':''}>A</option><option ${r.section==='B'?'selected':''}>B</option></select></div></div>
+    <div class="actions" style="margin-top:15px"><button onclick="updateClassRecord30('${escClass(r.id)}')">Guardar cambios</button><button class="danger" onclick="deleteClassRecord30('${escClass(r.id)}')">Eliminar clase</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function updateClassRecord30(id){
+  const r=classRecordById(id);if(!r)return;
+  r.date=document.getElementById('crDate30').value;r.title=document.getElementById('crTitle30').value.trim();r.purpose=document.getElementById('crPurpose30').value.trim();r.criteria=document.getElementById('crCriteria30').value.trim();r.grade=document.getElementById('crGrade30').value;r.section=document.getElementById('crSec30').value;
+  save();closeModal();render();
+}
+function deleteClassRecord30(id){
+  if(!confirm('¿Eliminar esta clase y sus evaluaciones?'))return;
+  db.classRecords=db.classRecords.filter(x=>x.id!==id);
+  db.classEvaluations=(db.classEvaluations||[]).filter(x=>String(x.classId)!==String(id));
+  save();closeModal();render();
+}
+function renderClass30(){
+  const box=document.getElementById('ceTable30');if(!box)return;ensureClassData();
+  const rec=classRecordById(document.getElementById('ceClass30')?.value);if(!rec){box.innerHTML='';return}
+  const info=document.getElementById('ceInfo30');
+  if(info)info.innerHTML=`<div><b>📅 Fecha:</b> ${escClass(rec.date)}</div><div style="margin-top:6px"><b>📚 Sesión:</b> ${escClass(rec.title)}</div><div style="margin-top:6px"><b>🎯 Propósito:</b> ${escClass(rec.purpose||'—')}</div><div style="margin-top:6px"><b>📌 Criterios:</b> ${escClass(rec.criteria||'—')}</div><div style="margin-top:6px"><b>🎓 Aula:</b> ${escClass(rec.grade)} ${escClass(rec.section)}</div>`;
+  const g=document.getElementById('ceGrade30').value,s=document.getElementById('ceSec30').value,q=(document.getElementById('ceSearch30').value||'').toLowerCase();
+  if(g==='Todos'&&s==='Todas'){document.getElementById('ceGrade30').value=rec.grade;document.getElementById('ceSec30').value=rec.section}
+  const fg=document.getElementById('ceGrade30').value,fs=document.getElementById('ceSec30').value;
+  const arr=(db.users||[]).filter(u=>u.role==='student'&&(fg==='Todos'||u.grade===fg)&&(fs==='Todas'||u.section===fs)&&(u.name||'').toLowerCase().includes(q));
+  box.innerHTML=`<div style="overflow:auto"><table><tr><th>N.º</th><th>Estudiante</th><th>Desempeño</th><th>Nota 0–20</th><th>Nivel</th></tr>
+    ${arr.map((u,i)=>{const r=classEvalRecord(rec.id,u.u)||{},n=r.grade??'';return `<tr><td>${i+1}</td><td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td><select class="ceStatus30" data-user="${escClass(u.u)}"><option value="" ${!r.status?'selected':''}>—</option><option value="HIZO" ${r.status==='HIZO'?'selected':''}>✅ HIZO</option><option value="A MEDIAS" ${r.status==='A MEDIAS'?'selected':''}>⚠️ A MEDIAS</option><option value="NO HIZO" ${r.status==='NO HIZO'?'selected':''}>❌ NO HIZO</option></select></td>
+      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px"></td>
+      <td class="ceLevel30" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td></tr>`}).join('')||'<tr><td colspan="5">No hay estudiantes.</td></tr>'}</table></div>`;
+  box.querySelectorAll('.ceGrade30').forEach(e=>e.oninput=()=>{const o=box.querySelector(`.ceLevel30[data-user="${CSS.escape(e.dataset.user)}"]`);if(o)o.textContent=e.value===''?'—':classLevel(e.value)});
+}
+function saveClassEval30(){
+  ensureClassData();const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);if(!rec){alert('Primero crea una clase.');return}
+  const ss=[...document.querySelectorAll('.ceStatus30')],gs=[...document.querySelectorAll('.ceGrade30')];let n=0;
+  ss.forEach(e=>{const u=e.dataset.user,st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
+    if(!st&&raw===''){if(r)db.classEvaluations=db.classEvaluations.filter(x=>x!==r);return}
+    const grade=raw===''?null:Math.max(0,Math.min(20,Number(raw)));
+    if(!r)db.classEvaluations.push({id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user:u,status:st,grade,date:rec.date,title:rec.title,gradeClass:rec.grade,section:rec.section});
+    else{r.status=st;r.grade=grade}
+    n++;
+  });
+  save();alert(`✅ Evaluación guardada. Registros de esta clase: ${n}`);renderClass30();
+}
+
+/* ===== ACTIVIDADES / PARTICIPACIÓN / CONDUCTA / UNIFORME / CUADERNO / FOLDER ===== */
+function simpleComponentPanel(title,emoji,key,arrName){
+  ensureClassData();
+  const arr=(db[arrName]||[]);
+  const students=(db.users||[]).filter(u=>u.role==='student');
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>${emoji} ${title}</h2><p class="muted">Cada registro queda acumulado y se promedia automáticamente.</p></div><button onclick="newComponentRecord('${key}','${arrName}','${escClass(title)}')">＋ Nuevo registro</button></div>
+    <div class="list" style="margin-top:15px">${arr.slice().reverse().map((r,i)=>`<div class="item"><div><b>${escClass(r.title||title)}</b><div class="muted">${escClass(r.date||'')} · ${escClass(r.grade||'')} ${escClass(r.section||'')}</div></div><button onclick="openComponentRecord('${key}','${arrName}','${escClass(r.id)}')">Evaluar</button></div>`).join('')||`<div class="item"><b>No hay registros todavía.</b></div>`}</div>
+  </div>`;
+}
+function newComponentRecord(key,arrName,title){
+  const today=todayLocal30();
+  modalBody.innerHTML=`<h2>＋ Nuevo registro: ${escClass(title)}</h2><label>Fecha</label><input id="cmpDate" type="date" value="${today}"><label>Título / actividad</label><input id="cmpTitle" value="${escClass(title)}"><div class="grid3"><div><label>Grado</label><select id="cmpGrade"><option>Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div><div><label>Sección</label><select id="cmpSec"><option>Todas</option><option>A</option><option>B</option></select></div></div><div class="actions"><button onclick="saveComponentRecord('${key}','${arrName}')">Crear</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveComponentRecord(key,arrName){
+  ensureClassData();const r={id:'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),date:document.getElementById('cmpDate').value,title:document.getElementById('cmpTitle').value.trim(),grade:document.getElementById('cmpGrade').value,section:document.getElementById('cmpSec').value};
+  if(!r.title){alert('Escribe un título.');return}db[arrName].push(r);save();closeModal();render();
+}
+function openComponentRecord(key,arrName,id){
+  ensureClassData();const rec=db[arrName].find(x=>x.id===id);if(!rec)return;
+  const students=(db.users||[]).filter(u=>u.role==='student'&&(rec.grade==='Todos'||!rec.grade||u.grade===rec.grade)&&(rec.section==='Todas'||!rec.section||u.section===rec.section));
+  const arr=db[arrName]; const valueFor=u=>{const x=arr.find(x=>x.recordId===id&&x.user===u);return x?.grade??''};
+  const box=`<h2>${escClass(rec.title)}</h2><p class="muted">${escClass(rec.date)} · ${escClass(rec.grade)} ${escClass(rec.section)}</p>
+  <div style="overflow:auto"><table><tr><th>Estudiante</th><th>Nota 0–20</th><th>Nivel</th></tr>${students.map(u=>{const n=valueFor(u.u);return `<tr><td>${escClass(u.name)}</td><td><input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px"></td><td class="cmpLevel" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td></tr>`}).join('')}</table></div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveComponentGrades('${key}','${arrName}','${escClass(id)}')">💾 Guardar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+  modalBody.innerHTML=box;modal.classList.remove('hidden');
+  modalBody.querySelectorAll('.cmpGrade').forEach(e=>e.oninput=()=>{const o=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(e.dataset.user)}"]`);if(o)o.textContent=e.value===''?'—':classLevel(e.value)});
+}
+function saveComponentGrades(key,arrName,recordId){
+  ensureClassData();const arr=db[arrName];document.querySelectorAll('.cmpGrade').forEach(e=>{
+    const user=e.dataset.user,val=e.value;
+    let x=arr.find(x=>x.recordId===recordId&&x.user===user);
+    if(val===''){if(x)db[arrName]=arr.filter(y=>y!==x);return}
+    if(!x){x={id:'score_'+Date.now()+'_'+Math.random(),recordId,user,grade:Number(val)};db[arrName].push(x)}else x.grade=Math.max(0,Math.min(20,Number(val)));
+  });save();closeModal();render();
+}
+function activitiesGrades(){return simpleComponentPanel('Desarrollo de actividades','💻','activities','activitiesGrades')}
+function participations(){return simpleComponentPanel('Participación','🙋','participation','participations')}
+function behavior(){return simpleComponentPanel('Conducta','🧑‍🏫','behavior','behaviorGrades')}
+function uniform(){return simpleComponentPanel('Uniforme','👕','uniform','uniformGrades')}
+function notebook(){return simpleComponentPanel('Cuaderno','📓','notebook','notebookGrades')}
+function folder(){return simpleComponentPanel('Folder','📁','folder','folderGrades')}
+function exam(){return simpleComponentPanel('Examen / Fichas','📋','exam','examGrades')}
+
+/* ===== PROYECTO 70%: PORTAFOLIO + PRODUCTO + EXPOSICIÓN ===== */
+function project(){
+  if(me.role!=='teacher')return `<div class="card"><h2>🚀 Proyecto</h2><p class="muted">Solo para el docente.</p></div>`;
+  ensureClassData();
+  const students=(db.users||[]).filter(u=>u.role==='student');
+  return `<div class="card"><h2>🚀 Proyecto — 70 %</h2><p class="muted">La nota del proyecto es el promedio de tres rúbricas: Portafolio, Producto y Exposición.</p>
+    <div class="actions"><button onclick="openProjectEvaluation()">📝 Evaluar proyecto</button></div>
+    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Portafolio</th><th>Producto</th><th>Exposición</th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
+    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${p.portfolio??'—'}</td><td>${p.product??'—'}</td><td>${p.exposition??'—'}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')}</table></div></div>`;
+}
+function projectRecord(u){
+  ensureClassData();const r=db.projectGrades.filter(x=>x.user===u);return {portfolio:avgNums(r.map(x=>x.portfolio).filter(x=>x!==''&&x!=null).map(Number)),product:avgNums(r.map(x=>x.product).filter(x=>x!==''&&x!=null).map(Number)),exposition:avgNums(r.map(x=>x.exposition).filter(x=>x!==''&&x!=null).map(Number))};
+}
+function openProjectEvaluation(){
+  const students=(db.users||[]).filter(u=>u.role==='student');
+  modalBody.innerHTML=`<h2>🚀 Evaluación del proyecto — 70 %</h2><p class="muted">Cada rúbrica se registra de 0 a 20. El sistema obtiene automáticamente el promedio de las tres.</p>
+  <div style="overflow:auto"><table><tr><th>Estudiante</th><th>Portafolio</th><th>Producto</th><th>Exposición</th><th>Nota proyecto</th></tr>${students.map(u=>{const p=projectRecord(u.u);return `<tr><td>${escClass(u.name)}</td><td><input class="prj" data-user="${escClass(u.u)}" data-k="portfolio" type="number" min="0" max="20" value="${p.portfolio??''}"></td><td><input class="prj" data-user="${escClass(u.u)}" data-k="product" type="number" min="0" max="20" value="${p.product??''}"></td><td><input class="prj" data-user="${escClass(u.u)}" data-k="exposition" type="number" min="0" max="20" value="${p.exposition??''}"></td><td class="prjAvg" data-user="${escClass(u.u)}">—</td></tr>`}).join('')}</table></div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveProjectGrades()">💾 Guardar proyecto</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');updateProjectLive();
+  modalBody.querySelectorAll('.prj').forEach(e=>e.oninput=updateProjectLive);
+}
+function updateProjectLive(){
+  modalBody.querySelectorAll('.prjAvg').forEach(cell=>{
+    const u=cell.dataset.user;const vals=[...modalBody.querySelectorAll(`.prj[data-user="${CSS.escape(u)}"]`)].map(x=>x.value).filter(x=>x!=='').map(Number);const av=avgNums(vals);cell.textContent=av===null?'—':av.toFixed(2);
+  });
+}
+function saveProjectGrades(){
+  ensureClassData();const by={};
+  document.querySelectorAll('.prj').forEach(e=>{by[e.dataset.user]=by[e.dataset.user]||{};by[e.dataset.user][e.dataset.k]=e.value===''?'':Math.max(0,Math.min(20,Number(e.value)))});
+  Object.entries(by).forEach(([user,v])=>{
+    db.projectGrades=db.projectGrades.filter(x=>x.user!==user);
+    if(Object.values(v).some(x=>x!==''))db.projectGrades.push({id:'prj_'+Date.now()+'_'+Math.random(),user,portfolio:v.portfolio,product:v.product,exposition:v.exposition});
+  });
+  save();closeModal();render();
+}
+
+/* ===== CONFIGURACIÓN DE PESOS ===== */
+function evaluationConfig(){
+  ensureClassData();const w=db.evaluationWeights;
+  return `<div class="card"><h2>⚙️ Configuración de evaluación</h2>
+  <p class="muted">Distribución acordada: Proyecto 70 % y Proceso 30 %.</p>
+  <h3>🚀 Proyecto — 70 %</h3><div class="item"><div><b>Portafolio + Producto + Exposición</b><div class="muted">Las tres rúbricas se promedian para obtener la nota del proyecto.</div></div><span class="badge">70 %</span></div>
+  <h3 style="margin-top:18px">📚 Proceso — 30 %</h3><table><tr><th>Componente</th><th>Peso final</th></tr>
+  <tr><td>📝 Registro de clase</td><td>${w.class}%</td></tr><tr><td>💻 Desarrollo de actividades</td><td>${w.activities}%</td></tr><tr><td>🙋 Participación</td><td>${w.participation}%</td></tr><tr><td>🧑‍🏫 Conducta</td><td>${w.behavior}%</td></tr><tr><td>👕 Uniforme</td><td>${w.uniform}%</td></tr><tr><td>📓 Cuaderno</td><td>${w.notebook}%</td></tr><tr><td>📁 Folder</td><td>${w.folder}%</td></tr><tr><td>📋 Examen / Fichas</td><td>${w.exam}%</td></tr></table>
+  <p><b>Total proceso: 30 %</b></p><p class="muted">Examen / Fichas tiene un peso de <b>7 %</b> y permite registrar varias evaluaciones, cuyo promedio se incorpora al proceso.</p></div>`;
+}
+
+/* ===== GRUPOS: SOLO MISMO GRADO Y SECCIÓN ===== */
+function groups(){
+  if(me.role!=='teacher')return `<div class="card"><h2>👥 Grupos</h2><p class="muted">Solo para el docente.</p></div>`;
+  ensureClassData();
+  return `<div class="card"><h2>👥 Grupos de trabajo</h2><p class="muted"><b>El sorteo nunca mezcla grados ni secciones.</b> Primero selecciona el aula.</p>
+  <div class="grid3"><div><label>Grado</label><select id="gpGrade30"><option value="">Seleccionar</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+  <div><label>Sección</label><select id="gpSec30"><option value="">Seleccionar</option><option>A</option><option>B</option></select></div>
+  <div><label>Número de grupos</label><input id="gpCount30" type="number" min="1" max="20" value="4"></div></div>
+  <div class="actions" style="margin-top:12px"><button onclick="randomGroups30()">🎲 Sortear este grado/sección</button><button class="secondary" onclick="emptyGroups30()">＋ Crear grupos vacíos</button></div></div>
+  <div style="margin-top:18px">${renderGroups30()}</div>`;
+}
+function renderGroups30(){
+  ensureClassData();if(!db.groups.length)return `<div class="card"><p class="muted">Todavía no hay grupos.</p></div>`;
+  return `<div class="grid3">${db.groups.map((g,i)=>{
+    const ms=(g.members||[]).map(x=>db.users.find(u=>u.u===x)).filter(Boolean);
+    const classRecs=db.classRecords.filter(r=>r.grade===g.grade&&r.section===g.section);
+    const total=ms.length*classRecs.length;
+    const done=ms.reduce((z,u)=>z+classRecs.filter(r=>{const ev=classEvalRecord(r.id,u.u);return ev&&ev.status&&ev.status!=='NO HIZO'}).length,0);
+    const prog=total?Math.round(done/total*100):0;
+    const grades=ms.flatMap(u=>db.classEvaluations.filter(r=>r.user===u.u&&r.grade!=null&&classRecs.some(c=>c.id===r.classId)).map(r=>Number(r.grade)));
+    const avg=grades.length?(grades.reduce((a,b)=>a+b,0)/grades.length).toFixed(1):'—';
+    return `<div class="card"><div style="display:flex;justify-content:space-between"><div><h3>${escClass(g.name||'Grupo '+(i+1))}</h3><div class="muted">${escClass(g.grade)} — ${escClass(g.section)}</div></div><button class="small secondary" onclick="renameGroup30('${escClass(g.id)}')">✏️</button></div>
+    <p><span class="badge">${ms.length} estudiantes</span> <span class="badge">Avance ${prog}%</span> <span class="badge">Promedio ${avg}</span></p>
+    <div style="height:10px;background:#e2e8f0;border-radius:9px"><div style="height:100%;width:${prog}%;background:#2563eb;border-radius:9px"></div></div>
+    <div class="list" style="margin-top:12px">${ms.map(u=>`<div class="item" style="padding:8px"><div><b>${escClass(u.name)}</b></div><select onchange="moveGroup30('${escClass(g.id)}','${escClass(u.u)}',this.value)" style="max-width:110px"><option value="">Mover…</option>${db.groups.filter(z=>z.id!==g.id&&z.grade===g.grade&&z.section===g.section).map(z=>`<option value="${escClass(z.id)}">${escClass(z.name)}</option>`).join('')}</select></div>`).join('')||'<p class="muted">Sin estudiantes.</p>'}</div>
+    <div class="actions" style="margin-top:10px"><button class="small" onclick="addGroupMember30('${escClass(g.id)}')">＋ Agregar</button><button class="small danger" onclick="deleteGroup30('${escClass(g.id)}')">Eliminar</button></div></div>`;
+  }).join('')}</div>`;
+}
+function randomGroups30(){
+  ensureClassData();const g=document.getElementById('gpGrade30')?.value,s=document.getElementById('gpSec30')?.value,n=Math.max(1,Math.min(20,Number(document.getElementById('gpCount30')?.value)||4));
+  if(!g||!s){alert('Selecciona primero grado y sección.');return}
+  const a=db.users.filter(u=>u.role==='student'&&u.grade===g&&u.section===s);
+  if(!a.length){alert(`No hay estudiantes registrados en ${g} ${s}.`);return}
+  db.groups=db.groups.filter(x=>!(x.grade===g&&x.section===s));
+  const ng=Math.min(n,a.length);const grupos=Array.from({length:ng},(_,i)=>({id:'grp_'+Date.now()+'_'+i,name:'Grupo '+(i+1),grade:g,section:s,members:[]}));
+  a.sort(()=>Math.random()-.5).forEach((u,i)=>grupos[i%grupos.length].members.push(u.u));db.groups.push(...grupos);save();render();
+}
+function emptyGroups30(){
+  ensureClassData();const g=document.getElementById('gpGrade30')?.value,s=document.getElementById('gpSec30')?.value,n=Math.max(1,Math.min(20,Number(document.getElementById('gpCount30')?.value)||4));
+  if(!g||!s){alert('Selecciona primero grado y sección.');return}
+  db.groups=db.groups.filter(x=>!(x.grade===g&&x.section===s));db.groups.push(...Array.from({length:n},(_,i)=>({id:'grp_'+Date.now()+'_'+i,name:'Grupo '+(i+1),grade:g,section:s,members:[]})));save();render();
+}
+function renameGroup30(id){const g=db.groups.find(x=>x.id===id);if(!g)return;const n=prompt('Nombre del grupo:',g.name);if(n){g.name=n.trim();save();render()}}
+function deleteGroup30(id){if(confirm('¿Eliminar este grupo?')){db.groups=db.groups.filter(x=>x.id!==id);save();render()}}
+function moveGroup30(from,u,to){if(!to)return;const a=db.groups.find(x=>x.id===from),b=db.groups.find(x=>x.id===to);if(!a||!b||a.grade!==b.grade||a.section!==b.section){alert('Solo puedes mover estudiantes dentro del mismo grado y sección.');return}a.members=(a.members||[]).filter(x=>x!==u);if(!b.members.includes(u))b.members.push(u);save();render()}
+function addGroupMember30(id){const g=db.groups.find(x=>x.id===id);if(!g)return;const used=new Set(db.groups.flatMap(x=>x.members||[])),a=db.users.filter(u=>u.role==='student'&&u.grade===g.grade&&u.section===g.section&&!used.has(u.u));if(!a.length){alert('No quedan estudiantes sin asignar en este grado y sección.');return}modalBody.innerHTML=`<h2>＋ Agregar estudiante</h2><p class="muted">Solo ${escClass(g.grade)} ${escClass(g.section)}.</p><select id="gm30">${a.map(u=>`<option value="${escClass(u.u)}">${escClass(u.name)}</option>`).join('')}</select><div class="actions"><button onclick="saveGroupMember30('${escClass(id)}')">Agregar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove('hidden')}
+function saveGroupMember30(id){const g=db.groups.find(x=>x.id===id),u=document.getElementById('gm30')?.value,stu=db.users.find(x=>x.u===u);if(!g||!stu)return;if(stu.grade!==g.grade||stu.section!==g.section){alert('El estudiante pertenece a otro grado/sección.');return}g.members=g.members||[];if(!g.members.includes(u))g.members.push(u);save();closeModal();render()}
+
+/* ===== PANEL GENERAL DE EVALUACIÓN ===== */
+function grades(){
+  if(me.role==='student'){
+    page='home';
+    buildNav();
+    return home();
+  }
+  ensureClassData();
+  const students=(db.users||[]).filter(u=>u.role==='student');
+  return `<div class="card"><h2>📊 Evaluación integral</h2><p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>.</p>
+    <div class="actions"><button onclick="go('project')">🚀 Proyecto 70 %</button><button onclick="go('registro')">📝 Registro de clase</button><button onclick="go('activitiesGrades')">💻 Actividades</button><button onclick="go('participations')">🙋 Participación</button><button onclick="go('behavior')">🧑‍🏫 Conducta</button><button onclick="go('uniform')">👕 Uniforme</button><button onclick="go('notebook')">📓 Cuaderno</button><button onclick="go('folder')">📁 Folder</button><button onclick="go('exam')">📋 Examen/Fichas</button><button class="secondary" onclick="go('evalConfig')">⚙️ Pesos</button></div>
+    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Proyecto 70%</th><th>Proceso 30%</th><th>Final</th><th>Nivel</th></tr>
+    ${students.map(u=>{const d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${d.project===null?'—':d.project.toFixed(2)}</td><td>${d.process===null?'—':d.process.toFixed(2)}</td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')}</table></div></div>`;
+}
+
+/* Mantener grupos/registro accesibles aunque el menú se construya después. */
+
+function buildNav(){
+  if(me.role==='teacher'){
+    const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades']];
+    const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
+    const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
+    const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
+    nav.innerHTML=top.map(b).join('')+`<div class="nav-group-title">📊 EVALUACIÓN</div>`+b(['grades','📊','Evaluación final'])+`<button class="nav-group-toggle" onclick="toggleEvalMenu()">🧮 <span>Proceso 30 %</span></button>`+`<div id="evalMenu" class="nav-sub" style="display:${['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam'].includes(page)?'block':'none'}">${process.map(b).join('')}</div>`+b(['project','🚀','Proyecto 70 %'])+extra.map(b).join('');
+  }else{
+    const arr=[['home','🏠','Inicio'],['courses','📚','Mis cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📤','Mis entregas'],['chat','💬','Mensajes'],['announcements','📢','Avisos']];
+    nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join('');
+  }
+}
+function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function render(){
+  if(me.role==='student' && ['groups','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades'].includes(page)) page='home';
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',courses:me.role==='teacher'?'Cursos':'Mis cursos',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos'};pageTitle.textContent=titles[page]||'Aula Virtual';pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';const fn={home,students,groups,courses,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig}[page];content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);if(page==='registro')setTimeout(renderClass30,0)}
+ensureClassData();
 
 </script>
 
