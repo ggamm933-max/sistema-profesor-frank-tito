@@ -732,41 +732,88 @@ function sessionLabel9(id){
  return `${u?`Unidad ${u.number}: `:""}Sesión ${x.number}: ${x.title}`;
 }
 function addActivity9(editId){
+ window.__editingActivity9Id=editId||null;
  const a=editId?(db.activities||[]).find(x=>x.id===editId):null;
  const sessions=db.sessions||[];
- const gradeOptions=["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option ${a&&a.grade===x?"selected":""}>${x}</option>`).join("");
+ const gradeOptions=["1.º","2.º","3.º","4.º","5.º"].map(x=>`<option value="${x}" ${a&&a.grade===x?"selected":""}>${x}</option>`).join("");
+ const oldMode=a?(a.grade==="Todos"?"all":(a.section&&a.section!=="Todas"?"section":"grade")):"grade";
  modalBody.innerHTML=`<h2>${a?"✏️ Editar actividad":"📝 Nueva actividad"}</h2>
  <label>Título</label><input id="a9t" value="${a?(a.title||"").replace(/"/g,'&quot;'):""}" placeholder="Ej.: Elaboramos nuestra propuesta de valor">
  <label>Instrucciones</label><textarea id="a9d">${a?a.description||"":""}</textarea>
  <label>Sesión relacionada</label>
  <select id="a9session"><option value="">Sin sesión</option>${sessions.map(x=>`<option value="${x.id}" ${a&&String(a.session)===String(x.id)?"selected":""}>${sessionLabel9(x.id)}</option>`).join("")}</select>
  <label>Fecha de entrega</label><input id="a9f" type="date" value="${a?a.due||"":""}">
- <label>Grado <b style="color:#b91c1c">*</b></label>
- <select id="a9g"><option value="">Selecciona el grado</option>${gradeOptions}</select>
- <label>Sección <b style="color:#b91c1c">*</b></label>
- <select id="a9s"><option value="">Selecciona la sección</option>
- <option value="A" ${a&&a.section==="A"?"selected":""}>A</option>
- <option value="B" ${a&&a.section==="B"?"selected":""}>B</option></select>
- <p class="muted" style="font-size:12px">La actividad quedará visible únicamente para el grado y sección seleccionados.</p>
+ <label>¿A quién se asigna?</label>
+ <select id="a9target" onchange="updateActivityTarget9()">
+   <option value="all" ${oldMode==="all"?"selected":""}>🌎 Todos los estudiantes</option>
+   <option value="grade" ${oldMode==="grade"?"selected":""}>🎓 Un grado completo (A y B)</option>
+   <option value="section" ${oldMode==="section"?"selected":""}>🏫 Un grado y sección</option>
+ </select>
+ <div id="a9targetFields"></div>
+ <p class="muted" style="font-size:12px">Puedes dejar una actividad para todo el colegio, para un grado completo o para un salón específico.</p>
  <div class="actions" style="margin-top:15px"><button onclick="saveActivity9(${editId||"null"})">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
  modal.classList.remove("hidden");
+ updateActivityTarget9();
+}
+function updateActivityTarget9(){
+ const mode=document.getElementById("a9target")?.value||"grade";
+ const a=window.__editingActivity9Id?(db.activities||[]).find(x=>x.id===window.__editingActivity9Id):null;
+ const currentGrade=a?.grade||"";
+ const currentSection=a?.section||"";
+ const grades=["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option value="${g}" ${currentGrade===g?"selected":""}>${g}</option>`).join("");
+ const sections=["A","B"].map(x=>`<option value="${x}" ${currentSection===x?"selected":""}>${x}</option>`).join("");
+ const box=document.getElementById("a9targetFields"); if(!box)return;
+ if(mode==="all") box.innerHTML=`<div class="item" style="margin-top:10px"><b>🌎 Todos los estudiantes</b><div class="muted">La actividad aparecerá a todos los estudiantes registrados.</div></div>`;
+ else if(mode==="grade") box.innerHTML=`<label>Grado</label><select id="a9g"><option value="">Selecciona el grado</option>${grades}</select><div class="muted" style="font-size:12px;margin-top:5px">Se mostrará a todos los estudiantes de ese grado, tanto A como B.</div>`;
+ else box.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><label>Grado</label><select id="a9g"><option value="">Selecciona el grado</option>${grades}</select></div><div style="flex:1;min-width:120px"><label>Sección</label><select id="a9s"><option value="">Selecciona la sección</option>${sections}</select></div></div>`;
 }
 function saveActivity9(id){
  if(!db.activities)db.activities=[];
  const title=document.getElementById("a9t").value.trim();
- const grade=document.getElementById("a9g").value;
- const section=document.getElementById("a9s").value;
+ const mode=document.getElementById("a9target")?.value||"grade";
+ let grade="Todos",section="Todas";
+ if(mode!=="all"){
+   grade=document.getElementById("a9g")?.value||"";
+   if(!grade){alert("Selecciona el grado al que pertenece la actividad.");return}
+   if(mode==="section"){
+     section=document.getElementById("a9s")?.value||"";
+     if(section!=="A" && section!=="B"){alert("Selecciona la sección A o B.");return}
+   }
+ }
  if(!title){alert("Escribe el título.");return}
- if(!grade){alert("Selecciona el grado al que pertenece la actividad.");return}
- if(section!=="A" && section!=="B"){alert("Selecciona la sección A o B.");return}
  const sessionVal=document.getElementById("a9session").value;
  const ses=sessionVal?(db.sessions||[]).find(x=>String(x.id)===String(sessionVal)):null;
  const data={title,description:document.getElementById("a9d").value.trim(),due:document.getElementById("a9f").value,grade,section,session:ses?ses.id:null,unit:ses?ses.unit:null};
- if(id){const a=db.activities.find(x=>x.id===id);Object.assign(a,data)}
+ if(id){const a=db.activities.find(x=>x.id===id);if(a)Object.assign(a,data)}
  else db.activities.push({id:Date.now()+Math.random(),...data});
+ window.__editingActivity9Id=null;
  save();closeModal();render();
 }
 function editActivity9(id){addActivity9(id)}
+function activityMatchesStudent(a){
+ const g=String(me?.grade||"");
+ const sec=String(me?.section||"");
+ const ag=String(a?.grade||"Todos");
+ const as=String(a?.section||"Todas");
+ if(ag!=="Todos" && ag!==g) return false;
+ if(as!=="Todas" && as!==sec) return false;
+ return true;
+}
+function openActivity9(id){
+ const a=(db.activities||[]).find(x=>String(x.id)===String(id));
+ if(!a)return;
+ const sub=(db.submissions||[]).find(x=>String(x.activity)===String(id)&&x.user===me.u);
+ const due=a.due?`<p class="muted">📅 Fecha de entrega: <b>${a.due}</b></p>`:"";
+ modalBody.innerHTML=`<h2>📝 ${a.title}</h2>
+ <div class="item" style="margin:10px 0"><b>Instrucciones</b><p style="white-space:pre-wrap">${a.description||"Sin instrucciones adicionales."}</p>${due}<div class="muted">${a.grade&&a.grade!=="Todos"?`🎓 ${a.grade}`:"🌎 Todos los estudiantes"}${a.section&&a.section!=="Todas"?` · Sección ${a.section}`:""}</div></div>
+ <label>✍️ Tu respuesta</label>
+ <textarea id="subText9" rows="6" placeholder="Escribe aquí el desarrollo de tu actividad...">${sub?.text||""}</textarea>
+ <label style="margin-top:10px">📎 Adjuntar archivo (opcional)</label>
+ <input id="subFile9" type="file">
+ ${sub?`<div class="badge ok" style="margin-top:10px">${sub.grade!=null?`Calificada: ${sub.grade}/20`:`Entrega enviada · ${sub.fileName||"sin archivo"}`}</div>`:""}
+ <div class="actions" style="margin-top:15px"><button onclick="saveSubmission9(${id})">${sub?"Actualizar entrega":"Enviar actividad"}</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+ modal.classList.remove("hidden");
+}
 function activities(){
  if(!db.activities)db.activities=[];
  const arr=me.role==="teacher"?db.activities:db.activities.filter(activityMatchesStudent);
