@@ -757,13 +757,32 @@ function sendChat22(to){
 /* ===== GESTIÓN DE ESTUDIANTES v2.3 ===== */
 function students(){
  if(!db.users)db.users=[];
- const list=db.users.filter(u=>u.role==="student");
  const grades=["1.º","2.º","3.º","4.º","5.º"];
  return `<div class="card" style="margin-bottom:18px">
    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-    <div><h2>👥 Estudiantes</h2><p class="muted">Administra estudiantes, grados, secciones y accesos.</p></div>
+    <div><h2>👥 Lista de estudiantes</h2><p class="muted">Administra estudiantes, grados, secciones y accesos.</p></div>
     <button onclick="addStudent23()">＋ Agregar estudiante</button>
    </div>
+ </div>
+ <div class="card" style="margin-bottom:15px">
+   <div class="item" style="margin-bottom:12px;background:#f8fafc">
+    <div><b>🎓 Grado y sección:</b><div class="muted" style="font-size:12px">Selecciona aquí una sola vez. Esta selección se usará para pegar o agregar estudiantes.</div></div>
+   </div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div><label>Grado</label><select id="pasteStudentGrade23"><option>1.º</option><option>2.º</option><option>3.º</option><option>4.º</option><option>5.º</option></select></div>
+    <div><label>Sección</label><select id="pasteStudentSection23"><option>A</option><option>B</option></select></div>
+   </div>
+   <textarea id="studentsPaste23" rows="9" style="margin-top:10px" placeholder="Pega aquí los estudiantes copiados desde Excel, uno por fila...
+Ejemplo:
+APELLIDO PATERNO, APELLIDO MATERNO, NOMBRE
+APELLIDO PATERNO, APELLIDO MATERNO, NOMBRE"></textarea>
+   <div class="actions" style="margin-top:10px;flex-wrap:wrap">
+    <button onclick="clearStudentsPaste23()">🧹 Limpiar lista pegada</button>
+    <button onclick="updateStudentsFromPaste23()">📥 Actualizar lista de estudiantes</button>
+    <button class="secondary" onclick="clearStudentsPaste23(true)">🗑️ Vaciar lista</button>
+    <button class="secondary" onclick="addStudent23()">＋ Agregar estudiante uno por uno</button>
+   </div>
+   <p class="muted" style="font-size:12px;margin-top:8px">El grado y la sección seleccionados se aplican a todos los estudiantes pegados. Los estudiantes existentes no se mezclan entre salones.</p>
  </div>
  <div class="card" style="margin-bottom:15px">
    <label>🔎 Buscar</label><input id="studentSearch23" oninput="renderStudents23()" placeholder="Nombre o usuario">
@@ -773,6 +792,45 @@ function students(){
    <select id="studentSection23" onchange="renderStudents23()"><option>Todas</option><option>A</option><option>B</option></select>
  </div>
  <div id="studentsList23"></div>`;
+}
+function clearStudentsPaste23(clearAll=false){
+ const box=document.getElementById("studentsPaste23");
+ if(box)box.value="";
+ if(clearAll)alert("🗑️ Se vació solamente el cuadro de pegado. La lista de estudiantes guardada no se ha eliminado.");
+}
+function updateStudentsFromPaste23(){
+ const box=document.getElementById("studentsPaste23");
+ const grade=document.getElementById("pasteStudentGrade23")?.value||"";
+ const section=document.getElementById("pasteStudentSection23")?.value||"";
+ if(!box||!box.value.trim()){alert("Pega primero la lista de estudiantes copiada desde Excel.");return;}
+ if(!grade||!section){alert("Selecciona el grado y la sección.");return;}
+ if(!db.users)db.users=[];
+ const lines=box.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ let added=0,updated=0,skipped=0;
+ lines.forEach((line,index)=>{
+   let cols=line.split("\t").map(x=>x.trim());
+   const name=(cols[0]||"").trim();
+   const first=name.toLowerCase();
+   if(index===0 && (first.includes("nombre")||first.includes("apellidos")||first.includes("estudiante"))){skipped++;return;}
+   if(!name){skipped++;return;}
+   const username=cols[1]||makeUsernameFromName(name);
+   const found=db.users.find(u=>u.u===username && u.role==="student");
+   if(found){found.name=name;found.grade=grade;found.section=section;updated++;}
+   else if(db.users.some(u=>u.u===username)){
+      skipped++;
+   }else{
+      db.users.push({u:username,p:cols[2]||"1234",role:"student",name,grade,section});
+      added++;
+   }
+ });
+ save();
+ render();
+ setTimeout(()=>{
+   const g=document.getElementById("studentGrade23"); if(g)g.value=grade;
+   const s=document.getElementById("studentSection23"); if(s)s.value=section;
+   renderStudents23();
+ },50);
+ alert(`✅ Lista actualizada para ${grade} ${section}.\nNuevos: ${added} · Actualizados: ${updated}${skipped?` · Omitidos: ${skipped}`:""}`);
 }
 function renderStudents23(){
  const box=document.getElementById("studentsList23");if(!box)return;
