@@ -263,6 +263,12 @@ html,body{max-width:100%;overflow-x:hidden}
   /* Evita que controles largos desborden la pantalla */
   .card *{max-width:100%}
   .actions button{max-width:100%}
+  .nav{max-width:100%;box-sizing:border-box}
+  .nav button{font-size:11px!important;padding:7px 8px!important}
+  .main{overflow:hidden}
+  .modal-card{overflow-y:auto}
+  .modal-card .actions{display:flex;flex-wrap:wrap}
+  .modal-card .actions button{flex:1 1 140px}
   /* Selectores y bloques de filtro en una sola columna */
   .filter-row,.form-row,.toolbar{display:flex;flex-direction:column;gap:8px;max-width:100%}
 }
@@ -521,9 +527,33 @@ function materials(){
  return `<div class="section">${me.role==="teacher"?`<button onclick="addMaterial()">＋ Agregar material</button>`:""} </div>
  <div class="grid3">${db.materials.map(m=>`<div class="card"><div style="font-size:30px">${m.type==="Video"?"🎬":"📄"}</div><h3>${m.title}</h3><span class="badge">${m.type}</span><p class="muted">${m.desc}</p><button onclick="openMaterial(${m.id})">Abrir</button></div>`).join("")}</div>`;
 }
-function openMaterial(id){const m=db.materials.find(x=>x.id===id);modalBody.innerHTML=`<h2>${m.title}</h2><span class="badge">${m.type}</span><p>${m.desc}</p><p class="muted">En la versión conectada podrás asociar aquí un video, PDF o archivo real almacenado en la plataforma.</p><button onclick="closeModal()">Cerrar</button>`;modal.classList.remove("hidden")}
-function addMaterial(){modalBody.innerHTML=`<h2>Nuevo material</h2><label>Título</label><input id="mtitle"><label>Tipo</label><select id="mtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="mdesc"></textarea><div class="actions" style="margin-top:15px"><button onclick="saveMaterial()">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
-function saveMaterial(){db.materials.push({id:Date.now(),title:mtitle.value,type:mtype.value,course:"Educación para el Trabajo",desc:mdesc.value});save();closeModal();render()}
+function openMaterial(id){
+ const m=db.materials.find(x=>x.id===id); if(!m)return;
+ const rawUrl=String(m.url||m.link||m.youtube||"").trim();
+ const desc=String(m.desc||m.description||"");
+ const found=desc.match(/https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=[^\s]+|youtu\.be\/[^\s]+)/i);
+ const url=rawUrl|| (found?found[0].replace(/[),.;]+$/,"" ) : "");
+ modalBody.innerHTML=`<h2>${escClass(m.title||"Material")}</h2><span class="badge">${escClass(m.type||"Recurso")}</span><p>${escClass(desc)}</p>
+ ${url?`<div class="card" style="margin-top:14px"><b>🎬 Video / enlace</b><p class="muted">Haz clic para abrir el recurso.</p><a href="${escClass(url)}" target="_blank" rel="noopener noreferrer"><button>▶️ Abrir en YouTube</button></a></div>`:`<p class="muted">Este material todavía no tiene un enlace asociado.</p>${me.role==="teacher"?`<div class="card" style="margin-top:12px"><label>🔗 Pega aquí el enlace de YouTube</label><input id="editMaterialUrl" type="url" placeholder="https://www.youtube.com/watch?v=..."><button style="margin-top:10px" onclick="saveMaterialUrl(${m.id})">Guardar enlace</button></div>`:""}`}
+ <button class="secondary" style="margin-top:15px" onclick="closeModal()">Cerrar</button>`;
+ modal.classList.remove("hidden")
+}
+function saveMaterialUrl(id){
+ const m=db.materials.find(x=>x.id===id); const u=(document.getElementById("editMaterialUrl")?.value||"").trim();
+ if(!m||!u){alert("Pega primero el enlace de YouTube.");return;}
+ m.url=u; save(); closeModal(); render();
+}
+function addMaterial(){modalBody.innerHTML=`<h2>Nuevo material</h2><label>Título</label><input id="mtitle"><label>Tipo</label><select id="mtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="mdesc"></textarea><label>🔗 Enlace de YouTube o recurso</label><input id="murl" type="url" placeholder="https://www.youtube.com/watch?v=..."><div class="actions" style="margin-top:15px"><button onclick="saveMaterial()">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
+function saveMaterial(){db.materials.push({id:Date.now(),title:mtitle.value,type:mtype.value,course:"Educación para el Trabajo",desc:mdesc.value,url:(murl.value||"").trim()});save();closeModal();render()}
+function addSessionMaterial(id){
+ if(!db.materials)db.materials=[];
+ modalBody.innerHTML=`<h2>🎬 Agregar material a la sesión</h2><label>Título</label><input id="smtitle"><label>Tipo</label><select id="smtype"><option>Video</option><option>PDF</option><option>Documento</option></select><label>Descripción</label><textarea id="smdesc"></textarea><label>🔗 Enlace de YouTube o recurso</label><input id="smurl" type="url" placeholder="https://www.youtube.com/watch?v=..."><div class="actions" style="margin-top:15px"><button onclick="saveSessionMaterial(${id})">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+ modal.classList.remove("hidden")
+}
+function saveSessionMaterial(id){
+ db.materials.push({id:Date.now(),session:id,title:smtitle.value,type:smtype.value,description:smdesc.value,desc:smdesc.value,url:(smurl.value||"").trim()});
+ save(); closeModal(); render();
+}
 function activities(){
  return `<div class="section">${me.role==="teacher"?`<button onclick="addActivity()">＋ Crear actividad</button>`:""} </div><div class="list">${db.activities.map(a=>{
  const s=db.submissions.find(x=>x.activity===a.id&&x.user===me.u);
@@ -635,18 +665,24 @@ async function getSubFile(id){
 }
 async function saveSubmission9(activityId){
  if(!db.submissions)db.submissions=[];
- const text=document.getElementById("subText9").value.trim();
+ const existing=db.submissions.find(x=>String(x.user)===String(me.u)&&String(x.activity)===String(activityId));
+ // Una entrega que ya fue calificada queda cerrada para el estudiante.
+ if(existing && existing.grade!==null && existing.grade!==undefined && existing.grade!==""){
+   alert(`Esta actividad ya fue revisada y calificada con ${Number(existing.grade).toFixed(0)}/20. Ya no puedes volver a enviarla.`);
+   closeModal();
+   return;
+ }
+ const text=document.getElementById("subText9")?.value.trim()||"";
  const input=document.getElementById("subFile9");
  const file=input&&input.files?input.files[0]:null;
  if(!text&&!file){alert("Escribe una respuesta o adjunta un archivo.");return}
- let fileId="",fileName="",fileSize=0,fileType="";
+ let fileId=existing?.fileId||"",fileName=existing?.fileName||"",fileSize=existing?.fileSize||0,fileType=existing?.fileType||"";
  if(file){
    fileId="subfile_"+Date.now()+"_"+Math.random().toString(36).slice(2);
    await saveSubFile(fileId,file);
    fileName=file.name;fileSize=file.size;fileType=file.type;
  }
- const existing=db.submissions.find(x=>x.user===me.u&&x.activity===activityId);
- const data={user:me.u,activity:activityId,text,grade:null,submittedAt:new Date().toISOString(),fileId,fileName,fileSize,fileType,hasFile:!!file};
+ const data={user:me.u,activity:activityId,text,grade:existing?.grade??null,submittedAt:new Date().toISOString(),fileId,fileName,fileSize,fileType,hasFile:!!fileId};
  if(existing)Object.assign(existing,data);
  else db.submissions.push({id:Date.now()+Math.random(),...data});
  save();closeModal();render();alert("Actividad enviada correctamente.");
@@ -696,21 +732,38 @@ function openActivity9(id){
   const a=(db.activities||[]).find(x=>String(x.id)===String(id));
   if(!a || me.role!=="student") return;
   const old=(db.submissions||[]).find(x=>String(x.activity)===String(id)&&String(x.user)===String(me.u));
+  const revisada=!!(old && old.grade!==null && old.grade!==undefined && old.grade!=="");
+  const nota=revisada?Number(old.grade).toFixed(0):"";
   modalBody.innerHTML=`<h2>📝 ${escClass(a.title||"Actividad")}</h2>
     <div class="card" style="background:#f8fafc;margin-bottom:12px">
       <p><b>📚 Instrucciones</b></p><p style="white-space:pre-wrap">${escClass(a.description||"Sin instrucciones.")}</p>
       <p class="muted">${a.due?`📅 Fecha de entrega: ${escClass(a.due)}`:"📅 Sin fecha de entrega"} · ${escClass(a.grade||"Todos")} · ${escClass(a.section||"Todas")}</p>
     </div>
-    ${old?`<div class="badge ok" style="margin-bottom:10px">${old.grade!=null?"Entrega revisada":"Entrega enviada"}</div>`:""}
-    <label>✍️ Tu respuesta</label>
-    <textarea id="subText9" rows="7" placeholder="Escribe aquí tu desarrollo...">${escClass(old?.text||"")}</textarea>
-    <label>📎 Adjuntar archivo (opcional)</label>
-    <input id="subFile9" type="file" accept="*/*">
-    ${old?.fileName?`<p class="muted" style="font-size:12px">Archivo enviado anteriormente: ${escClass(old.fileName)}</p>`:""}
-    <div class="actions" style="margin-top:15px">
-      <button onclick="saveSubmission9(${escClass(a.id)})">📤 ${old?"Actualizar entrega":"Enviar actividad"}</button>
-      <button class="secondary" onclick="closeModal()">Cancelar</button>
-    </div>`;
+    ${revisada?`
+      <div class="card" style="background:#ecfdf5;border:1px solid #86efac;margin-bottom:12px">
+        <div class="badge ok" style="margin-bottom:8px">✅ Entrega revisada</div>
+        <h3 style="margin:4px 0">📊 Nota: ${nota}/20</h3>
+        <p class="muted" style="margin:4px 0 0">Esta entrega ya fue revisada por el docente. No puedes volver a enviarla.</p>
+      </div>
+      <div class="card" style="background:#f8fafc">
+        <p><b>✍️ Tu respuesta enviada</b></p>
+        <p style="white-space:pre-wrap">${escClass(old.text||"Sin texto.")}</p>
+        ${old.fileName?`<p class="muted" style="font-size:12px">📎 Archivo enviado: ${escClass(old.fileName)}</p>`:""}
+      </div>
+      <div class="actions" style="margin-top:15px">
+        <button class="secondary" onclick="closeModal()">Cerrar</button>
+      </div>`
+    :`
+      ${old?`<div class="badge ok" style="margin-bottom:10px">Entrega enviada — pendiente de revisión</div>`:""}
+      <label>✍️ Tu respuesta</label>
+      <textarea id="subText9" rows="7" placeholder="Escribe aquí tu desarrollo...">${escClass(old?.text||"")}</textarea>
+      <label>📎 Adjuntar archivo (opcional)</label>
+      <input id="subFile9" type="file" accept="*/*">
+      ${old?.fileName?`<p class="muted" style="font-size:12px">Archivo enviado anteriormente: ${escClass(old.fileName)}</p>`:""}
+      <div class="actions" style="margin-top:15px">
+        <button onclick="saveSubmission9(${escClass(a.id)})">📤 ${old?"Actualizar entrega":"Enviar actividad"}</button>
+        <button class="secondary" onclick="closeModal()">Cancelar</button>
+      </div>`}`;
   modal.classList.remove("hidden");
 }
 
@@ -767,7 +820,7 @@ function activities(){
      ${ses?`<small>📖 ${ses}</small><br>`:""}
      <small>${a.due?"Entrega: "+a.due:"Sin fecha"}${a.grade&&a.grade!=="Todos"?" · "+a.grade:""}${a.section&&a.section!=="Todas"?" · Sección "+a.section:""}${(!a.grade||a.grade==="Todos")&&(!a.section||a.section==="Todas")?" · Todos los estudiantes":""}</small>
     </div>
-    <div>${me.role==="teacher"?`<button onclick="addActivity9(${a.id})">✏️ Editar</button>`:`<button onclick="openActivity9(${a.id})">${sub?"Ver entrega":"Desarrollar"}</button>`}</div>
+    <div>${me.role==="teacher"?`<button onclick="addActivity9(${a.id})">✏️ Editar</button>`:`<button onclick="openActivity9(${a.id})">${sub?(sub.grade!=null?"Ver nota":"Ver/actualizar entrega"):"Desarrollar"}</button>`}</div>
    </div>`;
  }).join("")||`<div class="card"><p class="muted">No hay actividades disponibles.</p></div>`}</div>`;
 }
