@@ -393,6 +393,8 @@ function startFirebaseSync(){
         if(me && activeChatOther22 && modalOpen && typeof paintChatMessages22==="function"){
           // Mientras escribe, no reconstruimos ni reposicionamos la conversación.
           if(!userTyping22) paintChatMessages22(activeChatOther22);
+          // Si la conversación está abierta, los mensajes recibidos se consideran vistos.
+          if(!userTyping22) markChatSeen22(activeChatOther22);
         }else if(me && typeof render === "function"){
           render();
         }
@@ -890,7 +892,7 @@ function paintChatMessages22(other, preserveInput=true){
  if(!box || !me) return;
 
  const msgs=getChatMessages22(other);
- const key=JSON.stringify(msgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
+ const key=JSON.stringify(msgs.map(m=>[m.id,m.from,m.to,m.text,m.date,(m.seenBy||[]).join(",")]));
  if(key===chatRealtimeKey22) return;
 
  // Guardamos exactamente la posición antes de tocar el chat.
@@ -943,25 +945,67 @@ function paintChatMessages22(other, preserveInput=true){
    }
  });
 }
+function insertChatSticker22(sticker){
+ const input=document.getElementById("chatText22");
+ if(!input) return;
+ const start=input.selectionStart ?? input.value.length;
+ const end=input.selectionEnd ?? input.value.length;
+ input.value=input.value.slice(0,start)+sticker+input.value.slice(end);
+ input.focus();
+ const pos=start+sticker.length;
+ try{input.setSelectionRange(pos,pos);}catch(e){}
+}
+
+function toggleChatStickers22(){
+ const panel=document.getElementById("chatStickers22");
+ if(panel) panel.classList.toggle("hidden");
+}
+
+async function markChatSeen22(other){
+ if(!me || !db.messages) return false;
+ let changed=false;
+ db.messages.forEach(m=>{
+   if(m.from===other && m.to===me.u){
+     if(!Array.isArray(m.seenBy)) m.seenBy=[];
+     if(!m.seenBy.includes(me.u)){
+       m.seenBy.push(me.u);
+       changed=true;
+     }
+   }
+ });
+ if(changed){
+   localStorage.setItem("aulaEPT",JSON.stringify(db));
+   chatRealtimeKey22="";
+   paintChatMessages22(other);
+   try{ await saveToFirebase(); }catch(e){ console.error("No se pudo guardar visto:",e); }
+ }
+ return changed;
+}
+
+function chatReadTicks22(m){
+ if(m.from!==me.u) return "";
+ const seen=Array.isArray(m.seenBy) && m.seenBy.includes(m.to);
+ return `<span aria-label="${seen?"Visto":"Enviado"}" title="${seen?"Visto":"Enviado"}" style="font-weight:800;color:${seen?"#2563eb":"#64748b"};margin-left:4px">✓✓</span>`;
+}
+
 function appendChatMessage22(box,m){
  const wrap=document.createElement("div");
  wrap.dataset.chatId=String(m.id);
  wrap.style.cssText=`margin:8px 0;text-align:${m.from===me.u?"right":"left"}`;
 
  const bubble=document.createElement("span");
- bubble.style.cssText=`display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}`;
+ bubble.style.cssText=`display:inline-block;max-width:80%;padding:9px 12px;border-radius:${m.from===me.u?"14px 14px 4px 14px":"14px 14px 14px 4px"};background:${m.from===me.u?"#dbeafe":"#fff"};box-shadow:0 1px 2px rgba(0,0,0,.08);text-align:left;word-break:break-word`;
  bubble.textContent=m.text;
 
- const time=document.createElement("div");
- time.className="muted";
- time.style.fontSize="11px";
- time.textContent=new Date(m.date).toLocaleString();
+ const meta=document.createElement("div");
+ meta.className="muted";
+ meta.style.cssText="font-size:11px;display:flex;align-items:center;justify-content:"+ (m.from===me.u?"flex-end":"flex-start");
+ meta.innerHTML=`${new Date(m.date).toLocaleString()} ${chatReadTicks22(m)}`;
 
  wrap.appendChild(bubble);
- wrap.appendChild(time);
+ wrap.appendChild(meta);
  box.appendChild(wrap);
 }
-
 function stopChatRealtime22(){
  if(chatRealtimeTimer22){
    clearInterval(chatRealtimeTimer22);
@@ -986,15 +1030,18 @@ function startChatRealtime22(other){
          const remote=snap.data().data;
          const remoteMsgs=remote.messages||[];
          const localMsgs=db.messages||[];
-         const remoteKey=JSON.stringify(remoteMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
-         const localKey=JSON.stringify(localMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
+         const remoteKey=JSON.stringify(remoteMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date,(m.seenBy||[]).join(",")]));
+         const localKey=JSON.stringify(localMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date,(m.seenBy||[]).join(",")]));
          if(remoteKey!==localKey){
            db=remote;
            localStorage.setItem("aulaEPT",JSON.stringify(db));
            // Solo actualiza si el profesor no está escribiendo.
            const input22=document.getElementById("chatText22");
            const typing22=!!(input22 && document.activeElement===input22 && input22.value.length>0);
-           if(!typing22) paintChatMessages22(other);
+           if(!typing22) {
+             paintChatMessages22(other);
+             markChatSeen22(other);
+           }
          }
        }
      }
@@ -1012,6 +1059,24 @@ function openChat22(other){
 
  modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
  <div id="chatMessages22" style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc"></div>
+ <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+   <button type="button" class="secondary" onclick="toggleChatStickers22()" style="min-width:96px">😊 Stickers</button>
+   <span class="muted" style="font-size:12px">✓✓ azul = visto</span>
+ </div>
+ <div id="chatStickers22" class="hidden" style="margin-top:7px;padding:8px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;display:flex;flex-wrap:wrap;gap:6px">
+   <button type="button" onclick="insertChatSticker22('👍')" style="font-size:24px;padding:5px 8px">👍</button>
+   <button type="button" onclick="insertChatSticker22('❤️')" style="font-size:24px;padding:5px 8px">❤️</button>
+   <button type="button" onclick="insertChatSticker22('😂')" style="font-size:24px;padding:5px 8px">😂</button>
+   <button type="button" onclick="insertChatSticker22('🤣')" style="font-size:24px;padding:5px 8px">🤣</button>
+   <button type="button" onclick="insertChatSticker22('👏')" style="font-size:24px;padding:5px 8px">👏</button>
+   <button type="button" onclick="insertChatSticker22('🙏')" style="font-size:24px;padding:5px 8px">🙏</button>
+   <button type="button" onclick="insertChatSticker22('🔥')" style="font-size:24px;padding:5px 8px">🔥</button>
+   <button type="button" onclick="insertChatSticker22('🎉')" style="font-size:24px;padding:5px 8px">🎉</button>
+   <button type="button" onclick="insertChatSticker22('😎')" style="font-size:24px;padding:5px 8px">😎</button>
+   <button type="button" onclick="insertChatSticker22('😊')" style="font-size:24px;padding:5px 8px">😊</button>
+   <button type="button" onclick="insertChatSticker22('💪')" style="font-size:24px;padding:5px 8px">💪</button>
+   <button type="button" onclick="insertChatSticker22('💯')" style="font-size:24px;padding:5px 8px">💯</button>
+ </div>
  <textarea id="chatText22" rows="3" placeholder="Escribe tu mensaje..."></textarea>
  <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
  modal.classList.remove("hidden");
@@ -1019,6 +1084,8 @@ function openChat22(other){
  chatRealtimeKey22="";
  paintChatMessages22(other,false);
  startChatRealtime22(other);
+ // Al abrir la conversación, los mensajes recibidos quedan marcados como vistos.
+ markChatSeen22(other);
 }
 
 async function sendChat22(to){
@@ -1034,7 +1101,8 @@ async function sendChat22(to){
    from:me.u,
    to,
    text,
-   date:new Date().toISOString()
+   date:new Date().toISOString(),
+   seenBy:[]
  };
 
  db.messages.push(message);
