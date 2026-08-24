@@ -90,7 +90,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
     <main class="main">
       <div class="topbar">
         <div><h2 id="pageTitle">Inicio</h2><div class="muted" id="pageSub"></div></div>
-        <div class="userpill">👤 <span id="currentUser"></span> &nbsp; <button class="small secondary" onclick="logout()">Salir</button></div>
+        <div class="userpill">👤 <span id="currentUser"></span> &nbsp; <button type="button" id="logoutBtn" class="small secondary" onclick="logout(event)">Salir</button></div>
       </div>
       <div id="content"></div>
     </main>
@@ -200,7 +200,21 @@ function start(){
  document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
  currentUser.textContent=me.name; buildNav(); render();
 }
-function logout(){me=null;localStorage.removeItem("session");app.classList.add("hidden");login.classList.remove("hidden")}
+function logout(ev){
+  try{if(ev){ev.preventDefault();ev.stopPropagation();}}catch(e){}
+  me=null;
+  localStorage.removeItem("session");
+  const appEl=document.getElementById("app");
+  const loginEl=document.getElementById("login");
+  const userEl=document.getElementById("currentUser");
+  if(appEl) appEl.classList.add("hidden");
+  if(loginEl) loginEl.classList.remove("hidden");
+  if(userEl) userEl.textContent="";
+  const userInput=document.getElementById("username");
+  const passInput=document.getElementById("password");
+  if(userInput) userInput.value="";
+  if(passInput) passInput.value="";
+}
 function buildNav(){
   if(me.role!=='teacher'){
     const arr=[['home','🏠','Inicio'],['courses','📚','Mis cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📤','Mis entregas'],['chat','💬','Mensajes'],['announcements','📢','Avisos']];
