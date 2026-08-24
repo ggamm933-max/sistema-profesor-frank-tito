@@ -310,7 +310,6 @@ function closeModal(){
   const b=document.getElementById('modalBody');
   if(m) m.classList.add('hidden');
   if(b) b.innerHTML='';
-  activeChatOther22=null;
 }
 </script>
 
@@ -332,7 +331,6 @@ const seed = {
 };
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
 let me=null, page="home";
-let activeChatOther22=null;
 function save(){
   localStorage.setItem("aulaEPT",JSON.stringify(db));
   if(typeof saveToFirebase === "function") saveToFirebase();
@@ -376,24 +374,10 @@ function startFirebaseSync(){
   window.firebaseOnSnapshot(
     window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
     (snap)=>{
-      if(!snap.exists() || !snap.data().data) return;
-      const incoming = snap.data().data;
-      const previousMessages = JSON.stringify(db.messages||[]);
-      const incomingMessages = JSON.stringify(incoming.messages||[]);
-      db = incoming;
-      localStorage.setItem("aulaEPT", JSON.stringify(db));
-
-      const modalEl=document.getElementById("modal");
-      const modalOpen=modalEl && !modalEl.classList.contains("hidden");
-      const chatBox=document.getElementById("modalBody");
-
-      if(me && modalOpen && typeof activeChatOther22!=="undefined" && activeChatOther22){
-        const currentMessages=JSON.stringify(db.messages||[]);
-        if(currentMessages!==previousMessages && typeof openChat22==="function"){
-          openChat22(activeChatOther22);
-        }
-      }else if(me && typeof render==="function"){
-        render();
+      if(snap.exists() && snap.data().data){
+        db = snap.data().data;
+        localStorage.setItem("aulaEPT", JSON.stringify(db));
+        if(me && typeof render === "function") render();
       }
     },
     (error)=>console.error("Firebase: error de sincronización", error)
@@ -681,12 +665,7 @@ async function getSubFile(id){
 }
 async function saveSubmission9(activityId){
  if(!db.submissions)db.submissions=[];
- \1
- if(existing && existing.grade!=null){
-   alert("Esta entrega ya fue revisada y calificada por el profesor. No puedes modificarla ni volver a enviarla.");
-   closeModal();
-   return;
- }
+ const existing=db.submissions.find(x=>String(x.user)===String(me.u)&&String(x.activity)===String(activityId));
  // Una entrega que ya fue calificada queda cerrada para el estudiante.
  if(existing && existing.grade!==null && existing.grade!==undefined && existing.grade!==""){
    alert(`Esta actividad ya fue revisada y calificada con ${Number(existing.grade).toFixed(0)}/20. Ya no puedes volver a enviarla.`);
@@ -880,7 +859,6 @@ function chat(){
 }
 function openChat22(other){
  if(!db.messages)db.messages=[];
- activeChatOther22=other;
  const otherUser=(db.users||[]).find(u=>u.u===other);
  const name=otherUser?otherUser.name:"Profesor";
  const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
@@ -896,10 +874,8 @@ function sendChat22(to){
  const el=document.getElementById("chatText22"),text=el.value.trim();
  if(!text){alert("Escribe un mensaje.");return}
  if(!db.messages)db.messages=[];
- activeChatOther22=to;
  db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
- save();
- openChat22(to);
+ save();openChat22(to);
 }
 /* ===== FIN MENSAJES ===== */
 
