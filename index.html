@@ -1772,7 +1772,7 @@ function openChat22(other){
     const otherUser=(db.users||[]).find(u=>u.u===other);
     const name=otherUser?otherUser.name:(other==='profesor'?'Profesor':'Estudiante');
     const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
-    const oldText=document.getElementById("chatText22")?.value||"";
+    const oldText=window.__chatClearAfterRender?"":(document.getElementById("chatText22")?.value||"");
     const html=msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
     modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
     <div id="chatMessages22" style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc">${html}</div>
@@ -1780,7 +1780,7 @@ function openChat22(other){
     <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeChat22()">Cerrar</button></div>`;
     modal.classList.remove("hidden");
     const input=document.getElementById("chatText22");
-    if(input){input.value=oldText; setTimeout(()=>input.focus(),50);}
+    if(input){input.value=oldText; if(window.__chatClearAfterRender){input.value=""; window.__chatClearAfterRender=false;} setTimeout(()=>input.focus(),50);}
     const box=document.getElementById("chatMessages22");
     if(box)box.scrollTop=box.scrollHeight;
   }catch(e){
@@ -1799,6 +1799,8 @@ async function sendChat22(to){
   const message={id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()};
   db.messages.push(message);
   window.__openChat22=to;
+  // Marca la próxima reconstrucción del chat para que nunca restaure el mensaje enviado.
+  window.__chatClearAfterRender=true;
   // Limpia inmediatamente el cuadro de escritura después de enviar.
   el.value="";
   // Actualización inmediata en el equipo que envía.
