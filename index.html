@@ -889,13 +889,30 @@ function paintChatMessages22(other, preserveInput=true){
  if(key===chatRealtimeKey22) return;
  chatRealtimeKey22=key;
 
- const wasNearBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<80;
- box.innerHTML=msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}">
+ // IMPORTANTE: conservar exactamente la posición donde estaba el docente/estudiante.
+ // Antes, cada actualización reconstruía el contenido y el navegador devolvía
+ // el scroll al principio del chat.
+ const oldScrollTop=box.scrollTop;
+ const oldScrollHeight=box.scrollHeight;
+ const oldClientHeight=box.clientHeight;
+ const wasAtBottom=(oldScrollHeight-oldScrollTop-oldClientHeight)<80;
+
+ box.innerHTML=msgs.map(m=>`<div data-chat-id="${m.id}" style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}">
    <span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span>
    <div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div>
  </div>`).join("") || `<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
 
- if(wasNearBottom) box.scrollTop=box.scrollHeight;
+ requestAnimationFrame(()=>{
+   if(!document.getElementById("chatMessages22")) return;
+
+   if(wasAtBottom){
+     // Si estaba abajo, permanece abajo para ver el mensaje nuevo.
+     box.scrollTop=box.scrollHeight;
+   }else{
+     // Si estaba leyendo mensajes anteriores, NO lo devuelve al principio.
+     box.scrollTop=Math.min(oldScrollTop, Math.max(0,box.scrollHeight-box.clientHeight));
+   }
+ });
 }
 
 function stopChatRealtime22(){
