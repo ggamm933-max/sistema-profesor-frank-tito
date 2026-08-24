@@ -887,32 +887,67 @@ function paintChatMessages22(other, preserveInput=true){
  const msgs=getChatMessages22(other);
  const key=JSON.stringify(msgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
  if(key===chatRealtimeKey22) return;
+
+ const oldHeight=box.scrollHeight;
+ const oldTop=box.scrollTop;
+ const oldClient=box.clientHeight;
+ const atBottom=(oldHeight-oldTop-oldClient)<=90;
+
+ // Primera carga: construir una sola vez.
+ if(!box.dataset.chatRendered){
+   box.innerHTML="";
+   msgs.forEach(m=>appendChatMessage22(box,m));
+   box.dataset.chatRendered="1";
+   chatRealtimeKey22=key;
+   requestAnimationFrame(()=>{
+     box.scrollTop=box.scrollHeight;
+   });
+   return;
+ }
+
+ // Actualizaciones: NO reconstruir todo el chat.
+ // Solo agregar los mensajes que todavía no están en el DOM.
+ const existing=new Set(
+   Array.from(box.querySelectorAll("[data-chat-id]"))
+     .map(el=>String(el.dataset.chatId))
+ );
+ msgs.forEach(m=>{
+   if(!existing.has(String(m.id))){
+     appendChatMessage22(box,m);
+   }
+ });
+
+ // Si hubo cambios que no sean simples adiciones (p. ej. sincronización remota),
+ // se conserva la posición y no se vuelve al inicio.
  chatRealtimeKey22=key;
-
- // IMPORTANTE: conservar exactamente la posición donde estaba el docente/estudiante.
- // Antes, cada actualización reconstruía el contenido y el navegador devolvía
- // el scroll al principio del chat.
- const oldScrollTop=box.scrollTop;
- const oldScrollHeight=box.scrollHeight;
- const oldClientHeight=box.clientHeight;
- const wasAtBottom=(oldScrollHeight-oldScrollTop-oldClientHeight)<80;
-
- box.innerHTML=msgs.map(m=>`<div data-chat-id="${m.id}" style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}">
-   <span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span>
-   <div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div>
- </div>`).join("") || `<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
 
  requestAnimationFrame(()=>{
    if(!document.getElementById("chatMessages22")) return;
-
-   if(wasAtBottom){
-     // Si estaba abajo, permanece abajo para ver el mensaje nuevo.
+   if(atBottom){
      box.scrollTop=box.scrollHeight;
    }else{
-     // Si estaba leyendo mensajes anteriores, NO lo devuelve al principio.
-     box.scrollTop=Math.min(oldScrollTop, Math.max(0,box.scrollHeight-box.clientHeight));
+     box.scrollTop=Math.min(oldTop, Math.max(0,box.scrollHeight-box.clientHeight));
    }
  });
+}
+
+function appendChatMessage22(box,m){
+ const wrap=document.createElement("div");
+ wrap.dataset.chatId=String(m.id);
+ wrap.style.cssText=`margin:8px 0;text-align:${m.from===me.u?"right":"left"}`;
+
+ const bubble=document.createElement("span");
+ bubble.style.cssText=`display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}`;
+ bubble.textContent=m.text;
+
+ const time=document.createElement("div");
+ time.className="muted";
+ time.style.fontSize="11px";
+ time.textContent=new Date(m.date).toLocaleString();
+
+ wrap.appendChild(bubble);
+ wrap.appendChild(time);
+ box.appendChild(wrap);
 }
 
 function stopChatRealtime22(){
