@@ -3557,7 +3557,7 @@ function groups(){
   return `<div class="card"><h2>👥 Grupos de trabajo</h2><p class="muted"><b>El sorteo nunca mezcla grados ni secciones.</b> Primero selecciona el aula. Al cambiar el grado o la sección, la pantalla muestra únicamente los grupos de esa aula.</p>
   <div class="grid3"><div><label>Grado</label><select id="gpGrade30" onchange="renderGroupsFilter30()"><option value="">Seleccionar</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${x===(window.__lastRaffleGrade30||'')?'selected':''}>${x}</option>`).join('')}</select></div>
   <div><label>Sección</label><select id="gpSec30" onchange="renderGroupsFilter30()"><option value="">Seleccionar</option><option ${'A'===(window.__lastRaffleSection30||'')?'selected':''}>A</option><option ${'B'===(window.__lastRaffleSection30||'')?'selected':''}>B</option></select></div>
-  <div><label>Número de grupos</label><input id="gpCount30" type="number" min="1" max="20" value="4"></div></div>
+  <div><label>Número de grupos</label><input id="gpCount30" type="number" min="1" max="20" value="${window.__lastRaffleCount30||4}"></div></div>
   <div class="actions" style="margin-top:12px"><button onclick="randomGroups30()">🎲 Sortear este grado/sección</button><button class="secondary" onclick="emptyGroups30()">＋ Crear grupos vacíos</button></div><p class="muted" id="raffleHint30" style="margin-top:8px">Puedes presionar <b>Sortear</b> varias veces; siempre se mantiene el grado y la sección seleccionados.</p></div>
   <div id="groupsResults30" style="margin-top:18px">${renderGroups30()}</div>`;
 }
@@ -3602,6 +3602,7 @@ function randomGroups30(){
 
   window.__lastRaffleGrade30=g;
   window.__lastRaffleSection30=s;
+  window.__lastRaffleCount30=n;
   window.__raffleCount=(window.__raffleCount||0)+1;
 
   const ng=Math.min(n,a.length);
@@ -3635,6 +3636,7 @@ function randomGroups30(){
 function emptyGroups30(){
   ensureClassData();const g=document.getElementById('gpGrade30')?.value,s=document.getElementById('gpSec30')?.value,n=Math.max(1,Math.min(20,Number(document.getElementById('gpCount30')?.value)||4));
   if(!g||!s){alert('Selecciona primero grado y sección.');return}
+  window.__lastRaffleGrade30=g; window.__lastRaffleSection30=s; window.__lastRaffleCount30=n;
   db.groups=db.groups.filter(x=>!(x.grade===g&&x.section===s));db.groups.push(...Array.from({length:n},(_,i)=>({id:'grp_'+Date.now()+'_'+i,name:'Grupo '+(i+1),grade:g,section:s,members:[]})));save();render();
 }
 function renameGroup30(id){const g=db.groups.find(x=>x.id===id);if(!g)return;const n=prompt('Nombre del grupo:',g.name);if(n){g.name=n.trim();save();render()}}
