@@ -2603,6 +2603,11 @@ function ensureClassData(){
   if(!Array.isArray(db.expositionRubric.criteria))db.expositionRubric.criteria=[];
   if(!Array.isArray(db.expositionRubric.scores))db.expositionRubric.scores=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7};
+  if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true}};
+  if(typeof db.evaluationConfig.processEnabled!=='boolean')db.evaluationConfig.processEnabled=true;
+  const _ec=db.evaluationConfig.components||{};
+  ['class','activities','participation','behavior','uniform','notebook','folder','exam'].forEach(k=>{if(typeof _ec[k]!=='boolean')_ec[k]=true});
+  db.evaluationConfig.components=_ec;
 }
 function classLevel(n){n=Number(n);return n>=18?'AD':n>=15?'A':n>=11?'B':'C'}
 function escClass(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
@@ -2626,13 +2631,35 @@ function projectAvg(u){
   const p=projectRecord(u);
   return avgNums([p.portfolio,p.product,p.exposition].filter(x=>x!==null));
 }
+function activeProcessComponents(){
+  ensureClassData();
+  const w=db.evaluationWeights, a=db.evaluationConfig.components||{};
+  return [
+    ['class',classAvg,Number(w.class)||0],['activities',activitiesAvg,Number(w.activities)||0],
+    ['participation',participationAvg,Number(w.participation)||0],['behavior',behaviorAvg,Number(w.behavior)||0],
+    ['uniform',uniformAvg,Number(w.uniform)||0],['notebook',notebookAvg,Number(w.notebook)||0],
+    ['folder',folderAvg,Number(w.folder)||0],['exam',examAvg,Number(w.exam)||0]
+  ].filter(x=>a[x[0]]!==false&&x[2]>0);
+}
 function processAvg(u){
-  return avgNums([classAvg(u),activitiesAvg(u),participationAvg(u),behaviorAvg(u),uniformAvg(u),notebookAvg(u),folderAvg(u),examAvg(u)].filter(x=>x!==null));
+  ensureClassData();
+  if(db.evaluationConfig.processEnabled===false)return null;
+  const comps=activeProcessComponents();
+  const vals=comps.map(([k,fn,w])=>({v:fn(u),w})).filter(x=>x.v!==null);
+  if(!vals.length)return null;
+  const totalW=vals.reduce((s,x)=>s+x.w,0);
+  return totalW?vals.reduce((s,x)=>s+x.v*x.w,0)/totalW:null;
 }
 function finalGrade(u){
-  const p=projectAvg(u), pr=processAvg(u);
+  ensureClassData();
+  const p=projectAvg(u);
+  const processOn=db.evaluationConfig.processEnabled!==false && activeProcessComponents().length>0;
+  const pr=processOn?processAvg(u):null;
   if(p===null&&pr===null)return null;
-  return (p===null?0:p*.70)+(pr===null?0:pr*.30);
+  if(p!==null && !processOn)return p;
+  if(p===null)return pr;
+  if(pr===null)return p;
+  return p*.70+pr*.30;
 }
 function evaluationDetail(u){
   const p=projectAvg(u), pr=processAvg(u), f=finalGrade(u);
@@ -2730,6 +2757,16 @@ function registroClase(){
       <div class="card" style="margin-top:18px;background:#eff6ff;border:1px solid #bfdbfe">
         <h3 style="margin-top:0">📚 Sesiones de aprendizaje disponibles</h3>
         <p class="muted">Selecciona la sesión que vas a trabajar. No tienes que crear otra clase.</p>
+        <div style="margin:12px 0 16px">
+          <label><b>📖 Sesión de aprendizaje</b></label>
+          <select id="ceSessionSelect30" onchange="selectSessionForEval30(this.value)">
+            <option value="">Selecciona la sesión que vas a trabajar</option>
+            ${filteredSessions.map(s=>{
+              const rr=getSessionClassRecord30(s.id,grade,section);
+              return `<option value="${escClass(s.id)}" ${rr&&String(rr.id)===String(activeId)?'selected':''}>Sesión ${escClass(s.number)}: ${escClass(s.title)}${s.date?' — '+escClass(s.date):''}</option>`;
+            }).join('')}
+          </select>
+        </div>
         <div id="ceSessionList30">
           ${filteredSessions.map(s=>{
             const r=getSessionClassRecord30(s.id,grade,section);
@@ -3311,13 +3348,26 @@ function saveExpositionScores(){
 
 /* ===== CONFIGURACIÓN DE PESOS ===== */
 function evaluationConfig(){
-  ensureClassData();const w=db.evaluationWeights;
+  ensureClassData();const w=db.evaluationWeights,c=db.evaluationConfig,active=c.components||{};
+  const row=(key,icon,label)=>`<tr><td>${icon} ${label}</td><td>${w[key]}%</td><td><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" class="evalCompToggle30" data-key="${key}" ${active[key]!==false?'checked':''}> <span>${active[key]!==false?'Activo':'Desactivado'}</span></label></td></tr>`;
   return `<div class="card"><h2>⚙️ Configuración de evaluación</h2>
-  <p class="muted">Distribución acordada: Proyecto 70 % y Proceso 30 %.</p>
-  <h3>🚀 Proyecto — 70 %</h3><div class="item"><div><b>Portafolio + Producto + Exposición</b><div class="muted">Las tres rúbricas se promedian para obtener la nota del proyecto.</div></div><span class="badge">70 %</span></div>
-  <h3 style="margin-top:18px">📚 Proceso — 30 %</h3><table><tr><th>Componente</th><th>Peso final</th></tr>
-  <tr><td>📝 Registro de clase</td><td>${w.class}%</td></tr><tr><td>💻 Desarrollo de actividades</td><td>${w.activities}%</td></tr><tr><td>🙋 Participación</td><td>${w.participation}%</td></tr><tr><td>🧑‍🏫 Conducta</td><td>${w.behavior}%</td></tr><tr><td>👕 Uniforme</td><td>${w.uniform}%</td></tr><tr><td>📓 Cuaderno</td><td>${w.notebook}%</td></tr><tr><td>📁 Folder</td><td>${w.folder}%</td></tr><tr><td>📋 Examen / Fichas</td><td>${w.exam}%</td></tr></table>
-  <p><b>Total proceso: 30 %</b></p><p class="muted">Examen / Fichas tiene un peso de <b>7 %</b> y permite registrar varias evaluaciones, cuyo promedio se incorpora al proceso.</p></div>`;
+  <p class="muted">Puedes desactivar componentes que no vayas a utilizar. <b>Lo desactivado no entra en el promedio.</b> Los pesos activos del Proceso se redistribuyen proporcionalmente dentro del 30 %.</p>
+  <div class="item" style="margin-top:15px"><div><b>🚀 Proyecto — 70 %</b><div class="muted">Portafolio + Producto + Exposición.</div></div><span class="badge">Siempre activo</span></div>
+  <div class="item" style="margin-top:10px"><div><b>📚 Proceso — 30 %</b><div class="muted">Si desactivas todo el Proceso, la nota final se calcula con el Proyecto al 100 %.</div></div><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="processEnabled30" ${c.processEnabled!==false?'checked':''}> <b>Usar Proceso 30 %</b></label></div>
+  <h3 style="margin-top:18px">Componentes del Proceso</h3><div style="overflow:auto"><table><tr><th>Componente</th><th>Peso base</th><th>Estado</th></tr>
+  ${row('class','📝','Registro de clase')}${row('activities','💻','Desarrollo de actividades')}${row('participation','🙋','Participación')}${row('behavior','🧑‍🏫','Conducta')}${row('uniform','👕','Uniforme')}${row('notebook','📓','Cuaderno')}${row('folder','📁','Folder')}${row('exam','📋','Examen / Fichas')}</table></div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveEvaluationConfig30()">💾 Guardar configuración</button><button class="secondary" onclick="enableAllEvaluationComponents30()">↺ Activar todos</button></div>
+  <div id="evalConfigInfo30" class="card" style="margin-top:15px"><b>Cómo funcionará:</b><br>• Proyecto activo = 70 %.<br>• Proceso activo = 30 %.<br>• Si apagas un componente del Proceso, su peso se reparte entre los componentes activos.<br>• Si apagas todo el Proceso, <b>Proyecto = 100 %</b> y no se perjudica el promedio por componentes vacíos.</div></div>`;
+}
+function saveEvaluationConfig30(){
+  ensureClassData();
+  const c=db.evaluationConfig;c.processEnabled=document.getElementById('processEnabled30')?.checked!==false;c.components=c.components||{};
+  document.querySelectorAll('.evalCompToggle30').forEach(x=>{c.components[x.dataset.key]=x.checked});
+  if(c.processEnabled && !activeProcessComponents().length){alert('Has desactivado todos los componentes del Proceso. Se usará solamente el Proyecto al 100 %.');}
+  save();render();
+}
+function enableAllEvaluationComponents30(){
+  ensureClassData();db.evaluationConfig.processEnabled=true;db.evaluationConfig.components={class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true};save();render();
 }
 
 
