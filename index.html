@@ -2792,11 +2792,12 @@ function registroClase(){
           <div class="grid3" style="margin-top:12px">
             <div><label>Grado</label><input value="${escClass(activeRec.grade)}" readonly></div>
             <div><label>Sección</label><input value="${escClass(activeRec.section)}" readonly></div>
-            <div><label>Buscar estudiante</label><input id="ceSearch30" oninput="renderClass30()" placeholder="Nombre"></div>
+            <div><label>Buscar estudiante</label><input id="ceSearch30" oninput="flushClassEvalAutosave30();renderClass30()" placeholder="Nombre"></div>
           </div>
           <div id="ceTable30" style="margin-top:18px"></div>
           <div class="actions" style="margin-top:15px">
-            <button onclick="saveClassEval30()">💾 Guardar evaluación</button>
+            <button onclick="saveClassEval30()">💾 Guardar todo (opcional)</button>
+            <span class="muted" style="align-self:center">✅ Las evaluaciones se guardan automáticamente al cambiar HIZO/A MEDIAS/NO HIZO o la nota.</span>
           </div>
         </div>
       `:`<div class="card" style="margin-top:18px;background:#f8fafc"><p class="muted">Selecciona una sesión de aprendizaje para comenzar la evaluación.</p></div>`}
@@ -2872,7 +2873,42 @@ function renderClass30(){
       <td><select class="ceStatus30" data-user="${escClass(u.u)}"><option value="" ${!r.status?'selected':''}>—</option><option value="HIZO" ${r.status==='HIZO'?'selected':''}>✅ HIZO</option><option value="A MEDIAS" ${r.status==='A MEDIAS'?'selected':''}>⚠️ A MEDIAS</option><option value="NO HIZO" ${r.status==='NO HIZO'?'selected':''}>❌ NO HIZO</option></select></td>
       <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px"></td>
       <td class="ceLevel30" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td></tr>`}).join('')||'<tr><td colspan="5">No hay estudiantes.</td></tr>'}</table></div>`;
-  box.querySelectorAll('.ceGrade30').forEach(e=>e.oninput=()=>{const o=box.querySelector(`.ceLevel30[data-user="${CSS.escape(e.dataset.user)}"]`);if(o)o.textContent=e.value===''?'—':classLevel(e.value)});
+  box.querySelectorAll('.ceStatus30').forEach(e=>e.onchange=()=>autoSaveClassField30(e.dataset.user,e.value,null));
+  box.querySelectorAll('.ceGrade30').forEach(e=>{
+    e.oninput=()=>{
+      const o=box.querySelector(`.ceLevel30[data-user="${CSS.escape(e.dataset.user)}"]`);
+      if(o)o.textContent=e.value===''?'—':classLevel(e.value);
+      autoSaveClassField30(e.dataset.user,null,e.value);
+    };
+    e.onblur=()=>autoSaveClassField30(e.dataset.user,null,e.value,true);
+  });
+}
+let _classEvalSaveTimers30={};
+function autoSaveClassField30(user,status,rawGrade,immediate=false){
+  const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);
+  if(!id||!rec||!user)return;
+  let r=classEvalRecord(id,user);
+  if(r){
+    if(status!==null)r.status=status;
+    if(rawGrade!==null){
+      const v=String(rawGrade).trim();
+      r.grade=v===''?null:Math.max(0,Math.min(20,Number(v)));
+    }
+    if(!r.status&&r.grade==null){db.classEvaluations=db.classEvaluations.filter(x=>x!==r);}
+  }else{
+    const st=status!==null?status:'';
+    const v=rawGrade===null?'':String(rawGrade).trim();
+    const gr=v===''?null:Math.max(0,Math.min(20,Number(v)));
+    if(st||gr!=null)db.classEvaluations.push({id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user,status:st,grade:gr,date:rec.date,title:rec.title,gradeClass:rec.grade,section:rec.section});
+  }
+  clearTimeout(_classEvalSaveTimers30[user]);
+  if(immediate){save();return;}
+  _classEvalSaveTimers30[user]=setTimeout(()=>{save();delete _classEvalSaveTimers30[user]},350);
+}
+function flushClassEvalAutosave30(){
+  Object.keys(_classEvalSaveTimers30).forEach(k=>clearTimeout(_classEvalSaveTimers30[k]));
+  _classEvalSaveTimers30={};
+  save();
 }
 function saveClassEval30(){
   ensureClassData();const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);if(!rec){alert('Primero selecciona una sesión de aprendizaje.');return}
