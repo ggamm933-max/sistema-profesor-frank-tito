@@ -160,19 +160,31 @@ async function loadFromFirebase(){
   return false;
 }
 
+let firebaseUnsubscribe=null;
+
 function startFirebaseSync(){
   if(!window.firebaseReady) return;
-  window.firebaseOnSnapshot(
-    window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-    (snap)=>{
-      if(snap.exists() && snap.data().data){
-        db = snap.data().data;
-        localStorage.setItem("aulaEPT", JSON.stringify(db));
-        if(typeof render === "function") render();
-      }
-    },
-    (error)=>console.error("Firebase: error de sincronización", error)
-  );
+  try{
+    if(typeof firebaseUnsubscribe === "function") firebaseUnsubscribe();
+    firebaseUnsubscribe=window.firebaseOnSnapshot(
+      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
+      (snap)=>{
+        if(snap.exists() && snap.data().data){
+          db=snap.data().data;
+          localStorage.setItem("aulaEPT",JSON.stringify(db));
+          // Actualiza también una conversación abierta en ese mismo instante.
+          if(window.__openChat22 && typeof openChat22 === "function" && me){
+            openChat22(window.__openChat22);
+          }else if(typeof render === "function" && me){
+            render();
+          }
+        }
+      },
+      (error)=>console.error("Firebase: error de sincronización",error)
+    );
+  }catch(error){
+    console.error("Firebase: no se pudo iniciar la sincronización",error);
+  }
 }
 
 window.addEventListener("firebase-ready", async ()=>{
@@ -547,7 +559,7 @@ function chat(){
  return `<div class="card chat"><div class="messages">${msgs.map(m=>`<div class="msg ${m.from===me.u?"me":""}"><b>${m.from==="profesor"?"👨‍🏫 Profesor":(db.users.find(x=>x.u===m.from)?.name||m.from)}</b>${m.text}<small class="muted" style="display:block;margin-top:4px">${m.date}</small></div>`).join("")}</div><div class="actions"><input id="chatText" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')sendMessage()" style="flex:1"><button onclick="sendMessage()">Enviar</button></div></div>`;
 }
 function sendMessage(){const t=chatText.value.trim();if(!t)return;db.messages.push({from:me.u,to:me.role==="teacher"?"2A":"profesor",text:t,date:new Date().toLocaleString("es-PE")});save();render()}
-function closeModal(){modal.classList.add("hidden")}
+function closeModal(){modal.classList.add("hidden");window.__openChat22=null}
 const xLocal=db.users.find(u=>u.u==="profesor"&&u.role==="teacher")||seed.users[0];me=xLocal;localStorage.setItem("session","profesor");start();
 
 /* ===== CORRECCIÓN DEFINITIVA ESTUDIANTES v1.3.2 ===== */
@@ -1766,12 +1778,16 @@ function openChat22(other){
  <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
  modal.classList.remove("hidden");
 }
-function sendChat22(to){
- const el=document.getElementById("chatText22"),text=el.value.trim();
- if(!text){alert("Escribe un mensaje.");return}
- if(!db.messages)db.messages=[];
- db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
- save();openChat22(to);
+async function sendChat22(to){
+  const el=document.getElementById("chatText22"),text=el.value.trim();
+  if(!text){alert("Escribe un mensaje.");return}
+  if(!db.messages)db.messages=[];
+  db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
+  window.__openChat22=to;
+  // Mostrar inmediatamente el mensaje en el dispositivo que lo envía.
+  openChat22(to);
+  // Guardar en Firebase para que el otro celular/PC lo reciba por onSnapshot.
+  await saveToFirebase();
 }
 /* ===== FIN MENSAJES ===== */
 
