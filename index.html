@@ -32,6 +32,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 @media(max-width:600px){.grid,.grid3{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.item{flex-direction:column;align-items:flex-start}}
 
 .cyTable th,.cyTable td{vertical-align:top}.cyTable input,.cyTable select{min-width:140px}.cyTable th:first-child{min-width:210px}
+.chat-messages-fixed{height:300px;overflow-y:auto;overflow-x:hidden;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc;overscroll-behavior:contain;scroll-behavior:auto;margin-bottom:8px}.modal-card:has(.chat-messages-fixed){overflow:hidden}.modal-card:has(.chat-messages-fixed) #chatText22{display:block;width:100%;box-sizing:border-box;resize:none;min-height:72px;max-height:72px;overflow-y:auto;margin:0 0 8px}.modal-card:has(.chat-messages-fixed) .actions{flex-shrink:0}
 .modal-card.wide{width:min(1100px,100%)}
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
 .projectMainModal .grid3 .card{border:1px solid var(--line)}
@@ -172,9 +173,11 @@ function startFirebaseSync(){
         if(snap.exists() && snap.data().data){
           db=snap.data().data;
           localStorage.setItem("aulaEPT",JSON.stringify(db));
-          // Actualiza también una conversación abierta en ese mismo instante.
-          if(window.__openChat22 && typeof openChat22 === "function" && me){
-            openChat22(window.__openChat22);
+          // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
+          // No reconstruimos el cuadro de texto porque eso hacía que el cursor
+          // saltara, el modal se moviera y el usuario perdiera la posición al escribir.
+          if(window.__openChat22 && typeof refreshOpenChat22 === "function" && me){
+            refreshOpenChat22();
           }else if(typeof render === "function" && me){
             render();
           }
@@ -1765,24 +1768,36 @@ function chat(){
  return `<div class="card"><h2>💬 Mensajes</h2><p class="muted">Puedes comunicarte con tu profesor.</p>
  <div class="item"><div><h3>Profesor</h3><div class="muted">Conversación con tu profesor</div></div><button onclick="openChat22('profesor')">💬 Abrir conversación</button></div></div>`;
 }
+function chatMessagesHtml22(other){
+  const msgs=(db.messages||[]).filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
+  return msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
+}
+function refreshOpenChat22(){
+  const other=window.__openChat22;
+  const box=document.getElementById("chatMessages22");
+  if(!other || !box || !me)return;
+  const wasAtBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<35;
+  box.innerHTML=chatMessagesHtml22(other);
+  if(wasAtBottom) box.scrollTop=box.scrollHeight;
+}
 function openChat22(other){
   try{
     if(!db.messages)db.messages=[];
     window.__openChat22=other;
     const otherUser=(db.users||[]).find(u=>u.u===other);
     const name=otherUser?otherUser.name:(other==='profesor'?'Profesor':'Estudiante');
-    const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
-    const oldText=window.__chatClearAfterRender?"":(document.getElementById("chatText22")?.value||"");
-    const html=msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
     modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
-    <div id="chatMessages22" style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc">${html}</div>
-    <textarea id="chatText22" rows="3" placeholder="Escribe un mensaje..."></textarea>
+    <div id="chatMessages22" class="chat-messages-fixed">${chatMessagesHtml22(other)}</div>
+    <textarea id="chatText22" rows="3" placeholder="Escribe un mensaje..." autocomplete="off" spellcheck="true"></textarea>
     <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeChat22()">Cerrar</button></div>`;
     modal.classList.remove("hidden");
-    const input=document.getElementById("chatText22");
-    if(input){input.value=oldText; if(window.__chatClearAfterRender){input.value=""; window.__chatClearAfterRender=false;} setTimeout(()=>input.focus(),50);}
     const box=document.getElementById("chatMessages22");
     if(box)box.scrollTop=box.scrollHeight;
+    const input=document.getElementById("chatText22");
+    if(input){
+      input.value="";
+      setTimeout(()=>{ if(document.getElementById("chatText22")===input) input.focus(); },50);
+    }
   }catch(e){
     console.error("Error al abrir conversación",e);
     alert("No se pudo abrir la conversación. Intenta nuevamente.");
@@ -1799,16 +1814,13 @@ async function sendChat22(to){
   const message={id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()};
   db.messages.push(message);
   window.__openChat22=to;
-  // Marca la próxima reconstrucción del chat para que nunca restaure el mensaje enviado.
-  window.__chatClearAfterRender=true;
-  // Limpia inmediatamente el cuadro de escritura después de enviar.
+
+  // Vacía el cuadro INMEDIATAMENTE y conserva el foco.
   el.value="";
-  // Actualización inmediata en el equipo que envía.
-  openChat22(to);
-  // Asegura que el cuadro permanezca vacío después del refresco del chat.
-  const cleanBox=document.getElementById("chatText22");
-  if(cleanBox) cleanBox.value="";
-  // Sincronización con PC/celular mediante Firestore.
+  el.focus();
+  refreshOpenChat22();
+
+  // Guarda en Firebase sin reconstruir el modal.
   await saveToFirebase();
 }
 /* ===== FIN MENSAJES ===== */
