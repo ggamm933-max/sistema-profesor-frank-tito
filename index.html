@@ -1766,27 +1766,44 @@ function chat(){
  <div class="item"><div><h3>Profesor</h3><div class="muted">Conversación con tu profesor</div></div><button onclick="openChat22('profesor')">💬 Abrir conversación</button></div></div>`;
 }
 function openChat22(other){
- if(!db.messages)db.messages=[];
- const otherUser=(db.users||[]).find(u=>u.u===other);
- const name=otherUser?otherUser.name:"Profesor";
- const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
- modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
- <div style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc">
- ${msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`}
- </div>
- <textarea id="chatText22" rows="3" placeholder="Escribe tu mensaje..."></textarea>
- <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
- modal.classList.remove("hidden");
+  if(!db.messages)db.messages=[];
+  // Marca la conversación que está abierta para que onSnapshot la actualice
+  // automáticamente sin cerrar la ventana.
+  window.__openChat22=other;
+  const otherUser=(db.users||[]).find(u=>u.u===other);
+  const name=otherUser?otherUser.name:"Profesor";
+  const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
+  const box=document.getElementById("chatMessages22");
+  const oldText=document.getElementById("chatText22")?.value||"";
+  const html=msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
+  if(box){
+    box.innerHTML=html;
+    box.scrollTop=box.scrollHeight;
+    if(document.getElementById("chatText22")) document.getElementById("chatText22").value=oldText;
+    return;
+  }
+  modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
+  <div id="chatMessages22" style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc">${html}</div>
+  <textarea id="chatText22" rows="3" placeholder="Escribe tu mensaje..."></textarea>
+  <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeChat22()">Cerrar</button></div>`;
+  modal.classList.remove("hidden");
+  const newBox=document.getElementById("chatMessages22");
+  if(newBox)newBox.scrollTop=newBox.scrollHeight;
+}
+function closeChat22(){
+  window.__openChat22=null;
+  closeModal();
 }
 async function sendChat22(to){
   const el=document.getElementById("chatText22"),text=el.value.trim();
   if(!text){alert("Escribe un mensaje.");return}
   if(!db.messages)db.messages=[];
-  db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
+  const message={id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()};
+  db.messages.push(message);
   window.__openChat22=to;
-  // Mostrar inmediatamente el mensaje en el dispositivo que lo envía.
+  // Actualización inmediata en el equipo que envía.
   openChat22(to);
-  // Guardar en Firebase para que el otro celular/PC lo reciba por onSnapshot.
+  // Sincronización con PC/celular mediante Firestore.
   await saveToFirebase();
 }
 /* ===== FIN MENSAJES ===== */
