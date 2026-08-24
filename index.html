@@ -3363,8 +3363,18 @@ function saveEvaluationConfig30(){
   ensureClassData();
   const c=db.evaluationConfig;c.processEnabled=document.getElementById('processEnabled30')?.checked!==false;c.components=c.components||{};
   document.querySelectorAll('.evalCompToggle30').forEach(x=>{c.components[x.dataset.key]=x.checked});
-  if(c.processEnabled && !activeProcessComponents().length){alert('Has desactivado todos los componentes del Proceso. Se usará solamente el Proyecto al 100 %.');}
-  save();render();
+  const activos=activeProcessComponents().map(x=>x[0]);
+  if(c.processEnabled && !activos.length){
+    alert('Has desactivado todos los componentes del Proceso. Se usará solamente el Proyecto al 100 %.');
+    c.processEnabled=false;
+    document.getElementById('processEnabled30').checked=false;
+  }
+  save();
+  const texto=(!c.processEnabled)
+    ? 'Proceso desactivado. Proyecto = 100 %.\n\nLa configuración quedó guardada.'
+    : `Configuración guardada.\n\nProceso activo con ${activos.length} componente(s).\nLos desactivados no entran en el promedio.`;
+  alert('✅ '+texto);
+  render();
 }
 function enableAllEvaluationComponents30(){
   ensureClassData();db.evaluationConfig.processEnabled=true;db.evaluationConfig.components={class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true};save();render();
