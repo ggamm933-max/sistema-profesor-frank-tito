@@ -31,6 +31,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 @media(max-width:900px){.sidebar{width:70px;padding:12px}.brand span,.brand small,.nav button span{display:none}.main{margin-left:70px;width:calc(100% - 70px);padding:18px}.grid,.grid3{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.grid,.grid3{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.item{flex-direction:column;align-items:flex-start}}
 
+.cyTable th,.cyTable td{vertical-align:top}.cyTable input,.cyTable select{min-width:140px}.cyTable th:first-child{min-width:210px}
 .modal-card.wide{width:min(1100px,100%)}
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
 .projectMainModal .grid3 .card{border:1px solid var(--line)}
@@ -1751,92 +1752,200 @@ function sendChat22(to){
 }
 /* ===== FIN MENSAJES ===== */
 
-/* ===== GESTIÓN DE ESTUDIANTES v2.3 ===== */
+/* ===== GESTIÓN DE ESTUDIANTES v3.0 — LISTA POR GRADO/SECCIÓN ===== */
 function students(){
- if(!db.users)db.users=[];
- const list=db.users.filter(u=>u.role==="student");
- const grades=["1.º","2.º","3.º","4.º","5.º"];
- return `<div class="card" style="margin-bottom:18px">
-   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-    <div><h2>👥 Estudiantes</h2><p class="muted">Administra estudiantes, grados, secciones y accesos.</p></div>
-    <button onclick="addStudent23()">＋ Agregar estudiante</button>
-   </div>
- </div>
- <div class="card" style="margin-bottom:15px">
-   <label>🔎 Buscar</label><input id="studentSearch23" oninput="renderStudents23()" placeholder="Nombre o usuario">
-   <label>🎓 Filtrar por grado</label>
-   <select id="studentGrade23" onchange="renderStudents23()"><option>Todos</option>${grades.map(g=>`<option>${g}</option>`).join("")}</select>
-   <label>🔤 Filtrar por sección</label>
-   <select id="studentSection23" onchange="renderStudents23()"><option>Todas</option><option>A</option><option>B</option></select>
- </div>
- <div id="studentsList23"></div>`;
-}
-function renderStudents23(){
- const box=document.getElementById("studentsList23");if(!box)return;
- const q=(document.getElementById("studentSearch23")?.value||"").toLowerCase();
- const g=document.getElementById("studentGrade23")?.value||"Todos";
- const sec=document.getElementById("studentSection23")?.value||"Todas";
- const arr=(db.users||[]).filter(u=>u.role==="student" &&
-  (!q||(u.name||"").toLowerCase().includes(q)||(u.u||"").toLowerCase().includes(q)) &&
-  (g==="Todos"||u.grade===g)&&(sec==="Todas"||u.section===sec));
- box.innerHTML=`<div class="list">${arr.map(u=>`<div class="item">
-  <div><span class="badge">${u.grade||"Sin grado"} · ${u.section||"Sin sección"}</span>
-   <h3 style="margin:7px 0">${u.name}</h3><div class="muted">Usuario: ${u.u}</div>
+  if(!Array.isArray(db.users)) db.users=[];
+  const grades=['1.º','2.º','3.º','4.º','5.º'];
+  const total=db.users.filter(u=>u.role==='student').length;
+  return `<div class="card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h2>👥 Lista de estudiantes</h2><p class="muted">Registra estudiantes por <b>grado y sección</b>. Puedes pegar una lista desde Excel o agregar uno por uno.</p></div>
+      <button onclick="addStudent23()">＋ Agregar estudiante</button>
+    </div>
+    <div class="grid3" style="margin-top:15px">
+      <div><label>🎓 Grado</label><select id="studentGrade23" onchange="renderStudents23()"><option>Todos</option>${grades.map(g=>`<option>${g}</option>`).join('')}</select></div>
+      <div><label>🔤 Sección</label><select id="studentSection23" onchange="renderStudents23()"><option>Todas</option><option>A</option><option>B</option></select></div>
+      <div><label>🔎 Buscar</label><input id="studentSearch23" oninput="renderStudents23()" placeholder="Nombre o usuario"></div>
+    </div>
   </div>
-  <div class="actions"><button onclick="editStudent23('${u.u}')">✏️ Editar</button><button class="secondary" onclick="resetStudentPassword23('${u.u}')">🔑 Contraseña</button></div>
- </div>`).join("")||`<div class="card"><p class="muted">No se encontraron estudiantes.</p></div>`}</div>`;
+
+  <div class="card" style="margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h3 style="margin:0">📋 Pegar lista desde Excel</h3><p class="muted" style="margin:6px 0 0">Selecciona primero el grado y la sección. Luego pega <b>un estudiante por línea</b>.</p></div>
+      <span class="badge">${total} registrados</span>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label>Grado de la lista</label><select id="pasteGrade23">${grades.map(g=>`<option>${g}</option>`).join('')}</select></div>
+      <div><label>Sección de la lista</label><select id="pasteSection23"><option>A</option><option>B</option></select></div>
+      <div><label>Contraseña inicial</label><input id="pastePass23" value="1234" placeholder="1234"></div>
+    </div>
+    <textarea id="pasteStudents23" rows="7" style="margin-top:10px" placeholder="APELLIDO PATERNO, APELLIDO MATERNO, NOMBRE\nAPELLIDO PATERNO, APELLIDO MATERNO, NOMBRE\nAPELLIDO PATERNO, APELLIDO MATERNO, NOMBRE"></textarea>
+    <p class="muted" style="font-size:12px;margin:7px 0">También acepta las 5 columnas de Excel: <b>Nombre | Usuario | Contraseña | Grado | Sección</b>.</p>
+    <div class="actions">
+      <button onclick="pasteStudents23()">📥 Agregar lista</button>
+      <button class="secondary" onclick="document.getElementById('pasteStudents23').value=''">🧹 Limpiar lista pegada</button>
+    </div>
+  </div>
+
+  <div id="studentsList23"></div>`;
 }
+
+function ensureStudentIds23(){
+  if(!Array.isArray(db.users)) db.users=[];
+  let changed=false;
+  db.users.forEach((u,i)=>{
+    if(u.role==='student' && (u.id===undefined || u.id===null || u.id==='')){
+      u.id='st_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7);
+      changed=true;
+    }
+    if(u.role==='student'){
+      if(!u.grade && u.grado) {u.grade=u.grado;changed=true;}
+      if(!u.section && u.seccion) {u.section=u.seccion;changed=true;}
+    }
+  });
+  if(changed) save();
+}
+
+function renderStudents23(){
+  const box=document.getElementById('studentsList23'); if(!box)return;
+  ensureStudentIds23();
+  const q=(document.getElementById('studentSearch23')?.value||'').trim().toLowerCase();
+  const g=document.getElementById('studentGrade23')?.value||'Todos';
+  const sec=document.getElementById('studentSection23')?.value||'Todas';
+  const arr=(db.users||[]).filter(u=>u.role==='student' &&
+    (!q || (u.name||'').toLowerCase().includes(q) || (u.u||'').toLowerCase().includes(q)) &&
+    (g==='Todos'||u.grade===g) && (sec==='Todas'||u.section===sec))
+    .sort((a,b)=>String(a.grade||'').localeCompare(String(b.grade||'')) || String(a.section||'').localeCompare(String(b.section||'')) || String(a.name||'').localeCompare(String(b.name||'')));
+
+  const counts={};
+  arr.forEach(u=>{const k=`${u.grade||'Sin grado'} ${u.section||''}`.trim();counts[k]=(counts[k]||0)+1;});
+  const summary=Object.entries(counts).map(([k,v])=>`<span class="badge">${k}: ${v}</span>`).join(' ');
+
+  box.innerHTML=`<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h3 style="margin:0">👥 Estudiantes registrados</h3><p class="muted" style="margin:6px 0 0">Cada estudiante conserva su <b>grado y sección</b> para Crea y Emprende, asistencia y evaluación.</p></div>
+      <div>${summary||'<span class="badge">Sin resultados</span>'}</div>
+    </div>
+    <div style="overflow:auto;margin-top:14px">
+      <table>
+        <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
+        ${arr.map((u,i)=>`<tr>
+          <td>${i+1}</td>
+          <td><b>${escClass(u.name||'')}</b></td>
+          <td><span class="badge">${escClass(u.grade||'Sin grado')}</span></td>
+          <td><span class="badge">${escClass(u.section||'Sin sección')}</span></td>
+          <td>${escClass(u.u||'')}</td>
+          <td><div class="actions"><button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button><button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button></div></td>
+        </tr>`).join('') || `<tr><td colspan="6"><p class="muted" style="margin:0">No hay estudiantes para el filtro seleccionado.</p></td></tr>`}
+      </table>
+    </div>
+  </div>`;
+}
+
 function addStudent23(editUser){
- const u=editUser?(db.users||[]).find(x=>x.u===editUser):null;
- modalBody.innerHTML=`<h2>${u?"✏️ Editar estudiante":"＋ Agregar estudiante"}</h2>
- <label>Nombre completo</label><input id="stName23" value="${u?(u.name||"").replace(/"/g,'&quot;'):""}">
- <label>Usuario</label><input id="stUser23" value="${u?(u.u||"").replace(/"/g,'&quot;'):""}" ${u?"readonly":""} placeholder="Ej.: juan.perez">
- <label>Grado</label><select id="stGrade23">${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option ${u&&u.grade===g?"selected":""}>${g}</option>`).join("")}</select>
- <label>Sección</label><select id="stSec23"><option ${u&&u.section==="A"?"selected":""}>A</option><option ${u&&u.section==="B"?"selected":""}>B</option></select>
- ${!u?`<label>Contraseña inicial</label><input id="stPass23" value="1234">`:""}
- <div class="actions" style="margin-top:15px"><button onclick="saveStudent23('${editUser||""}')">Guardar</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
- modal.classList.remove("hidden");
+  const u=editUser?(db.users||[]).find(x=>x.u===editUser):null;
+  modalBody.innerHTML=`<h2>${u?'✏️ Editar estudiante':'＋ Agregar estudiante'}</h2>
+    <p class="muted">${u?'Modifica los datos del estudiante.':'Este botón es para agregar un solo estudiante.'}</p>
+    <label>Nombre completo</label><input id="stName23" value="${u?escClass(u.name||''):''}" placeholder="Apellidos y nombres">
+    <label>Usuario</label><input id="stUser23" value="${u?escClass(u.u||''):''}" ${u?'readonly':''} placeholder="Ej.: juan.perez">
+    <div class="grid3">
+      <div><label>Grado</label><select id="stGrade23">${['1.º','2.º','3.º','4.º','5.º'].map(g=>`<option ${u&&u.grade===g?'selected':''}>${g}</option>`).join('')}</select></div>
+      <div><label>Sección</label><select id="stSec23"><option ${u&&u.section==='A'?'selected':''}>A</option><option ${u&&u.section==='B'?'selected':''}>B</option></select></div>
+      <div><label>Contraseña</label><input id="stPass23" value="${u?escClass(u.p||u.pw||'1234'):'1234'}"></div>
+    </div>
+    <div class="actions" style="margin-top:15px"><button onclick="saveStudent23('${editUser||''}')">💾 Guardar estudiante</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
 }
+
 function saveStudent23(oldUser){
- const name=document.getElementById("stName23").value.trim();
- const username=document.getElementById("stUser23").value.trim().toLowerCase().replace(/\s+/g,".");
- const grade=document.getElementById("stGrade23").value,section=document.getElementById("stSec23").value;
- if(!name||!username){alert("Completa el nombre y usuario.");return}
- if(!db.users)db.users=[];
- if(oldUser){
-  const u=db.users.find(x=>x.u===oldUser);if(u){u.name=name;u.grade=grade;u.section=section;}
- }else{
-  if(db.users.some(x=>x.u===username)){alert("Ese usuario ya existe.");return}
-  db.users.push({u:username,name,role:"student",grade,section,p:document.getElementById("stPass23").value||"1234"});
- }
- save();closeModal();render();setTimeout(renderStudents23,50);
+  const name=document.getElementById('stName23')?.value.trim();
+  const username=document.getElementById('stUser23')?.value.trim().toLowerCase().replace(/\s+/g,'.');
+  const grade=document.getElementById('stGrade23')?.value;
+  const section=document.getElementById('stSec23')?.value;
+  const pass=document.getElementById('stPass23')?.value.trim()||'1234';
+  if(!name||!username||!grade||!section){alert('Completa nombre, usuario, grado y sección.');return;}
+  if(!Array.isArray(db.users))db.users=[];
+  if(oldUser){
+    const u=db.users.find(x=>x.u===oldUser);
+    if(!u){alert('No se encontró al estudiante.');return;}
+    u.name=name;u.grade=grade;u.section=section;u.p=pass;
+    if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+  }else{
+    if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
+    db.users.push({id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass});
+  }
+  save();closeModal();render();
 }
+
 function editStudent23(u){addStudent23(u)}
+
+function pasteStudents23(){
+  const raw=document.getElementById('pasteStudents23')?.value.trim();
+  const defaultGrade=document.getElementById('pasteGrade23')?.value||'1.º';
+  const defaultSection=document.getElementById('pasteSection23')?.value||'A';
+  const defaultPass=document.getElementById('pastePass23')?.value.trim()||'1234';
+  if(!raw){alert('Pega primero la lista de estudiantes.');return;}
+  if(!Array.isArray(db.users))db.users=[];
+  let added=0,updated=0,skipped=0;
+  const usedNames=new Set(db.users.filter(u=>u.role==='student').map(u=>String(u.name||'').trim().toLowerCase()));
+  const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  lines.forEach((line,index)=>{
+    let c=line.split('\t').map(x=>x.trim());
+    if(c.length===1 && line.includes(';'))c=line.split(';').map(x=>x.trim());
+    if(c.length===1 && line.includes('|'))c=line.split('|').map(x=>x.trim());
+    const first=(c[0]||'').toLowerCase();
+    if(index===0 && (first.includes('apellidos')||first.includes('nombre')||first.includes('estudiante')))return;
+    if(!c[0]){skipped++;return;}
+    let name=c[0], user='', pass=defaultPass, grade=defaultGrade, section=defaultSection;
+    if(c.length>=5){user=c[1]||'';pass=c[2]||defaultPass;grade=c[3]||defaultGrade;section=(c[4]||defaultSection).toUpperCase();}
+    else if(c.length===2){
+      if(['A','B'].includes(c[1].toUpperCase()))section=c[1].toUpperCase();
+      else if(['1.º','2.º','3.º','4.º','5.º'].includes(c[1]))grade=c[1];
+    }
+    grade=String(grade).replace(/^([1-5])\s*[°ºo]?\.?$/,'$1.º');
+    section=String(section).toUpperCase();
+    if(!['1.º','2.º','3.º','4.º','5.º'].includes(grade)||!['A','B'].includes(section)){skipped++;return;}
+    if(!user)user=makeUsernameStudent23(name);
+    if(!pass)pass=defaultPass;
+    let existing=db.users.find(u=>u.role==='student' && (u.u===user || (String(u.name||'').trim().toLowerCase()===name.toLowerCase() && u.grade===grade && u.section===section)));
+    if(existing){
+      existing.name=name;existing.grade=grade;existing.section=section;existing.p=pass;
+      if(!existing.id)existing.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      updated++;return;
+    }
+    if(db.users.some(u=>u.u===user)){user=makeUsernameStudent23(name);}
+    db.users.push({id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:user,p:pass,role:'student',name,grade,section});
+    added++;usedNames.add(name.toLowerCase());
+  });
+  if(!added && !updated){alert('No se agregó ningún estudiante. Revisa la lista, grado y sección.');return;}
+  save();
+  render();
+  alert(`✅ Lista procesada.\n\nAgregados: ${added}\nActualizados: ${updated}\nOmitidos: ${skipped}`);
+}
+
+function makeUsernameStudent23(name){
+  let base=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'')||'estudiante';
+  let u=base,n=2;
+  while((db.users||[]).some(x=>x.u===u)){u=base+'.'+n;n++;}
+  return u;
+}
+
 function resetStudentPassword23(username){
- const u=(db.users||[]).find(x=>x.u===username);if(!u)return;
- const current=u.p||u.pw||"";
- modalBody.innerHTML=`<h2>🔑 Contraseña del estudiante</h2><p>Estudiante: <b>${u.name}</b></p>
- <label>Contraseña guardada actualmente (prueba local)</label>
- <input id="newPass23" value="${String(current).replace(/"/g,"&quot;")}">
- <p class="muted" style="font-size:12px">Puedes reemplazarla por una nueva y pulsar Guardar contraseña.</p>
- <div class="actions"><button onclick="saveStudentPassword23('${username}')">Guardar contraseña</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
- modal.classList.remove("hidden");
+  const u=(db.users||[]).find(x=>x.u===username);if(!u)return;
+  const current=u.p||u.pw||'1234';
+  modalBody.innerHTML=`<h2>🔑 Contraseña del estudiante</h2><p>Estudiante: <b>${escClass(u.name||'')}</b></p>
+    <label>Nueva contraseña</label><input id="newPass23" value="${escClass(current)}">
+    <div class="actions"><button onclick="saveStudentPassword23('${escClass(username)}')">💾 Guardar contraseña</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
 }
 function saveStudentPassword23(username){
- const p=document.getElementById("newPass23").value.trim();
- if(!p){alert("Escribe una contraseña.");return}
- const u=(db.users||[]).find(x=>x.u===username);
- if(!u){alert("No se encontró al estudiante.");return}
- u.p=p;
- delete u.pw;
- save();
- // Confirm that the stored user now has the new password.
- const stored=(db.users||[]).find(x=>x.u===username);
- if(!stored || stored.p!==p){alert("No se pudo guardar la nueva contraseña.");return}
- closeModal();
- alert("Contraseña actualizada correctamente. La nueva contraseña es: "+p);
+  const p=document.getElementById('newPass23')?.value.trim();
+  if(!p){alert('Escribe una contraseña.');return;}
+  const u=(db.users||[]).find(x=>x.u===username);if(!u){alert('No se encontró al estudiante.');return;}
+  u.p=p;delete u.pw;if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+  save();closeModal();alert('Contraseña actualizada correctamente.');render();
 }
-/* ===== FIN GESTIÓN ESTUDIANTES ===== */
+/* ===== FIN GESTIÓN ESTUDIANTES v3.0 ===== */
 
 /* ===== SEGUIMIENTO DEL ESTUDIANTE v2.4 ===== */
 function tracking(){
@@ -2379,6 +2488,7 @@ function ensureClassData(){
   if(!Array.isArray(db.examGrades))db.examGrades=[];
   if(!Array.isArray(db.projectGrades))db.projectGrades=[];
   if(!Array.isArray(db.projectWeeklyGrades))db.projectWeeklyGrades=[];
+  if(!Array.isArray(db.creaEmprende))db.creaEmprende=[];
   if(!db.projectRubrics||typeof db.projectRubrics!=='object')db.projectRubrics={};
   if(!Array.isArray(db.projectRubrics.A_portfolio))db.projectRubrics.A_portfolio=[
     'Presentación y estructura del portafolio',
@@ -3525,64 +3635,208 @@ function iaQuiz30(){const t=iaTopic30(),b=iaBase30(t),n=Math.min(10,iaCount30())
 /* ===== CREA Y EMPRENDE ===== */
 function creaEmprende(){
   if(me.role!=='teacher') return `<div class="card"><h2>🏆 Crea y Emprende</h2><p class="muted">Registro disponible para el docente.</p></div>`;
+
   ensureClassData();
-  if(!db.creaEmprende) db.creaEmprende=[];
+
   const grades=['1.º','2.º','3.º','4.º','5.º'];
   const sections=['A','B'];
-  const first=db.creaEmprende[0]||{};
-  const grade=window.cyGrade||first.grade||'1.º';
-  const section=window.cySection||first.section||'A';
-  const students=(db.users||[]).filter(u=>u.role==='student' && u.grade===grade && u.section===section).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const getRec=u=>db.creaEmprende.find(r=>r.studentId===u.id&&r.grade===grade&&r.section===section)||{};
+  const grade=window.cyGrade||'1.º';
+  const section=window.cySection||'A';
+  const stage=window.cyStage||'Etapa institucional';
+
+  // IMPORTANTE: se identifica al estudiante por su usuario, no por u.id.
+  // Así funciona tanto con estudiantes importados como con estudiantes agregados manualmente.
+  const students=(db.users||[])
+    .filter(u=>u.role==='student' && u.grade===grade && u.section===section)
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+  const getRec=u=>{
+    const username=u.u||'';
+    return (db.creaEmprende||[]).find(r=>
+      r.grade===grade &&
+      r.section===section &&
+      r.stage===stage &&
+      (r.studentKey===username || r.username===username || (r.studentId!=null && r.studentId===u.id))
+    )||{};
+  };
+
+  const safeKey=u=>encodeURIComponent(u.u||'');
+  const rows=students.map((u,index)=>{
+    const key=safeKey(u);
+    const r=getRec(u);
+    const status=r.status||'';
+    const reasonDisabled=status!=='no participó'?'disabled':'';
+
+    return `<tr>
+      <td>
+        <b>${escClass(u.name||'Sin nombre')}</b>
+        <div class="muted" style="font-size:12px">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div>
+      </td>
+      <td>
+        <select id="cyStatus_${index}" onchange="toggleCYRow(${index})">
+          <option value="">Seleccionar</option>
+          <option value="participó" ${status==='participó'?'selected':''}>✅ Participó</option>
+          <option value="no participó" ${status==='no participó'?'selected':''}>❌ No participó</option>
+        </select>
+      </td>
+      <td>
+        <input id="cyProject_${index}" value="${escClass(r.project||'')}" placeholder="Proyecto / grupo / función">
+      </td>
+      <td>
+        <select id="cyReason_${index}" ${reasonDisabled}>
+          <option value="">—</option>
+          ${['No presentó proyecto','No quiso participar','Inasistencia','Problema familiar','Motivo de salud','Otro']
+            .map(x=>`<option ${r.reason===x?'selected':''}>${x}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <input id="cyDetail_${index}" value="${escClass(r.detail||'')}" placeholder="Detalle u observación">
+      </td>
+      <td>
+        <button class="small" onclick="saveCY('${key}',${index})">💾 Guardar</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const participados=students.filter(u=>{
+    const r=getRec(u); return r.status==='participó';
+  }).length;
+  const noParticipados=students.filter(u=>{
+    const r=getRec(u); return r.status==='no participó';
+  }).length;
+
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><h2>🏆 Crea y Emprende</h2><p class="muted">Registro independiente de participación. <b>No modifica las calificaciones.</b></p></div>
+      <div>
+        <h2>🏆 Crea y Emprende</h2>
+        <p class="muted">Registro independiente de participación. <b>No modifica las calificaciones.</b></p>
+      </div>
       <span class="badge">REGISTRO</span>
     </div>
+
     <div class="grid3" style="margin-top:15px">
-      <div><label>Grado</label><select id="cyGrade" onchange="setCYFilter()">${grades.map(g=>`<option ${g===grade?'selected':''}>${g}</option>`).join('')}</select></div>
-      <div><label>Sección</label><select id="cySection" onchange="setCYFilter()">${sections.map(x=>`<option ${x===section?'selected':''}>${x}</option>`).join('')}</select></div>
-      <div><label>Etapa / actividad</label><input id="cyStage" value="${escClass(window.cyStage||'Etapa institucional')}" placeholder="Ej.: Etapa institucional"></div>
+      <div>
+        <label>🎓 Grado</label>
+        <select id="cyGrade" onchange="setCYFilter()">
+          ${grades.map(g=>`<option value="${g}" ${g===grade?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Sección</label>
+        <select id="cySection" onchange="setCYFilter()">
+          ${sections.map(x=>`<option value="${x}" ${x===section?'selected':''}>${x}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Etapa / actividad</label>
+        <input id="cyStage" value="${escClass(stage)}" placeholder="Ej.: Etapa institucional">
+      </div>
     </div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px">
+      <span class="badge">👥 Estudiantes: ${students.length}</span>
+      <span class="badge ok">✅ Participaron: ${participados}</span>
+      <span class="badge warn">❌ No participaron: ${noParticipados}</span>
+    </div>
+
     <div style="overflow:auto;margin-top:18px">
-      <table><tr><th>Estudiante</th><th>Participación</th><th>Proyecto / grupo / función</th><th>Motivo si no participó</th><th>Detalle</th><th></th></tr>
-      ${students.map(u=>{const r=getRec(u);const status=r.status||'';return `<tr>
-        <td><b>${escClass(u.name)}</b></td>
-        <td><select id="cyStatus_${u.id}" onchange="toggleCYRow(${u.id})"><option value="">Seleccionar</option><option value="participó" ${status==='participó'?'selected':''}>✅ Participó</option><option value="no participó" ${status==='no participó'?'selected':''}>❌ No participó</option></select></td>
-        <td><input id="cyProject_${u.id}" value="${escClass(r.project||'')}" placeholder="Proyecto / grupo / función"></td>
-        <td><select id="cyReason_${u.id}"><option value="">—</option>${['No presentó proyecto','No quiso participar','Inasistencia','Problema familiar','Motivo de salud','Otro'].map(x=>`<option ${r.reason===x?'selected':''}>${x}</option>`).join('')}</select></td>
-        <td><input id="cyDetail_${u.id}" value="${escClass(r.detail||'')}" placeholder="Detalle u observación"></td>
-        <td><button onclick="saveCY(${u.id})">💾 Guardar</button></td>
-      </tr>`}).join('')||`<tr><td colspan="6">No hay estudiantes registrados en ${grade} ${section}.</td></tr>`}
+      <table>
+        <tr>
+          <th>Estudiante</th>
+          <th>Participación</th>
+          <th>Proyecto / grupo / función</th>
+          <th>Motivo si no participó</th>
+          <th>Detalle</th>
+          <th>Acción</th>
+        </tr>
+        ${rows||`<tr><td colspan="6">
+          <div style="padding:12px">
+            <b>No hay estudiantes registrados en ${escClass(grade)} ${escClass(section)}.</b>
+            <p class="muted" style="margin:6px 0 0">Primero agrégalos en <b>Estudiantes</b> con ese mismo grado y sección. Luego aparecerán automáticamente aquí.</p>
+          </div>
+        </td></tr>`}
       </table>
     </div>
-    <p class="muted" style="margin-top:12px">Los registros se guardan por estudiante, grado, sección y etapa.</p>
+
+    <p class="muted" style="margin-top:12px">
+      Los registros se guardan por <b>estudiante, grado, sección y etapa</b>. El estudiante se reconoce por su usuario para evitar que se pierda al agregarlo o importarlo.
+    </p>
   </div>`;
 }
+
 function setCYFilter(){
   window.cyGrade=document.getElementById('cyGrade')?.value||'1.º';
   window.cySection=document.getElementById('cySection')?.value||'A';
+  window.cyStage=document.getElementById('cyStage')?.value.trim()||'Etapa institucional';
   render();
 }
-function saveCY(studentId){
-  if(!db.creaEmprende) db.creaEmprende=[];
-  const grade=document.getElementById('cyGrade')?.value||window.cyGrade||'1.º';
-  const section=document.getElementById('cySection')?.value||window.cySection||'A';
-  const stage=document.getElementById('cyStage')?.value.trim()||'Etapa institucional';
-  const status=document.getElementById('cyStatus_'+studentId)?.value||'';
-  const project=document.getElementById('cyProject_'+studentId)?.value.trim()||'';
-  const reason=document.getElementById('cyReason_'+studentId)?.value||'';
-  const detail=document.getElementById('cyDetail_'+studentId)?.value.trim()||'';
-  if(!status){alert('Selecciona Participó o No participó.');return}
-  if(status==='no participó' && !reason){alert('Indica el motivo de la no participación.');return}
-  let r=db.creaEmprende.find(x=>x.studentId===studentId&&x.grade===grade&&x.section===section&&x.stage===stage);
-  if(!r){r={studentId,grade,section,stage};db.creaEmprende.push(r)}
-  r.status=status;r.project=project;r.reason=status==='no participó'?reason:'';r.detail=detail;r.updatedAt=new Date().toISOString();
-  save();alert('Registro guardado.');render();
+
+function saveCY(encodedUsername,rowIndex){
+  ensureClassData();
+
+  const username=decodeURIComponent(encodedUsername||'');
+  const student=(db.users||[]).find(u=>u.role==='student'&&u.u===username);
+  if(!student){alert('No se encontró al estudiante.');return}
+
+  const grade=document.getElementById('cyGrade')?.value||window.cyGrade||student.grade||'1.º';
+  const section=document.getElementById('cySection')?.value||window.cySection||student.section||'A';
+  const stage=document.getElementById('cyStage')?.value.trim()||window.cyStage||'Etapa institucional';
+  const status=document.getElementById('cyStatus_'+rowIndex)?.value||'';
+  const project=document.getElementById('cyProject_'+rowIndex)?.value.trim()||'';
+  const reason=document.getElementById('cyReason_'+rowIndex)?.value||'';
+  const detail=document.getElementById('cyDetail_'+rowIndex)?.value.trim()||'';
+
+  if(!status){alert(`Selecciona la participación de ${student.name}.`);return}
+  if(status==='no participó' && !reason){alert(`Indica el motivo de la no participación de ${student.name}.`);return}
+
+  let r=(db.creaEmprende||[]).find(x=>
+    x.grade===grade &&
+    x.section===section &&
+    x.stage===stage &&
+    (x.studentKey===username || x.username===username || (x.studentId!=null && x.studentId===student.id))
+  );
+
+  if(!r){
+    r={
+      id:'cy_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      studentKey:username,
+      username,
+      studentId:student.id??null,
+      studentName:student.name||'',
+      grade,
+      section,
+      stage
+    };
+    db.creaEmprende.push(r);
+  }else{
+    // Normaliza registros antiguos para que sigan funcionando.
+    r.studentKey=username;
+    r.username=username;
+    r.studentId=student.id??r.studentId??null;
+    r.studentName=student.name||r.studentName||'';
+    r.grade=grade;
+    r.section=section;
+    r.stage=stage;
+  }
+
+  r.status=status;
+  r.project=project;
+  r.reason=status==='no participó'?reason:'';
+  r.detail=detail;
+  r.updatedAt=new Date().toISOString();
+
+  window.cyGrade=grade;
+  window.cySection=section;
+  window.cyStage=stage;
+
+  save();
+  alert(`✅ Registro guardado para ${student.name}.`);
+  render();
 }
-function toggleCYRow(studentId){
-  const status=document.getElementById('cyStatus_'+studentId)?.value;
-  const reason=document.getElementById('cyReason_'+studentId);
+
+function toggleCYRow(rowIndex){
+  const status=document.getElementById('cyStatus_'+rowIndex)?.value||'';
+  const reason=document.getElementById('cyReason_'+rowIndex);
   if(reason) reason.disabled=status!=='no participó';
 }
 /* ===== FIN CREA Y EMPRENDE ===== */
