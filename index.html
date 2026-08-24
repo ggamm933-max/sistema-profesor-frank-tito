@@ -1801,8 +1801,13 @@ async function sendChat22(to){
   const message={id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()};
   db.messages.push(message);
   window.__openChat22=to;
+  // Limpia inmediatamente el cuadro de escritura después de enviar.
+  el.value="";
   // Actualización inmediata en el equipo que envía.
   openChat22(to);
+  // Asegura que el cuadro permanezca vacío después del refresco del chat.
+  const cleanBox=document.getElementById("chatText22");
+  if(cleanBox) cleanBox.value="";
   // Sincronización con PC/celular mediante Firestore.
   await saveToFirebase();
 }
