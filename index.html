@@ -387,8 +387,12 @@ function startFirebaseSync(){
         // Si hay una conversación abierta, NO volvemos a ejecutar openChat22().
         // Eso reconstruía el modal completo y hacía que el chat del profesor
         // saltara hacia atrás cada vez que llegaba un mensaje.
+        const chatInput22=document.getElementById("chatText22");
+        const userTyping22=!!(chatInput22 && document.activeElement===chatInput22 && chatInput22.value.length>0);
+
         if(me && activeChatOther22 && modalOpen && typeof paintChatMessages22==="function"){
-          paintChatMessages22(activeChatOther22);
+          // Mientras escribe, no reconstruimos ni reposicionamos la conversación.
+          if(!userTyping22) paintChatMessages22(activeChatOther22);
         }else if(me && typeof render === "function"){
           render();
         }
@@ -889,12 +893,18 @@ function paintChatMessages22(other, preserveInput=true){
  const key=JSON.stringify(msgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
  if(key===chatRealtimeKey22) return;
 
- const oldHeight=box.scrollHeight;
+ // Guardamos exactamente la posición antes de tocar el chat.
  const oldTop=box.scrollTop;
+ const oldHeight=box.scrollHeight;
  const oldClient=box.clientHeight;
- const atBottom=(oldHeight-oldTop-oldClient)<=90;
+ const atBottom=(oldHeight-oldTop-oldClient)<=100;
 
- // Primera carga: construir una sola vez.
+ // Si el profesor está escribiendo, NO movemos el chat por una
+ // actualización de Firebase. El mensaje nuevo se agregará al DOM
+ // cuando corresponda, conservando la posición actual.
+ const input=document.getElementById("chatText22");
+ const typing=!!(input && document.activeElement===input && input.value.length>0);
+
  if(!box.dataset.chatRendered){
    box.innerHTML="";
    msgs.forEach(m=>appendChatMessage22(box,m));
@@ -906,32 +916,33 @@ function paintChatMessages22(other, preserveInput=true){
    return;
  }
 
- // Actualizaciones: NO reconstruir todo el chat.
- // Solo agregar los mensajes que todavía no están en el DOM.
+ // Solo insertar mensajes que todavía no existen.
  const existing=new Set(
    Array.from(box.querySelectorAll("[data-chat-id]"))
      .map(el=>String(el.dataset.chatId))
  );
+ let added=false;
  msgs.forEach(m=>{
    if(!existing.has(String(m.id))){
      appendChatMessage22(box,m);
+     added=true;
    }
  });
 
- // Si hubo cambios que no sean simples adiciones (p. ej. sincronización remota),
- // se conserva la posición y no se vuelve al inicio.
  chatRealtimeKey22=key;
 
  requestAnimationFrame(()=>{
    if(!document.getElementById("chatMessages22")) return;
+
    if(atBottom){
+     // Si estaba abajo, permanece abajo para ver el mensaje nuevo.
      box.scrollTop=box.scrollHeight;
    }else{
-     box.scrollTop=Math.min(oldTop, Math.max(0,box.scrollHeight-box.clientHeight));
+     // Si estaba leyendo mensajes anteriores, conserva la posición.
+     box.scrollTop=oldTop;
    }
  });
 }
-
 function appendChatMessage22(box,m){
  const wrap=document.createElement("div");
  wrap.dataset.chatId=String(m.id);
@@ -980,8 +991,10 @@ function startChatRealtime22(other){
          if(remoteKey!==localKey){
            db=remote;
            localStorage.setItem("aulaEPT",JSON.stringify(db));
-           // Solo agrega cambios al chat; no reconstruye el modal.
-           paintChatMessages22(other);
+           // Solo actualiza si el profesor no está escribiendo.
+           const input22=document.getElementById("chatText22");
+           const typing22=!!(input22 && document.activeElement===input22 && input22.value.length>0);
+           if(!typing22) paintChatMessages22(other);
          }
        }
      }
@@ -1030,6 +1043,10 @@ async function sendChat22(to){
  localStorage.setItem("aulaEPT",JSON.stringify(db));
  chatRealtimeKey22="";
  paintChatMessages22(to);
+ requestAnimationFrame(()=>{
+   const chatBox22=document.getElementById("chatMessages22");
+   if(chatBox22) chatBox22.scrollTop=chatBox22.scrollHeight;
+ });
 
  // Guardado en Firebase esperando a que termine.
  try{
