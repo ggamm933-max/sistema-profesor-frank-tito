@@ -384,10 +384,11 @@ function startFirebaseSync(){
         const modalEl=document.getElementById("modal");
         const modalOpen=modalEl && !modalEl.classList.contains("hidden");
 
-        // Si hay una conversación abierta, actualizamos SOLO esa conversación.
-        // No redibujamos toda la página ni cerramos el modal.
-        if(me && activeChatOther22 && modalOpen && typeof openChat22==="function"){
-          openChat22(activeChatOther22);
+        // Si hay una conversación abierta, NO volvemos a ejecutar openChat22().
+        // Eso reconstruía el modal completo y hacía que el chat del profesor
+        // saltara hacia atrás cada vez que llegaba un mensaje.
+        if(me && activeChatOther22 && modalOpen && typeof paintChatMessages22==="function"){
+          paintChatMessages22(activeChatOther22);
         }else if(me && typeof render === "function"){
           render();
         }
@@ -979,6 +980,7 @@ function startChatRealtime22(other){
          if(remoteKey!==localKey){
            db=remote;
            localStorage.setItem("aulaEPT",JSON.stringify(db));
+           // Solo agrega cambios al chat; no reconstruye el modal.
            paintChatMessages22(other);
          }
        }
