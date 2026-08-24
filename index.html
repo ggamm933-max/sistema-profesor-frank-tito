@@ -310,6 +310,7 @@ function closeModal(){
   const b=document.getElementById('modalBody');
   if(m) m.classList.add('hidden');
   if(b) b.innerHTML='';
+  activeChatOther22=null;
 }
 </script>
 
@@ -331,6 +332,7 @@ const seed = {
 };
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
 let me=null, page="home";
+let activeChatOther22=null;
 function save(){
   localStorage.setItem("aulaEPT",JSON.stringify(db));
   if(typeof saveToFirebase === "function") saveToFirebase();
@@ -377,7 +379,17 @@ function startFirebaseSync(){
       if(snap.exists() && snap.data().data){
         db = snap.data().data;
         localStorage.setItem("aulaEPT", JSON.stringify(db));
-        if(me && typeof render === "function") render();
+
+        const modalEl=document.getElementById("modal");
+        const modalOpen=modalEl && !modalEl.classList.contains("hidden");
+
+        // Si hay una conversación abierta, actualizamos SOLO esa conversación.
+        // No redibujamos toda la página ni cerramos el modal.
+        if(me && activeChatOther22 && modalOpen && typeof openChat22==="function"){
+          openChat22(activeChatOther22);
+        }else if(me && typeof render === "function"){
+          render();
+        }
       }
     },
     (error)=>console.error("Firebase: error de sincronización", error)
@@ -859,6 +871,7 @@ function chat(){
 }
 function openChat22(other){
  if(!db.messages)db.messages=[];
+ activeChatOther22=other;
  const otherUser=(db.users||[]).find(u=>u.u===other);
  const name=otherUser?otherUser.name:"Profesor";
  const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
@@ -874,8 +887,10 @@ function sendChat22(to){
  const el=document.getElementById("chatText22"),text=el.value.trim();
  if(!text){alert("Escribe un mensaje.");return}
  if(!db.messages)db.messages=[];
+ activeChatOther22=to;
  db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
- save();openChat22(to);
+ save();
+ openChat22(to);
 }
 /* ===== FIN MENSAJES ===== */
 
