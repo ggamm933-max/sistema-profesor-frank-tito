@@ -447,18 +447,18 @@ function buildNav(){
     nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join('');
     return;
   }
-  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['iaEPT','🤖','IA EPT']];
-  const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
-  const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
+  const main=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['activities','📝','Actividades'],['creaEmprende','💡','Crea y Emprende']];
+  const more=[['courses','📚','Cursos'],['materials','🎬','Materiales'],['iaEPT','🤖','IA EPT'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
+  const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas'],['project','🚀','Proyecto 70 %']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
-  nav.innerHTML=top.map(b).join('')+
-    `<div class="nav-group-title">📊 Evaluación</div>`+
-    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación 30 %</span></button>`+
-    `<div id="evalMenu" class="nav-sub" style="display:block">${process.map(b).join('')}</div>`+
-    b(['project','🚀','Proyecto 70 %'])+
-    extra.map(b).join('');
+  nav.innerHTML=main.map(b).join('')+
+    `<button class="nav-group-toggle" onclick="toggleMoreMenu()">☰ <span>Más opciones</span></button>`+
+    `<div id="moreMenu" class="nav-sub" style="display:none">${more.map(b).join('')}</div>`+
+    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación</span></button>`+
+    `<div id="evalMenu" class="nav-sub" style="display:none">${process.map(b).join('')}</div>`;
 }
 function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function toggleMoreMenu(){const x=document.getElementById('moreMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
 function go(p){page=p;buildNav();render()}
 function render(){
  const titles={
@@ -467,7 +467,7 @@ function render(){
    submissions:me.role==="teacher"?"Entregas":"Mis entregas",
    chat:"Mensajes",grades:"Evaluaciones",
    tracking:"Seguimiento",attendance:"Asistencia",incidents:"Incidentes",
-   reports:"Reportes",backup:"Respaldo",announcements:"Avisos",evalConfig:"Configurar evaluación"
+   reports:"Reportes",backup:"Respaldo",announcements:"Avisos",evalConfig:"Configurar evaluación",creaEmprende:"Crea y Emprende"
  };
  pageTitle.textContent=titles[page]||"Aula Virtual";
  pageSub.textContent=me.role==="teacher"?"Panel del docente":"Espacio del estudiante";
@@ -475,7 +475,7 @@ function render(){
    home:home,students:students,courses:courses,materials:materials,
    activities:activities,submissions:submissions,chat:chat,grades:grades,
    tracking:tracking,attendance:attendance,incidents:incidents,
-   reports:reports,backup:backup,announcements:announcements
+   reports:reports,backup:backup,announcements:announcements,creaEmprende:creaEmprende
  }[page];
  content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
 }
@@ -1740,6 +1740,8 @@ function ensureClassData(){
   if(!Array.isArray(db.groups))db.groups=[];
   if(!Array.isArray(db.activitiesGrades))db.activitiesGrades=[];
   if(!Array.isArray(db.participations))db.participations=[];
+  if(!Array.isArray(db.creaEmprendeRecords))db.creaEmprendeRecords=[];
+  if(!Array.isArray(db.creaEmprendeStudents))db.creaEmprendeStudents=[];
   if(!Array.isArray(db.behaviorGrades))db.behaviorGrades=[];
   if(!Array.isArray(db.uniformGrades))db.uniformGrades=[];
   if(!Array.isArray(db.notebookGrades))db.notebookGrades=[];
@@ -2170,6 +2172,97 @@ function activitiesGrades(){
     </div>
   </div>`;
 }
+
+function creaEmprende(){
+  if(me.role!=='teacher')return `<div class="card"><h2>💡 Crea y Emprende</h2><p class="muted">Solo para el docente.</p></div>`;
+  ensureClassData();
+  const records=(db.creaEmprendeRecords||[]).slice().reverse();
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h2>💡 Crea y Emprende</h2><p class="muted">Registra quién participó, quién no participó y el motivo detallado.</p></div>
+      <button onclick="newCreaEmprendeRecord30()">＋ Nuevo registro</button>
+    </div>
+    <div class="list" style="margin-top:18px">${records.map(r=>{
+      const rows=(db.creaEmprendeStudents||[]).filter(x=>String(x.recordId)===String(r.id));
+      const part=rows.filter(x=>x.status==='Participó').length;
+      const no=rows.filter(x=>x.status==='No participó').length;
+      return `<div class="item">
+        <div><span class="badge">🎓 ${escClass(r.grade)} · ${escClass(r.section)}</span>
+          <h3 style="margin:7px 0">${escClass(r.title||'Crea y Emprende')}</h3>
+          <div class="muted">📅 ${escClass(r.date)} · ${part} participó / ${no} no participó</div>
+        </div>
+        <button onclick="openCreaEmprendeRecord30('${escClass(r.id)}')">👁️ Registrar / ver</button>
+      </div>`;
+    }).join('')||`<div class="item"><b>No hay registros de Crea y Emprende.</b><div class="muted">Crea el primero para registrar a los estudiantes.</div></div>`}</div>
+  </div>`;
+}
+function newCreaEmprendeRecord30(){
+  const today=todayLocal30();
+  modalBody.innerHTML=`<h2>💡 Nuevo registro — Crea y Emprende</h2>
+    <label>Fecha</label><input id="cexDate30" type="date" value="${today}">
+    <label>Actividad / etapa</label><input id="cexTitle30" value="Crea y Emprende" placeholder="Ej.: Etapa institucional, feria, exposición...">
+    <div class="grid3">
+      <div><label>Grado <b style="color:#b91c1c">*</b></label><select id="cexGrade30"><option value="">Selecciona el grado</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+      <div><label>Sección <b style="color:#b91c1c">*</b></label><select id="cexSec30"><option value="">Selecciona la sección</option><option>A</option><option>B</option></select></div>
+    </div>
+    <div class="actions" style="margin-top:15px"><button onclick="saveCreaEmprendeRecord30()">Crear registro</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveCreaEmprendeRecord30(){
+  ensureClassData();
+  const grade=document.getElementById('cexGrade30')?.value||'',section=document.getElementById('cexSec30')?.value||'';
+  const title=document.getElementById('cexTitle30')?.value.trim()||'Crea y Emprende';
+  if(!grade||!section){alert('Selecciona grado y sección.');return}
+  const id='cex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+  db.creaEmprendeRecords.push({id,date:document.getElementById('cexDate30').value,title,grade,section});
+  save();closeModal();render();
+  setTimeout(()=>openCreaEmprendeRecord30(id),80);
+}
+function openCreaEmprendeRecord30(id){
+  ensureClassData();
+  const rec=(db.creaEmprendeRecords||[]).find(x=>String(x.id)===String(id)); if(!rec)return;
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===rec.grade&&u.section===rec.section);
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>💡 ${escClass(rec.title)}</h2>
+    <p class="muted">📅 ${escClass(rec.date)} · 🎓 ${escClass(rec.grade)} · ${escClass(rec.section)}</p>
+    <div style="overflow:auto;margin-top:15px"><table>
+      <tr><th>N.º</th><th>Estudiante</th><th>Participación</th><th>Proyecto / detalle de participación</th><th>Motivo de no participación</th><th>Detalle / observación</th></tr>
+      ${students.map((u,i)=>{
+        const x=(db.creaEmprendeStudents||[]).find(y=>String(y.recordId)===String(id)&&String(y.user)===String(u.u))||{};
+        const status=x.status||'';
+        return `<tr>
+          <td>${i+1}</td><td><b>${escClass(u.name)}</b></td>
+          <td><select class="cexStatus30" data-user="${escClass(u.u)}" style="min-width:145px">
+            <option value="" ${!status?'selected':''}>Sin registrar</option><option value="Participó" ${status==='Participó'?'selected':''}>✅ Participó</option><option value="No participó" ${status==='No participó'?'selected':''}>❌ No participó</option>
+          </select></td>
+          <td><input class="cexProject30" data-user="${escClass(u.u)}" value="${escClass(x.project||'')}" placeholder="Proyecto, grupo o función" style="min-width:180px"></td>
+          <td><select class="cexReason30" data-user="${escClass(u.u)}" style="min-width:190px">
+            <option value="" ${!x.reason?'selected':''}>—</option><option ${x.reason==='No presentó proyecto'?'selected':''}>No presentó proyecto</option><option ${x.reason==='No quiso participar'?'selected':''}>No quiso participar</option><option ${x.reason==='Inasistencia'?'selected':''}>Inasistencia</option><option ${x.reason==='Problema familiar'?'selected':''}>Problema familiar</option><option ${x.reason==='Motivo de salud'?'selected':''}>Motivo de salud</option><option ${x.reason==='Otro'?'selected':''}>Otro</option>
+          </select></td>
+          <td><input class="cexDetail30" data-user="${escClass(u.u)}" value="${escClass(x.detail||'')}" placeholder="Explica el motivo u observación" style="min-width:220px"></td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="6">No hay estudiantes registrados en este grado y sección.</td></tr>'}
+    </table></div>
+    <div class="actions" style="margin-top:15px"><button onclick="saveCreaEmprendeStudents30('${escClass(id)}')">💾 Guardar registro</button><button class="secondary" onclick="closeCreaEmprendeModal30()">Cerrar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveCreaEmprendeStudents30(id){
+  ensureClassData();
+  const rec=(db.creaEmprendeRecords||[]).find(x=>String(x.id)===String(id)); if(!rec)return;
+  const statuses=[...document.querySelectorAll('.cexStatus30')]; let count=0;
+  statuses.forEach(sel=>{
+    const user=sel.dataset.user,status=sel.value;
+    const project=document.querySelector(`.cexProject30[data-user="${CSS.escape(user)}"]`)?.value.trim()||'';
+    const reason=document.querySelector(`.cexReason30[data-user="${CSS.escape(user)}"]`)?.value||'';
+    const detail=document.querySelector(`.cexDetail30[data-user="${CSS.escape(user)}"]`)?.value.trim()||'';
+    let x=(db.creaEmprendeStudents||[]).find(y=>String(y.recordId)===String(id)&&String(y.user)===String(user));
+    if(!status){if(x)db.creaEmprendeStudents=db.creaEmprendeStudents.filter(y=>y!==x);return}
+    if(!x){x={id:'cexs_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),recordId:id,user};db.creaEmprendeStudents.push(x)}
+    x.status=status;x.project=project;x.reason=status==='No participó'?reason:'';x.detail=detail;x.date=rec.date;x.grade=rec.grade;x.section=rec.section;count++;
+  });
+  save();alert(`✅ Registro de Crea y Emprende guardado. Estudiantes registrados: ${count}.`);closeCreaEmprendeModal30();render();
+}
+function closeCreaEmprendeModal30(){modalBody.classList.remove('wide');closeModal();}
 
 function participations(){return simpleComponentPanel('Participación','🙋','participation','participations')}
 function behavior(){return simpleComponentPanel('Conducta','🧑‍🏫','behavior','behaviorGrades')}
@@ -2963,18 +3056,27 @@ function grades(){
 /* Mantener grupos/registro accesibles aunque el menú se construya después. */
 
 function buildNav(){
-  if(me.role==='teacher'){
-    const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['aiEPT','🤖','IA EPT'],['timers','⏱️','Cronómetros'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades']];
-    const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
-    const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
-    const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
-    nav.innerHTML=top.map(b).join('')+`<div class="nav-group-title">📊 EVALUACIÓN</div>`+b(['grades','📊','Evaluación final'])+`<button class="nav-group-toggle" onclick="toggleEvalMenu()">🧮 <span>Proceso 30 %</span></button>`+`<div id="evalMenu" class="nav-sub" style="display:${['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam'].includes(page)?'block':'none'}">${process.map(b).join('')}</div>`+b(['project','🚀','Proyecto 70 %'])+extra.map(b).join('');
-  }else{
+  if(me.role!=='teacher'){
     const arr=[['home','🏠','Inicio'],['courses','📚','Mis cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📤','Mis entregas'],['chat','💬','Mensajes'],['announcements','📢','Avisos']];
     nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join('');
+    return;
   }
+  const main=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['activities','📝','Actividades'],['creaEmprende','💡','Crea y Emprende']];
+  const evalItems=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas'],['grades','📊','Evaluación final'],['project','🚀','Proyecto 70 %']];
+  const more=[['courses','📚','Cursos'],['materials','🎬','Materiales'],['iaEPT','🤖','IA EPT'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
+  const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
+  const evalOpen=evalItems.some(a=>a[0]===page);
+  const moreOpen=more.some(a=>a[0]===page);
+  nav.innerHTML=main.map(b).join('')+
+    `<div class="nav-group-title">📊 EVALUACIÓN</div>`+
+    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">🧮 <span>Evaluación</span></button>`+
+    `<div id="evalMenu" class="nav-sub" style="display:${evalOpen?'block':'none'}">${evalItems.map(b).join('')}</div>`+
+    `<button class="nav-group-toggle" onclick="toggleMoreMenu()">☰ <span>Más opciones</span></button>`+
+    `<div id="moreMenu" class="nav-sub" style="display:${moreOpen?'block':'none'}">${more.map(b).join('')}</div>`;
 }
 function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function toggleMoreMenu(){const x=document.getElementById('moreMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function toggleMoreMenu(){const x=document.getElementById('moreMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
 
 /* ===== IA EPT LOCAL: SOLO DOCENTE, SIN API EXTERNA ===== */
 function iaEPT(){
@@ -3026,7 +3128,7 @@ window.clearActivityFilter9 = function(){
 function render(){
   if(!me) return;
   if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',iaEPT:'🤖 IA EPT'};pageTitle.textContent=titles[page]||'Aula Virtual';pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';const fn={home,students,groups,aiEPT,timers,courses,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig,iaEPT}[page];content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);if(page==='registro')setTimeout(renderClass30,0)}
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',materials:'Materiales',activities:'Actividades',creaEmprende:'💡 Crea y Emprende',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos'};pageTitle.textContent=titles[page]||'Aula Virtual';pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';const fn={home,students,groups,aiEPT,timers,courses,materials,activities,creaEmprende,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig}[page];content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);if(page==='registro')setTimeout(renderClass30,0)}
 ensureClassData();
 
 /* ===== AUTENTICACIÓN CORREGIDA v16 ===== */
