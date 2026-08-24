@@ -306,6 +306,7 @@ html,body{max-width:100%;overflow-x:hidden}
 <div id="modal" class="modal hidden"><div class="modal-card" id="modalBody"></div></div>
 <script>
 function closeModal(){
+  if(typeof stopChatRealtime22==="function") stopChatRealtime22();
   const m=document.getElementById('modal');
   const b=document.getElementById('modalBody');
   if(m) m.classList.add('hidden');
@@ -869,28 +870,125 @@ function chat(){
  return `<div class="card"><h2>💬 Mensajes</h2><p class="muted">Puedes comunicarte con tu profesor.</p>
  <div class="item"><div><h3>Profesor</h3><div class="muted">Conversación con tu profesor</div></div><button onclick="openChat22('profesor')">💬 Abrir conversación</button></div></div>`;
 }
+let chatRealtimeTimer22=null;
+let chatRealtimeKey22="";
+
+function getChatMessages22(other){
+ if(!db.messages)db.messages=[];
+ return db.messages
+   .filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u))
+   .sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+
+function paintChatMessages22(other, preserveInput=true){
+ const box=document.getElementById("chatMessages22");
+ if(!box || !me) return;
+
+ const msgs=getChatMessages22(other);
+ const key=JSON.stringify(msgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
+ if(key===chatRealtimeKey22) return;
+ chatRealtimeKey22=key;
+
+ const wasNearBottom=(box.scrollHeight-box.scrollTop-box.clientHeight)<80;
+ box.innerHTML=msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}">
+   <span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span>
+   <div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div>
+ </div>`).join("") || `<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`;
+
+ if(wasNearBottom) box.scrollTop=box.scrollHeight;
+}
+
+function stopChatRealtime22(){
+ if(chatRealtimeTimer22){
+   clearInterval(chatRealtimeTimer22);
+   chatRealtimeTimer22=null;
+ }
+ chatRealtimeKey22="";
+}
+
+function startChatRealtime22(other){
+ stopChatRealtime22();
+
+ // Refresco de respaldo cada 1.5 s. Esto mantiene el chat actualizado
+ // aunque el listener de Firestore tarde en entregar el evento.
+ chatRealtimeTimer22=setInterval(async()=>{
+   if(!me || !activeChatOther22 || activeChatOther22!==other) return;
+   try{
+     if(window.firebaseReady){
+       const snap=await window.firebaseGetDoc(
+         window.firebaseDoc(window.firebaseDB,"aulaEPT","main")
+       );
+       if(snap.exists() && snap.data().data){
+         const remote=snap.data().data;
+         const remoteMsgs=remote.messages||[];
+         const localMsgs=db.messages||[];
+         const remoteKey=JSON.stringify(remoteMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
+         const localKey=JSON.stringify(localMsgs.map(m=>[m.id,m.from,m.to,m.text,m.date]));
+         if(remoteKey!==localKey){
+           db=remote;
+           localStorage.setItem("aulaEPT",JSON.stringify(db));
+           paintChatMessages22(other);
+         }
+       }
+     }
+   }catch(error){
+     console.error("Chat tiempo real:",error);
+   }
+ },1500);
+}
+
 function openChat22(other){
  if(!db.messages)db.messages=[];
  activeChatOther22=other;
  const otherUser=(db.users||[]).find(u=>u.u===other);
  const name=otherUser?otherUser.name:"Profesor";
- const msgs=db.messages.filter(m=>(m.from===me.u&&m.to===other)||(m.from===other&&m.to===me.u));
+
  modalBody.innerHTML=`<h2>💬 Conversación con ${name}</h2>
- <div style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc">
- ${msgs.map(m=>`<div style="margin:8px 0;text-align:${m.from===me.u?"right":"left"}"><span style="display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}">${m.text}</span><div class="muted" style="font-size:11px">${new Date(m.date).toLocaleString()}</div></div>`).join("")||`<p class="muted" style="text-align:center">No hay mensajes todavía.</p>`}
- </div>
+ <div id="chatMessages22" style="height:300px;overflow:auto;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc"></div>
  <textarea id="chatText22" rows="3" placeholder="Escribe tu mensaje..."></textarea>
  <div class="actions"><button onclick="sendChat22('${other}')">📤 Enviar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
  modal.classList.remove("hidden");
+
+ chatRealtimeKey22="";
+ paintChatMessages22(other,false);
+ startChatRealtime22(other);
 }
-function sendChat22(to){
- const el=document.getElementById("chatText22"),text=el.value.trim();
+
+async function sendChat22(to){
+ const el=document.getElementById("chatText22");
+ const text=el ? el.value.trim() : "";
  if(!text){alert("Escribe un mensaje.");return}
+
  if(!db.messages)db.messages=[];
  activeChatOther22=to;
- db.messages.push({id:Date.now()+Math.random(),from:me.u,to,text,date:new Date().toISOString()});
- save();
- openChat22(to);
+
+ const message={
+   id:Date.now()+"_"+Math.random().toString(36).slice(2),
+   from:me.u,
+   to,
+   text,
+   date:new Date().toISOString()
+ };
+
+ db.messages.push(message);
+
+ // Guardado inmediato en el dispositivo.
+ localStorage.setItem("aulaEPT",JSON.stringify(db));
+ chatRealtimeKey22="";
+ paintChatMessages22(to);
+
+ // Guardado en Firebase esperando a que termine.
+ try{
+   await saveToFirebase();
+ }catch(error){
+   console.error("No se pudo enviar el mensaje:",error);
+ }
+
+ const input=document.getElementById("chatText22");
+ if(input){
+   input.value="";
+   input.focus();
+ }
 }
 /* ===== FIN MENSAJES ===== */
 
