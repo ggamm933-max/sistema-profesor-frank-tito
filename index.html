@@ -35,25 +35,6 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
 .projectMainModal .grid3 .card{border:1px solid var(--line)}
 @media(max-width:900px){.modal-card.wide{width:100%}}
-
-/* === Chat estilo WhatsApp: estados y emojis === */
-.chat-bubble-wrap22{display:flex;flex-direction:column;margin:6px 0;max-width:78%}
-.chat-bubble-wrap22.mine22{margin-left:auto;align-items:flex-end}
-.chat-bubble-wrap22.theirs22{margin-right:auto;align-items:flex-start}
-.chat-bubble22{padding:7px 10px 5px;border-radius:12px;line-height:1.35;word-break:break-word;box-shadow:0 1px 1px rgba(0,0,0,.08)}
-.chat-bubble-wrap22.mine22 .chat-bubble22{background:#d9fdd3;border-top-right-radius:4px}
-.chat-bubble-wrap22.theirs22 .chat-bubble22{background:#fff;border-top-left-radius:4px}
-.chat-meta22{font-size:10px;color:#667781;margin-top:2px;padding:0 4px;display:flex;align-items:center;gap:4px}
-.chat-check22{font-size:13px;letter-spacing:-3px;display:inline-block;min-width:18px}
-.chat-check22.sent22{color:#667781}
-.chat-check22.seen22{color:#53bdeb}
-.chat-emoji-row22{display:flex;flex-wrap:wrap;gap:4px;padding:7px;background:#f5f6f6;border-top:1px solid #ddd}
-.chat-emoji-btn22{border:0;background:transparent;font-size:22px;cursor:pointer;padding:3px 5px;border-radius:6px}
-.chat-emoji-btn22:hover{background:#e9edef}
-.chat-tools22{display:flex;align-items:center;gap:5px;margin-bottom:4px}
-.chat-sticker-btn22{border:1px solid #d0d7de;background:#fff;border-radius:8px;padding:5px 8px;cursor:pointer;font-size:15px}
-.chat-sticker-panel22{display:none}
-
 </style>
 
 <!-- Firebase: sincronización entre PC, celular y otros dispositivos -->
@@ -331,7 +312,6 @@ function closeModal(){
   if(m) m.classList.add('hidden');
   if(b) b.innerHTML='';
   activeChatOther22=null;
- setTimeout(addChatEmojiTools22,0);
 }
 </script>
 
@@ -905,24 +885,6 @@ function getChatMessages22(other){
    .sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
 
-
-function markChatMessagesSeen22(other){
-  if(!me || !other) return;
-  let changed=false;
-  const all=getChatMessages22(other);
-  all.forEach(m=>{
-    if(String(m.to||"")===String(me||"") && !m.seen){
-      m.seen=true;
-      changed=true;
-    }
-  });
-  if(changed){
-    try{
-      localStorage.setItem("aula_chat_"+String(me||"")+"_"+String(other||""), JSON.stringify(all));
-    }catch(e){}
-  }
-}
-
 function paintChatMessages22(other, preserveInput=true){
  const box=document.getElementById("chatMessages22");
  if(!box || !me) return;
@@ -982,42 +944,22 @@ function paintChatMessages22(other, preserveInput=true){
  });
 }
 function appendChatMessage22(box,m){
-  const mine = String(m.from||"")===String(me||"");
-  const wrap=document.createElement("div");
-  wrap.className="chat-bubble-wrap22 "+(mine?"mine22":"theirs22");
-  wrap.dataset.chatId=String(m.id||((m.date||"")+"_"+(m.from||"")+"_"+(m.text||"")));
+ const wrap=document.createElement("div");
+ wrap.dataset.chatId=String(m.id);
+ wrap.style.cssText=`margin:8px 0;text-align:${m.from===me.u?"right":"left"}`;
 
-  const bubble=document.createElement("div");
-  bubble.className="chat-bubble22";
-  bubble.textContent=String(m.text||"");
-  wrap.appendChild(bubble);
+ const bubble=document.createElement("span");
+ bubble.style.cssText=`display:inline-block;max-width:80%;padding:9px 12px;border-radius:12px;background:${m.from===me.u?"#dbeafe":"#fff"}`;
+ bubble.textContent=m.text;
 
-  const meta=document.createElement("div");
-  meta.className="chat-meta22";
+ const time=document.createElement("div");
+ time.className="muted";
+ time.style.fontSize="11px";
+ time.textContent=new Date(m.date).toLocaleString();
 
-  let when="";
-  try{
-    if(m.date){
-      const d=new Date(m.date);
-      if(!isNaN(d)) when=d.toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit"});
-    }
-  }catch(e){}
-  if(when){
-    const t=document.createElement("span");
-    t.textContent=when;
-    meta.appendChild(t);
-  }
-
-  if(mine){
-    const checks=document.createElement("span");
-    checks.className="chat-check22 "+(m.seen ? "seen22":"sent22");
-    checks.textContent="✓✓";
-    checks.title=m.seen ? "Visto":"Enviado";
-    meta.appendChild(checks);
-  }
-
-  wrap.appendChild(meta);
-  box.appendChild(wrap);
+ wrap.appendChild(bubble);
+ wrap.appendChild(time);
+ box.appendChild(wrap);
 }
 
 function stopChatRealtime22(){
@@ -1079,38 +1021,7 @@ function openChat22(other){
  startChatRealtime22(other);
 }
 
-async 
-function addChatEmojiTools22(){
-  const input=document.getElementById("chatText22");
-  if(!input || document.getElementById("chatEmojiTools22")) return;
-  const parent=input.parentElement;
-  if(!parent) return;
-  const tools=document.createElement("div");
-  tools.id="chatEmojiTools22";
-  tools.className="chat-tools22";
-  tools.innerHTML='<button type="button" class="chat-sticker-btn22" id="chatEmojiToggle22">😊 Stickers</button>';
-  parent.insertBefore(tools,input);
-
-  const panel=document.createElement("div");
-  panel.id="chatEmojiPanel22";
-  panel.className="chat-emoji-row22 chat-sticker-panel22";
-  ["😀","😂","😍","😎","👍","👏","🔥","❤️","💯","🎉","📚","💻","🙌","😊","🤔","😅","🙏","⭐"].forEach(e=>{
-    const b=document.createElement("button");
-    b.type="button"; b.className="chat-emoji-btn22"; b.textContent=e;
-    b.onclick=()=>{
-      input.value += e;
-      input.focus();
-    };
-    panel.appendChild(b);
-  });
-  parent.insertBefore(panel,input);
-
-  document.getElementById("chatEmojiToggle22").onclick=()=>{
-    panel.style.display=panel.style.display==="flex" ? "none":"flex";
-  };
-}
-
-function sendChat22(to){
+async function sendChat22(to){
  const el=document.getElementById("chatText22");
  const text=el ? el.value.trim() : "";
  if(!text){alert("Escribe un mensaje.");return}
