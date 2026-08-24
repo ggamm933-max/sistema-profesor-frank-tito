@@ -93,6 +93,11 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
         <div class="userpill">👤 <span id="currentUser"></span> &nbsp; <button type="button" id="logoutBtn" class="small secondary" onclick="logout(event)">Salir</button></div>
       </div>
       <div id="content"></div>
+      <div class="developer-credit" style="margin-top:18px;padding:12px;border-top:1px solid #ddd;text-align:center;font-size:12px;opacity:.85">
+        <strong>Sistema Aula EPT</strong><br>
+        Desarrollado y propiedad de <strong>Frank Carlos Tito Chavez</strong><br>
+        Licenciado en Computación e Informática
+      </div>
     </main>
   </div>
 </div>
@@ -201,8 +206,11 @@ function start(){
  currentUser.textContent=me.name; buildNav(); render();
 }
 function logout(ev){
-  try{if(ev){ev.preventDefault();ev.stopPropagation();}}catch(e){}
+  try{
+    if(ev){ev.preventDefault();ev.stopPropagation();}
+  }catch(e){}
   me=null;
+  page="home";
   localStorage.removeItem("session");
   const appEl=document.getElementById("app");
   const loginEl=document.getElementById("login");
@@ -214,6 +222,7 @@ function logout(ev){
   const passInput=document.getElementById("password");
   if(userInput) userInput.value="";
   if(passInput) passInput.value="";
+  try{window.scrollTo(0,0);}catch(e){}
 }
 function buildNav(){
   if(me.role!=='teacher'){
@@ -4081,12 +4090,6 @@ function render(){
 ensureClassData();
 
 </script>
-
-<div class="developer-credit" style="margin-top:18px;padding:12px;border-top:1px solid #ddd;text-align:center;font-size:12px;opacity:.85">
-  <strong>Sistema Aula EPT</strong><br>
-  Desarrollado y propiedad de <strong>Frank Carlos Tito Chavez</strong><br>
-  Licenciado en Computación e Informática
-</div>
 
 </body>
 </html>
