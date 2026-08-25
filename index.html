@@ -1844,40 +1844,56 @@ async function sendChat22(to){
 function students(){
   if(!Array.isArray(db.users)) db.users=[];
   const grades=['1.º','2.º','3.º','4.º','5.º'];
-  const total=db.users.filter(u=>u.role==='student').length;
-  return `<div class="card" style="margin-bottom:18px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><h2>👥 Lista de estudiantes</h2><p class="muted">Registra estudiantes por <b>grado y sección</b>. Puedes pegar una lista desde Excel o agregar uno por uno.</p></div>
-      <button onclick="addStudent23()">＋ Agregar estudiante</button>
-    </div>
-    <div class="grid3" style="margin-top:15px">
-      <div><label>🎓 Grado</label><select id="studentGrade23" onchange="renderStudents23()"><option>Todos</option>${grades.map(g=>`<option>${g}</option>`).join('')}</select></div>
-      <div><label>🔤 Sección</label><select id="studentSection23" onchange="renderStudents23()"><option>Todas</option><option>A</option><option>B</option></select></div>
-      <div><label>🔎 Buscar</label><input id="studentSearch23" oninput="renderStudents23()" placeholder="Nombre o usuario"></div>
-    </div>
-  </div>
 
-  <div class="card" style="margin-bottom:18px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><h3 style="margin:0">📋 Pegar lista desde Excel</h3><p class="muted" style="margin:6px 0 0">Selecciona primero el grado y la sección. Luego pega <b>un estudiante por línea</b>.</p></div>
-      <span class="badge">${total} registrados</span>
+  return `<div class="card" style="margin-bottom:24px;padding:26px 24px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:280px">
+        <h2 style="margin:0 0 8px;font-size:28px;color:#0f172a">👥 Lista de estudiantes</h2>
+        <p class="muted" style="margin:0;font-size:16px">
+          Filtra por grado y sección. Para agregar estudiantes usa uno de los dos botones.
+        </p>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+        <button onclick="addStudent23()" style="white-space:nowrap">
+          ＋ Agregar estudiante
+        </button>
+        <button onclick="openImport()" style="white-space:nowrap">
+          📥 Agregar lista desde Excel
+        </button>
+      </div>
     </div>
-    <div class="grid3" style="margin-top:12px">
-      <div><label>Grado de la lista</label><select id="pasteGrade23">${grades.map(g=>`<option>${g}</option>`).join('')}</select></div>
-      <div><label>Sección de la lista</label><select id="pasteSection23"><option>A</option><option>B</option></select></div>
-      <div><label>Contraseña inicial</label><input id="pastePass23" value="1234" placeholder="1234"></div>
-    </div>
-    <textarea id="pasteStudents23" rows="7" style="margin-top:10px" placeholder="APELLIDO PATERNO, APELLIDO MATERNO, NOMBRE\nAPELLIDO PATERNO, APELLIDO MATERNO, NOMBRE\nAPELLIDO PATERNO, APELLIDO MATERNO, NOMBRE"></textarea>
-    <p class="muted" style="font-size:12px;margin:7px 0">También acepta las 5 columnas de Excel: <b>Nombre | Usuario | Contraseña | Grado | Sección</b>.</p>
-    <div class="actions">
-      <button onclick="pasteStudents23()">📥 Agregar lista</button>
-      <button class="secondary" onclick="document.getElementById('pasteStudents23').value=''">🧹 Limpiar lista pegada</button>
+
+    <div class="grid3" style="margin-top:28px;gap:20px">
+      <div>
+        <label style="font-size:16px">🎓 Grado</label>
+        <select id="studentGrade23" onchange="renderStudents23()" style="height:48px">
+          <option>Todos</option>
+          ${grades.map(g=>`<option>${g}</option>`).join('')}
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:16px">🔤 Sección</label>
+        <select id="studentSection23" onchange="renderStudents23()" style="height:48px">
+          <option>Todas</option>
+          <option>A</option>
+          <option>B</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:16px">🔎 Buscar</label>
+        <input id="studentSearch23"
+               oninput="renderStudents23()"
+               placeholder="Nombre o usuario"
+               style="height:48px">
+      </div>
     </div>
   </div>
 
   <div id="studentsList23"></div>`;
 }
-
 function normalizeStudentGrade23(value){
   const s=String(value||'').trim().toLowerCase();
   const m=s.match(/[1-5]/);
