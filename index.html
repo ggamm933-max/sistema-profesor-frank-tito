@@ -2019,7 +2019,9 @@ function renderStudents23(){
             <td>${escClass(u.u||'')}</td>
             <td><div class="actions">
               <button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button>
-              <button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button>
+              <button class="secondary" onclick="resetStudent23('${escClass(u.u||'')}')">🔑 Contraseña</button>
+              <button class="secondary" onclick="resetStudentAccount23('${escClass(u.u||'')}')">🔄 Resetear</button>
+              <button class="secondary" onclick="deleteStudent23('${escClass(u.u||'')}')">🗑️ Eliminar</button>
             </div></td>
           </tr>`).join('')}
         </table>
@@ -2056,6 +2058,8 @@ function renderStudents23(){
               <td><div class="actions">
                 <button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button>
                 <button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button>
+                <button class="secondary" onclick="resetStudentAccount23('${escClass(u.u||'')}')">🔄 Resetear</button>
+                <button class="secondary" onclick="deleteStudent23('${escClass(u.u||'')}')">🗑️ Eliminar</button>
               </div></td>
             </tr>`).join('')}
           </table>
@@ -2153,6 +2157,46 @@ function makeUsernameStudent23(name){
   let u=base,n=2;
   while((db.users||[]).some(x=>x.u===u)){u=base+'.'+n;n++;}
   return u;
+}
+
+function resetStudentAccount23(username){
+  const u=(db.users||[]).find(x=>x.u===username);
+  if(!u)return;
+
+  const ok=confirm(
+    `¿Resetear la cuenta de este estudiante?\n\n`+
+    `${u.name||username}\n`+
+    `${u.grade||'Sin grado'} · ${u.section||'Sin sección'}\n\n`+
+    `Se conservarán sus datos académicos.\n`+
+    `La contraseña volverá a: 1234.`
+  );
+  if(!ok)return;
+
+  u.p='1234';
+  delete u.pw;
+  if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+
+  save();
+  render();
+  setTimeout(()=>renderStudents23(),0);
+}
+
+function deleteStudent23(username){
+  const u=(db.users||[]).find(x=>x.u===username);
+  if(!u)return;
+
+  const ok=confirm(
+    `¿Está seguro de eliminar a este estudiante?\n\n`+
+    `${u.name||username}\n`+
+    `${u.grade||'Sin grado'} · ${u.section||'Sin sección'}\n\n`+
+    `Esta acción elimina su registro de la lista de estudiantes.`
+  );
+  if(!ok)return;
+
+  db.users=db.users.filter(x=>x!==u);
+  save();
+  render();
+  setTimeout(()=>renderStudents23(),0);
 }
 
 function resetStudentPassword23(username){
