@@ -179,6 +179,18 @@ function startFirebaseSync(){
           if(window.__openChat22 && typeof refreshOpenChat22 === "function" && me){
             refreshOpenChat22();
           }else if(typeof render === "function" && me){
+            // IMPORTANTE: mientras el docente está calificando en Registro de clase
+            // NO reconstruir toda la pantalla por cada sincronización de Firebase.
+            // El redibujado reemplaza los <select> y <input>, haciendo que el
+            // filtro Grado/Sección parezca bloqueado y provocando pérdida de foco.
+            // Guardamos el filtro actual y dejamos intacta la pantalla de evaluación.
+            if(page === 'registro'){
+              const cg=document.getElementById('ceGrade30')?.value;
+              const cs=document.getElementById('ceSec30')?.value;
+              if(cg!==undefined) window._classGradeFilter30=cg;
+              if(cs!==undefined) window._classSectionFilter30=cs;
+              return;
+            }
             render();
           }
         }
@@ -1866,56 +1878,177 @@ function students(){
   <div id="studentsList23"></div>`;
 }
 
+function normalizeStudentGrade23(value){
+  const s=String(value||'').trim().toLowerCase();
+  const m=s.match(/[1-5]/);
+  return m ? m[0]+'.º' : '';
+}
+
+function normalizeStudentSection23(value){
+  const s=String(value||'').trim().toUpperCase();
+  const m=s.match(/\b([AB])\b/);
+  return m ? m[1] : '';
+}
+
 function ensureStudentIds23(){
   if(!Array.isArray(db.users)) db.users=[];
   let changed=false;
   db.users.forEach((u,i)=>{
-    if(u.role==='student' && (u.id===undefined || u.id===null || u.id==='')){
+    if(u.role!=='student') return;
+
+    if(u.id===undefined || u.id===null || u.id===''){
       u.id='st_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7);
       changed=true;
     }
-    if(u.role==='student'){
-      if(!u.grade && u.grado) {u.grade=u.grado;changed=true;}
-      if(!u.section && u.seccion) {u.section=u.seccion;changed=true;}
+
+    const normalizedGrade=normalizeStudentGrade23(u.grade || u.grado);
+    const normalizedSection=normalizeStudentSection23(u.section || u.seccion);
+
+    if(normalizedGrade && u.grade!==normalizedGrade){
+      u.grade=normalizedGrade;
+      changed=true;
+    }
+    if(normalizedSection && u.section!==normalizedSection){
+      u.section=normalizedSection;
+      changed=true;
     }
   });
   if(changed) save();
 }
 
 function renderStudents23(){
-  const box=document.getElementById('studentsList23'); if(!box)return;
+  const box=document.getElementById('studentsList23');
+  if(!box)return;
+
   ensureStudentIds23();
+
   const q=(document.getElementById('studentSearch23')?.value||'').trim().toLowerCase();
-  const g=document.getElementById('studentGrade23')?.value||'Todos';
-  const sec=document.getElementById('studentSection23')?.value||'Todas';
-  const arr=(db.users||[]).filter(u=>u.role==='student' &&
-    (!q || (u.name||'').toLowerCase().includes(q) || (u.u||'').toLowerCase().includes(q)) &&
-    (g==='Todos'||u.grade===g) && (sec==='Todas'||u.section===sec))
-    .sort((a,b)=>String(a.grade||'').localeCompare(String(b.grade||'')) || String(a.section||'').localeCompare(String(b.section||'')) || String(a.name||'').localeCompare(String(b.name||'')));
+  const g=(document.getElementById('studentGrade23')?.value||'Todos').trim();
+  const sec=(document.getElementById('studentSection23')?.value||'Todas').trim().toUpperCase();
 
-  const counts={};
-  arr.forEach(u=>{const k=`${u.grade||'Sin grado'} ${u.section||''}`.trim();counts[k]=(counts[k]||0)+1;});
-  const summary=Object.entries(counts).map(([k,v])=>`<span class="badge">${k}: ${v}</span>`).join(' ');
+  /*
+   * FILTRO ESTRICTO:
+   * La condición usa GRADO Y SECCIÓN al mismo tiempo.
+   * Ejemplo: 4.º + A = SOLO estudiantes 4.º A.
+   * Nunca se mezclan 4.º A con 4.º B.
+   */
+  const arr=(db.users||[]).filter(u=>{
+    if(u.role!=='student') return false;
 
-  box.innerHTML=`<div class="card">
+    const ug=normalizeStudentGrade23(u.grade || u.grado);
+    const us=normalizeStudentSection23(u.section || u.seccion);
+    const name=String(u.name||'').toLowerCase();
+    const user=String(u.u||'').toLowerCase();
+
+    return (g==='Todos' || ug===g) &&
+           (sec==='TODAS' || us===sec) &&
+           (!q || name.includes(q) || user.includes(q));
+  });
+
+  /*
+   * Cuando se selecciona un grado y una sección concreta,
+   * se muestra UNA SOLA lista. Solo se agrupa cuando el filtro
+   * está en "Todos/Todas".
+   */
+  const total=arr.length;
+  const header=`<div class="card" style="margin-bottom:12px;padding:14px 18px;background:#f8fafc">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><h3 style="margin:0">👥 Estudiantes registrados</h3><p class="muted" style="margin:6px 0 0">Cada estudiante conserva su <b>grado y sección</b> para Crea y Emprende, asistencia y evaluación.</p></div>
-      <div>${summary||'<span class="badge">Sin resultados</span>'}</div>
-    </div>
-    <div style="overflow:auto;margin-top:14px">
-      <table>
-        <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
-        ${arr.map((u,i)=>`<tr>
-          <td>${i+1}</td>
-          <td><b>${escClass(u.name||'')}</b></td>
-          <td><span class="badge">${escClass(u.grade||'Sin grado')}</span></td>
-          <td><span class="badge">${escClass(u.section||'Sin sección')}</span></td>
-          <td>${escClass(u.u||'')}</td>
-          <td><div class="actions"><button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button><button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button></div></td>
-        </tr>`).join('') || `<tr><td colspan="6"><p class="muted" style="margin:0">No hay estudiantes para el filtro seleccionado.</p></td></tr>`}
-      </table>
+      <div>
+        <b>👥 Estudiantes registrados</b>
+        <div class="muted" style="font-size:12px;margin-top:4px">
+          ${total} estudiante${total===1?'':'s'} en el filtro actual.
+        </div>
+      </div>
+      <span class="badge">${g==='Todos'?'Todos los grados':g} · ${sec==='TODAS'?'Todas las secciones':sec}</span>
     </div>
   </div>`;
+
+  if(!total){
+    box.innerHTML=header+`<div class="card">
+      <p class="muted" style="margin:0">
+        No hay estudiantes para <b>${g==='Todos'?'todos los grados':g}</b>
+        y <b>${sec==='TODAS'?'todas las secciones':'sección '+sec}</b>.
+      </p>
+    </div>`;
+    return;
+  }
+
+  arr.sort((a,b)=>{
+    const ga=normalizeStudentGrade23(a.grade || a.grado);
+    const gb=normalizeStudentGrade23(b.grade || b.grado);
+    const sa=normalizeStudentSection23(a.section || a.seccion);
+    const sb=normalizeStudentSection23(b.section || b.seccion);
+    return ga.localeCompare(gb,'es',{numeric:true}) ||
+           sa.localeCompare(sb) ||
+           String(a.name||'').localeCompare(String(b.name||''),'es');
+  });
+
+  let html=header;
+
+  if(g!=='Todos' && sec!=='TODAS'){
+    /* Filtro combinado: SOLO una sección de un grado */
+    html+=`<div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <h3 style="margin:0">🎓 ${escClass(g)} — Sección ${escClass(sec)}</h3>
+        <span class="badge ok">${total} estudiante${total===1?'':'s'}</span>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
+          ${arr.map((u,i)=>`<tr>
+            <td>${i+1}</td>
+            <td><b>${escClass(u.name||'')}</b></td>
+            <td><span class="badge">${escClass(normalizeStudentGrade23(u.grade||u.grado)||'Sin grado')}</span></td>
+            <td><span class="badge">${escClass(normalizeStudentSection23(u.section||u.seccion)||'Sin sección')}</span></td>
+            <td>${escClass(u.u||'')}</td>
+            <td><div class="actions">
+              <button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button>
+              <button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button>
+            </div></td>
+          </tr>`).join('')}
+        </table>
+      </div>
+    </div>`;
+  }else{
+    /* Vista general: separa visualmente cada grado/sección */
+    const groups={};
+    arr.forEach(u=>{
+      const ug=normalizeStudentGrade23(u.grade||u.grado)||'Sin grado';
+      const us=normalizeStudentSection23(u.section||u.seccion)||'Sin sección';
+      const key=ug+' — '+us;
+      if(!groups[key])groups[key]=[];
+      groups[key].push(u);
+    });
+
+    Object.keys(groups).forEach(key=>{
+      const list=groups[key];
+      const parts=key.split(' — ');
+      html+=`<div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <h3 style="margin:0">🎓 ${escClass(parts[0])} — Sección ${escClass(parts[1])}</h3>
+          <span class="badge ok">${list.length} estudiante${list.length===1?'':'s'}</span>
+        </div>
+        <div style="overflow:auto">
+          <table>
+            <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
+            ${list.map((u,i)=>`<tr>
+              <td>${i+1}</td>
+              <td><b>${escClass(u.name||'')}</b></td>
+              <td><span class="badge">${escClass(normalizeStudentGrade23(u.grade||u.grado)||'Sin grado')}</span></td>
+              <td><span class="badge">${escClass(normalizeStudentSection23(u.section||u.seccion)||'Sin sección')}</span></td>
+              <td>${escClass(u.u||'')}</td>
+              <td><div class="actions">
+                <button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button>
+                <button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button>
+              </div></td>
+            </tr>`).join('')}
+          </table>
+        </div>
+      </div>`;
+    });
+  }
+
+  box.innerHTML=html;
 }
 
 function addStudent23(editUser){
@@ -2741,8 +2874,16 @@ function registroClase(){
   if(me.role!=='teacher')return `<div class="card"><h2>📝 Registro de clase</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
   const sessions=allSessionsForUI();
-  const grade=document.getElementById('ceGrade30')?.value||'';
-  const section=document.getElementById('ceSec30')?.value||'';
+
+  // El filtro se conserva fuera del DOM para que guardar una nota,
+  // sincronizar con Firebase o redibujar la pantalla NO lo reinicie.
+  const domGrade=document.getElementById('ceGrade30')?.value||'';
+  const domSection=document.getElementById('ceSec30')?.value||'';
+  if(window._classGradeFilter30===undefined) window._classGradeFilter30=domGrade;
+  if(window._classSectionFilter30===undefined) window._classSectionFilter30=domSection;
+
+  const grade=window._classGradeFilter30||'';
+  const section=window._classSectionFilter30||'';
   const activeId=window._activeClassEval30||'';
   const filteredSessions=(grade&&grade!=='Todos')
     ? sessions.filter(s=>sessionAppliesToGrade(s,grade))
@@ -2759,14 +2900,14 @@ function registroClase(){
     <div class="grid3" style="margin-top:15px">
       <div>
         <label>🎓 Grado</label>
-        <select id="ceGrade30" onchange="window._activeClassEval30='';render()">
+        <select id="ceGrade30" onchange="window._classGradeFilter30=this.value;window._activeClassEval30='';window._classSectionFilter30='';render()">
           <option value="">Seleccionar grado</option>
           ${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}" ${grade===x?'selected':''}>${x}</option>`).join('')}
         </select>
       </div>
       <div>
         <label>Sección</label>
-        <select id="ceSec30" onchange="window._activeClassEval30='';render()">
+        <select id="ceSec30" onchange="window._classSectionFilter30=this.value;window._activeClassEval30='';render()">
           <option value="">Seleccionar sección</option><option value="A" ${section==='A'?'selected':''}>A</option><option value="B" ${section==='B'?'selected':''}>B</option>
         </select>
       </div>
@@ -2892,9 +3033,11 @@ function renderClass30(){
   const rec=classRecordById(document.getElementById('ceClass30')?.value);if(!rec){box.innerHTML='';return}
   const info=document.getElementById('ceInfo30');
   if(info)info.innerHTML=`<div><b>📅 Fecha:</b> ${escClass(rec.date)}</div><div style="margin-top:6px"><b>📚 Sesión:</b> ${escClass(rec.title)}</div><div style="margin-top:6px"><b>🎯 Propósito:</b> ${escClass(rec.purpose||'—')}</div><div style="margin-top:6px"><b>📌 Criterios:</b> ${escClass(rec.criteria||'—')}</div><div style="margin-top:6px"><b>🎓 Aula:</b> ${escClass(rec.grade)} ${escClass(rec.section)}</div>`;
-  const g=document.getElementById('ceGrade30').value,s=document.getElementById('ceSec30').value,q=(document.getElementById('ceSearch30').value||'').toLowerCase();
-  if(g==='Todos'&&s==='Todas'){document.getElementById('ceGrade30').value=rec.grade;document.getElementById('ceSec30').value=rec.section}
-  const fg=document.getElementById('ceGrade30').value,fs=document.getElementById('ceSec30').value;
+  const g=document.getElementById('ceGrade30')?.value||window._classGradeFilter30||'';
+  const s=document.getElementById('ceSec30')?.value||window._classSectionFilter30||'';
+  const q=(document.getElementById('ceSearch30')?.value||'').toLowerCase();
+  const fg=window._classGradeFilter30||g;
+  const fs=window._classSectionFilter30||s;
   const arr=(db.users||[]).filter(u=>u.role==='student'&&(fg==='Todos'||u.grade===fg)&&(fs==='Todas'||u.section===fs)&&(u.name||'').toLowerCase().includes(q));
   box.innerHTML=`<div style="overflow:auto"><table><tr><th>N.º</th><th>Estudiante</th><th>Desempeño</th><th>Nota 0–20</th><th>Nivel</th></tr>
     ${arr.map((u,i)=>{const r=classEvalRecord(rec.id,u.u)||{},n=r.grade??'';return `<tr><td>${i+1}</td><td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
@@ -3947,14 +4090,93 @@ function grades(){
     return home();
   }
   ensureClassData();
-  const students=(db.users||[]).filter(u=>u.role==='student');
-  return `<div class="card"><h2>📊 Evaluación integral</h2><p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>.</p>
-    <div class="actions"><button onclick="go('project')">🚀 Proyecto 70 %</button><button onclick="go('registro')">📝 Registro de clase</button><button onclick="go('activitiesGrades')">💻 Actividades</button><button onclick="go('participations')">🙋 Participación</button><button onclick="go('behavior')">🧑‍🏫 Conducta</button><button onclick="go('uniform')">👕 Uniforme</button><button onclick="go('notebook')">📓 Cuaderno</button><button onclick="go('folder')">📁 Folder</button><button onclick="go('exam')">📋 Examen/Fichas</button><button class="secondary" onclick="go('evalConfig')">⚙️ Pesos</button></div>
-    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Proyecto 70%</th><th>Proceso 30%</th><th>Final</th><th>Nivel</th></tr>
-    ${students.map(u=>{const d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${d.project===null?'—':d.project.toFixed(2)}</td><td>${d.process===null?'—':d.process.toFixed(2)}</td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')}</table></div></div>`;
+
+  const gradeFilter=(window.finalEvalGradeFilter30||'Todos');
+  const sectionFilter=(window.finalEvalSectionFilter30||'Todas');
+
+  const allStudents=(db.users||[]).filter(u=>u.role==='student');
+  const students=allStudents.filter(u=>{
+    const ug=normalizeStudentGrade23(u.grade||u.grado);
+    const us=normalizeStudentSection23(u.section||u.seccion);
+    return (gradeFilter==='Todos'||ug===gradeFilter) &&
+           (sectionFilter==='Todas'||us===sectionFilter);
+  }).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+
+  const gradeOptions=['1.º','2.º','3.º','4.º','5.º'].map(g=>
+    `<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
+  const sectionOptions=['A','B'].map(sec=>
+    `<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
+
+  const rows=students.map(u=>{
+    const d=evaluationDetail(u.u);
+    return `<tr>
+      <td><b>${escClass(u.name)}</b></td>
+      <td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td>
+      <td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td>
+      <td>${d.project===null?'—':d.project.toFixed(2)}</td>
+      <td>${d.process===null?'—':d.process.toFixed(2)}</td>
+      <td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td>
+      <td>${d.level}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="card">
+    <h2>📊 Evaluación integral</h2>
+    <p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>.</p>
+
+    <div class="actions">
+      <button onclick="go('project')">🚀 Proyecto 70 %</button>
+      <button onclick="go('registro')">📝 Registro de clase</button>
+      <button onclick="go('activitiesGrades')">💻 Actividades</button>
+      <button onclick="go('participations')">🙋 Participación</button>
+      <button onclick="go('behavior')">🧑‍🏫 Conducta</button>
+      <button onclick="go('uniform')">👕 Uniforme</button>
+      <button onclick="go('notebook')">📓 Cuaderno</button>
+      <button onclick="go('folder')">📁 Folder</button>
+      <button onclick="go('exam')">📋 Examen/Fichas</button>
+      <button class="secondary" onclick="go('evalConfig')">⚙️ Pesos</button>
+    </div>
+
+    <div class="card" style="margin-top:16px;background:#f8fafc">
+      <div class="grid3">
+        <div>
+          <label>Grado</label>
+          <select onchange="finalEvalFilter30('grade',this.value)">
+            <option value="Todos" ${gradeFilter==='Todos'?'selected':''}>Todos los grados</option>
+            ${gradeOptions}
+          </select>
+        </div>
+        <div>
+          <label>Sección</label>
+          <select onchange="finalEvalFilter30('section',this.value)">
+            <option value="Todas" ${sectionFilter==='Todas'?'selected':''}>Todas las secciones</option>
+            ${sectionOptions}
+          </select>
+        </div>
+        <div class="item" style="margin:0;display:flex;align-items:center">
+          <div>
+            <b>Filtro actual</b>
+            <div class="muted">${gradeFilter==='Todos'?'Todos los grados':gradeFilter} · ${sectionFilter==='Todas'?'Todas las secciones':'Sección '+sectionFilter}</div>
+            <span class="badge ok" style="margin-top:6px">${students.length} estudiante${students.length===1?'':'s'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="overflow:auto;margin-top:18px">
+      <table>
+        <tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Proyecto 70%</th><th>Proceso 30%</th><th>Final</th><th>Nivel</th></tr>
+        ${rows||`<tr><td colspan="7" style="text-align:center;padding:20px">No hay estudiantes para el grado y sección seleccionados.</td></tr>`}
+      </table>
+    </div>
+  </div>`;
 }
 
-/* Mantener grupos/registro accesibles aunque el menú se construya después. */
+function finalEvalFilter30(type,value){
+  if(type==='grade') window.finalEvalGradeFilter30=value||'Todos';
+  if(type==='section') window.finalEvalSectionFilter30=value||'Todas';
+  render();
+}
 
 function buildNav(){
   if(me.role!=='teacher'){
