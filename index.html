@@ -2021,13 +2021,24 @@ function saveStudentPassword23(username){
 /* ===== FIN GESTIÓN ESTUDIANTES v3.0 ===== */
 
 /* ===== SEGUIMIENTO DEL ESTUDIANTE v2.4 ===== */
+let trackingGradeFilter28='Todos';
+let trackingSectionFilter28='Todas';
+function setTrackingFilter28(type,value){
+ if(type==='grade') trackingGradeFilter28=value;
+ if(type==='section') trackingSectionFilter28=value;
+ render();
+}
 function tracking(){
  if(me.role!=="teacher")return `<div class="card"><h2>📈 Seguimiento</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
- const studentsList=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
+ const studentsList=(db.users||[]).filter(u=>(u.role==="student"||u.role==="estudiante")&&(trackingGradeFilter28==='Todos'||u.grade===trackingGradeFilter28)&&(trackingSectionFilter28==='Todas'||u.section===trackingSectionFilter28));
  const acts=Array.isArray(db.activities)?db.activities:[];
  const subs=Array.isArray(db.submissions)?db.submissions:[];
  const attendance=db.attendance||{};
- const alerts=attendanceAlerts26();
+ const allStudents=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
+ const alerts=attendanceAlerts26().filter(a=>{
+   const u=a.u||{};
+   return (trackingGradeFilter28==='Todos'||u.grade===trackingGradeFilter28)&&(trackingSectionFilter28==='Todas'||u.section===trackingSectionFilter28);
+ });
  const rows=studentsList.map(u=>{
    const relevant=subs.filter(x=>x.user===u.u);
    const graded=relevant.filter(x=>x.grade!==null&&x.grade!==undefined&&x.grade!=="");
@@ -2046,19 +2057,23 @@ function tracking(){
     <td>${pending}</td><td>${faltas}</td><td>${tardanzas}</td><td>${estado}</td><td><b>${avg}</b></td>
     <td><button class="small" onclick="studentDetail24('${u.u}')">Ver</button></td></tr>`;
  }).join("");
-
  return `<div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-   <div><h2>📈 Seguimiento de estudiantes</h2><p class="muted">Entregas, calificaciones, asistencia y alertas.</p></div>
+   <div><h2>📈 Seguimiento de estudiantes</h2><p class="muted">Entregas, calificaciones, asistencia y alertas. Selecciona el grado y la sección para ver solamente esos estudiantes.</p></div>
    <button onclick="go('incidents')">📝 Incidentes</button>
+  </div>
+  <div class="grid3" style="margin-top:15px">
+   <div><label>Grado</label><select onchange="setTrackingFilter28('grade',this.value)"><option ${trackingGradeFilter28==='Todos'?'selected':''}>Todos</option>${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option ${trackingGradeFilter28===g?'selected':''}>${g}</option>`).join("")}</select></div>
+   <div><label>Sección</label><select onchange="setTrackingFilter28('section',this.value)"><option ${trackingSectionFilter28==='Todas'?'selected':''}>Todas</option><option ${trackingSectionFilter28==='A'?'selected':''}>A</option><option ${trackingSectionFilter28==='B'?'selected':''}>B</option></select></div>
+   <div class="item" style="margin:0"><b>Filtro actual:</b><br>${trackingGradeFilter28} · ${trackingSectionFilter28}</div>
   </div>
   ${alerts.length?`<div style="margin-top:18px"><h3>🚨 Alertas que requieren atención</h3>
    ${alerts.map(a=>`<div class="item" style="margin-top:8px"><div><b>${a.level==="alta"?"🔴":"🟠"} ${a.text}</b></div>
    <button class="small" onclick="go('incidents')">Registrar incidente</button></div>`).join("")}</div>`
-   :`<div class="item" style="margin-top:18px"><div><b>🟢 Sin alertas de asistencia</b><div class="muted">No hay estudiantes que hayan alcanzado los umbrales configurados.</div></div></div>`}
+   :`<div class="item" style="margin-top:18px"><div><b>🟢 Sin alertas de asistencia para el filtro seleccionado</b></div></div>`}
   <div style="overflow:auto;margin-top:18px"><table>
    <tr><th>Estudiante</th><th>Grado / sección</th><th>Entregas</th><th>Calificadas</th><th>Pendientes</th><th>Faltas</th><th>Tardanzas</th><th>Estado</th><th>Promedio</th><th></th></tr>
-   ${rows||`<tr><td colspan="10">No hay estudiantes registrados.</td></tr>`}
+   ${rows||`<tr><td colspan="10">No hay estudiantes para el grado y sección seleccionados.</td></tr>`}
   </table></div>
  </div>`;
 }
@@ -2263,15 +2278,20 @@ function deleteIncident26(index){
 /* ===== FIN ALERTAS E INCIDENTES ===== */
 
 /* ===== REPORTES Y RESPALDO v2.8 ===== */
+let reportsGradeFilter28='Todos';
+let reportsSectionFilter28='Todas';
+function setReportsFilter28(type,value){
+ if(type==='grade') reportsGradeFilter28=value;
+ if(type==='section') reportsSectionFilter28=value;
+ render();
+}
 function reports(){
  if(me.role!=="teacher")return `<div class="card"><h2>📑 Reportes</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
- const users=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
+ const users=(db.users||[]).filter(u=>(u.role==="student"||u.role==="estudiante")&&(reportsGradeFilter28==='Todos'||u.grade===reportsGradeFilter28)&&(reportsSectionFilter28==='Todas'||u.section===reportsSectionFilter28));
  const att=db.attendance||{};
  const inc=Array.isArray(db.incidents)?db.incidents:[];
  const rows=users.map(u=>{
    const p=projectAvg(u.u), pr=processAvg(u.u);
-   // No mostrar como promedio final una nota aislada de una entrega.
-   // El promedio final solo se muestra cuando existen Proceso y Proyecto.
    const final=(p!==null&&pr!==null)?finalGrade(u.u):null;
    const estado=final===null
      ? (p!==null||pr!==null?"En proceso":"—")
@@ -2281,10 +2301,15 @@ function reports(){
  }).join("");
  return `<div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-   <div><h2>📑 Reportes</h2><p class="muted">Resumen general del aula. El promedio final usa Proceso 30 % + Proyecto 70 %. Una nota de una entrega aislada no se muestra como promedio final.</p></div>
+   <div><h2>📑 Reportes</h2><p class="muted">Selecciona el grado y la sección para que el reporte muestre solamente esos estudiantes.</p></div>
    <button onclick="window.print()">🖨️ Imprimir / PDF</button>
   </div>
-  <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Promedio final</th><th>Presente</th><th>Tardanzas</th><th>Faltas</th><th>Incidentes</th></tr>${rows||`<tr><td colspan="8">No hay estudiantes.</td></tr>`}</table></div>
+  <div class="grid3" style="margin-top:15px">
+   <div><label>Grado</label><select onchange="setReportsFilter28('grade',this.value)"><option ${reportsGradeFilter28==='Todos'?'selected':''}>Todos</option>${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option ${reportsGradeFilter28===g?'selected':''}>${g}</option>`).join("")}</select></div>
+   <div><label>Sección</label><select onchange="setReportsFilter28('section',this.value)"><option ${reportsSectionFilter28==='Todas'?'selected':''}>Todas</option><option ${reportsSectionFilter28==='A'?'selected':''}>A</option><option ${reportsSectionFilter28==='B'?'selected':''}>B</option></select></div>
+   <div class="item" style="margin:0"><b>Filtro actual:</b><br>${reportsGradeFilter28} · ${reportsSectionFilter28}</div>
+  </div>
+  <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Promedio final</th><th>Presente</th><th>Tardanzas</th><th>Faltas</th><th>Incidentes</th></tr>${rows||`<tr><td colspan="8">No hay estudiantes para el grado y sección seleccionados.</td></tr>`}</table></div>
  </div>`;
 }
 
