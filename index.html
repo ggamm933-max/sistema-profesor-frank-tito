@@ -219,8 +219,10 @@ function login(){
 function start(){
  document.getElementById("login").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
  currentUser.textContent=me.name; buildNav(); render();
+ if(me?.role==='teacher' && typeof teacherReminderScheduler26==='function') teacherReminderScheduler26();
 }
 function logout(ev){
+  try{clearInterval(window.__teacherReminderInterval26);}catch(e){}
   try{
     if(ev){ev.preventDefault();ev.stopPropagation();}
   }catch(e){}
@@ -257,7 +259,7 @@ function buildNav(){
     extra.map(b).join('');
 }
 function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
-function go(p){page=p;buildNav();render()}
+function go(p){page=p;buildNav();render();teacherReminderScheduler26()}
 function render(){
  const titles={
    home:"Inicio",students:"Estudiantes",courses:me.role==="teacher"?"Cursos":"Mis cursos",
@@ -276,6 +278,7 @@ function render(){
    reports:reports,backup:backup,announcements:announcements
  }[page];
  content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
+ if(me?.role==='teacher') teacherReminderScheduler26();
 }
 
 function teacherReminder26(){
@@ -3521,6 +3524,176 @@ function checkQuiz30(correct){
 }
 
 
+
+/* ===== RECORDATORIOS DOCENTES ===== */
+function teacherReminders26(){
+  if(!Array.isArray(db.teacherReminders)) db.teacherReminders=[];
+  return db.teacherReminders;
+}
+function reminderNotificationStatus26(){
+  if(!('Notification' in window)) return '⚠️ Este navegador no admite notificaciones.';
+  if(Notification.permission==='granted') return '🟢 Avisos del navegador ACTIVADOS';
+  if(Notification.permission==='denied') return '🔴 Avisos bloqueados. Actívalos en los permisos del sitio.';
+  return '🟡 Avisos pendientes de autorización';
+}
+async function requestReminderNotifications26(){
+  try{
+    if(!('Notification' in window)){
+      alert('Este navegador no admite notificaciones. El aviso dentro del sistema sí funcionará.');
+      return;
+    }
+    if(Notification.permission==='granted'){
+      alert('✅ Los avisos del navegador ya están activados.');
+      render();
+      return;
+    }
+    const p=await Notification.requestPermission();
+    if(p==='granted'){
+      try{ new Notification('🔔 Aula EPT',{body:'Los avisos de tus recordatorios ya están activados.'}); }catch(e){}
+      alert('✅ Avisos activados. Ahora puedes ir a cualquier otra página. Cuando llegue la fecha y hora, Aula EPT mostrará una notificación del navegador.');
+    }else{
+      alert('⚠️ No se activaron los avisos del navegador. Puedes permitirlos desde el candado de la dirección del sitio.');
+    }
+    render();
+  }catch(e){
+    alert('No se pudo activar el aviso del navegador. El aviso dentro del sistema seguirá funcionando.');
+  }
+}
+function playTeacherReminderSound26(){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;
+    if(!C)return;
+    const ctx=new C();
+    const now=ctx.currentTime;
+    [0,0.22,0.44].forEach((t,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='sine'; o.frequency.value=[880,660,880][i];
+      g.gain.setValueAtTime(0.0001,now+t);
+      g.gain.exponentialRampToValueAtTime(0.25,now+t+0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+t+0.18);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now+t); o.stop(now+t+0.2);
+    });
+    setTimeout(()=>ctx.close().catch(()=>{}),900);
+  }catch(e){}
+}
+function showTeacherReminderAlert26(title,body){
+  let box=document.getElementById('teacherReminderAlert26');
+  if(!box){
+    box=document.createElement('div');
+    box.id='teacherReminderAlert26';
+    box.style.cssText='position:fixed;right:20px;bottom:20px;z-index:99999;width:min(430px,calc(100vw - 40px));background:#fff;border:3px solid #2563eb;border-radius:16px;box-shadow:0 15px 45px rgba(0,0,0,.28);padding:18px;font-family:Arial,sans-serif';
+    document.body.appendChild(box);
+  }
+  box.innerHTML=`<div style="font-size:20px;font-weight:800;color:#1d4ed8">🔔 ${escClass(title)}</div>
+    <div style="margin-top:10px;font-size:16px;line-height:1.45">${escClass(body)}</div>
+    <button style="margin-top:14px;background:#2563eb;color:#fff;border:0;border-radius:9px;padding:10px 16px;font-weight:700;cursor:pointer" onclick="document.getElementById('teacherReminderAlert26')?.remove()">Entendido</button>`;
+  playTeacherReminderSound26();
+}
+function testTeacherReminder26(){
+  showTeacherReminderAlert26('Recordatorio docente','Este es un aviso de prueba. Si lo ves, el sistema de avisos funciona correctamente.');
+  try{if('Notification' in window && Notification.permission==='granted') new Notification('🔔 Recordatorio docente',{body:'Aviso de prueba de Aula EPT.'});}catch(e){}
+}
+function addTeacherReminder26(){
+  const text=(document.getElementById('remText26')?.value||'').trim();
+  const date=document.getElementById('remDate26')?.value||'';
+  const time=document.getElementById('remTime26')?.value||'';
+  const area=document.getElementById('remArea26')?.value||'General';
+  const grade=document.getElementById('remGrade26')?.value||'';
+  const section=document.getElementById('remSection26')?.value||'';
+  if(!text||!date||!time){alert('Completa el recordatorio, la fecha y la hora.');return;}
+  const due=new Date(`${date}T${time}:00`);
+  if(isNaN(due.getTime())){alert('La fecha u hora no son válidas.');return;}
+  if(due.getTime()<=Date.now()){alert('⚠️ Coloca una fecha y hora futuras.');return;}
+  teacherReminders26().push({id:Date.now(),text,date,time,area,grade,section,done:false,notified:false});
+  save(); requestReminderNotifications26(); render();
+}
+function deleteTeacherReminder26(id){
+  db.teacherReminders=teacherReminders26().filter(r=>String(r.id)!==String(id)); save(); render();
+}
+function completeTeacherReminder26(id){
+  const r=teacherReminders26().find(x=>String(x.id)===String(id));
+  if(r){r.done=!r.done;if(r.done)r.notified=false;save();render();}
+}
+function checkTeacherReminders26(){
+  if(!me||me.role!=='teacher') return;
+  const arr=teacherReminders26(), now=new Date();
+  let changed=false;
+  arr.forEach(r=>{
+    if(r.done||r.notified) return;
+    const due=new Date(`${r.date}T${r.time}:00`);
+    if(!isNaN(due.getTime()) && now.getTime()>=due.getTime()){
+      r.notified=true; changed=true;
+      const where=[r.area,r.grade&&('Grado '+r.grade),r.section&&('Sección '+r.section)].filter(Boolean).join(' · ');
+      const title='Recordatorio docente';
+      const body=(where?where+' — ':'')+r.text;
+
+      // Aviso visual dentro de Aula EPT (si la pestaña está visible).
+      showTeacherReminderAlert26(title,body);
+
+      // Aviso del sistema: aparece aunque estés viendo OTRA PESTAÑA o
+      // navegando por otra página, siempre que Aula EPT permanezca abierta
+      // en alguna pestaña de este mismo navegador y los avisos estén permitidos.
+      try{
+        if('Notification' in window && Notification.permission==='granted'){
+          const n=new Notification('🔔 '+title,{
+            body,
+            requireInteraction:true,
+            renotify:true,
+            tag:'aula-ept-reminder-'+r.id,
+            icon:'data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" rx="24" fill="%232563eb"/><text x="64" y="82" text-anchor="middle" font-size="64">🔔</text></svg>')
+          });
+          n.onclick=()=>{try{window.focus();}catch(e){} try{n.close();}catch(e){}};
+        }
+      }catch(e){console.warn('Aula EPT: no se pudo mostrar la notificación del sistema',e);}
+    }
+  });
+  if(changed){save();if(page==='timers')render();}
+}
+function teacherReminderScheduler26(){
+  clearInterval(window.__teacherReminderInterval26);
+  checkTeacherReminders26();
+  // Se revisa periódicamente incluso cuando Aula EPT está en segundo plano.
+  // El navegador puede reducir la frecuencia de los temporizadores en segundo plano;
+  // por eso también se comprueba al volver a la pestaña.
+  window.__teacherReminderInterval26=setInterval(checkTeacherReminders26,5000);
+}
+document.addEventListener('visibilitychange',()=>{checkTeacherReminders26();});
+window.addEventListener('focus',()=>checkTeacherReminders26());
+window.addEventListener('pageshow',()=>checkTeacherReminders26());
+function teacherRemindersCard26(){
+  const arr=teacherReminders26().slice().sort((a,b)=>String(a.date+a.time).localeCompare(String(b.date+b.time)));
+  const rows=arr.length?arr.map(r=>{
+    const where=[r.area,r.grade&&('Grado '+r.grade),r.section&&('Sección '+r.section)].filter(Boolean).join(' · ');
+    const estado=r.done?'Hecho':r.notified?'Avisado':'Pendiente';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #e5e7eb;${r.done?'opacity:.6':''}">
+      <div style="flex:1"><b>${r.done?'✅ ':r.notified?'🔔 ':'📌 '}${escClass(r.text)}</b><div class="muted">${escClass(r.date)} · ${escClass(r.time)}${where?' · '+escClass(where):''} · <b>${estado}</b></div></div>
+      <div class="actions"><button class="secondary" onclick="completeTeacherReminder26('${r.id}')">${r.done?'↩️ Pendiente':'✅ Hecho'}</button><button class="secondary" onclick="deleteTeacherReminder26('${r.id}')">🗑️</button></div>
+    </div>`;
+  }).join(''):'<p class="muted">No tienes recordatorios programados.</p>';
+  return `<div class="card" style="margin-top:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">🔔 Recordatorios del docente</h3><p class="muted" style="margin:5px 0 0">Son privados para ti. No se publican a los estudiantes.</p></div><span class="badge">${arr.filter(x=>!x.done).length} pendientes</span></div>
+    <div class="grid3" style="margin-top:15px">
+      <div style="grid-column:span 2"><label>¿Qué necesitas recordar?</label><input id="remText26" placeholder="Ej.: Dejar como tarea la exposición sobre el tema asignado"></div>
+      <div><label>Ámbito</label><select id="remArea26"><option>General</option><option>Crea y Emprende</option><option>Clase EPT</option><option>Evaluación</option><option>Administrativo</option></select></div>
+      <div><label>Fecha</label><input id="remDate26" type="date"></div>
+      <div><label>Hora</label><input id="remTime26" type="time"></div>
+      <div><label>Grado (opcional)</label><select id="remGrade26"><option value="">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+      <div><label>Sección (opcional)</label><select id="remSection26"><option value="">Todas</option><option>A</option><option>B</option></select></div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button onclick="addTeacherReminder26()">🔔 Crear recordatorio</button>
+      <button class="secondary" onclick="requestReminderNotifications26()">🔔 Activar avisos del navegador</button>
+      <button class="secondary" onclick="testTeacherReminder26()">🧪 Probar aviso</button>
+    </div>
+    <div style="margin-top:10px;padding:11px 13px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:14px">
+      🔔 <b>Importante:</b> una vez activados los avisos, puedes ir a <b>Google, YouTube o cualquier otra página</b>. El recordatorio aparecerá como notificación de Windows/navegador. <b>Aula EPT debe quedar abierta en una pestaña</b> del navegador.
+    </div>
+    <div class="muted" style="margin-top:10px">${reminderNotificationStatus26()}</div>
+    <div style="margin-top:12px">${rows}</div>
+  </div>`;
+}
+
 /* ===== CRONÓMETROS EPT — SOLO DOCENTE ===== */
 let eptTimer30=null;
 let eptTimerSeconds30=0;
@@ -3558,7 +3731,7 @@ function timers(){
       <button class="secondary" onclick="setTimer30(1,0)">1 min</button><button class="secondary" onclick="setTimer30(3,0)">3 min</button><button class="secondary" onclick="setTimer30(5,0)">5 min</button><button class="secondary" onclick="setTimer30(10,0)">10 min</button><button class="secondary" onclick="setTimer30(15,0)">15 min</button>
     </div>
     <p class="muted" style="margin-top:12px">La ventana nueva es independiente y está pensada para proyectarla en pantalla completa.</p>
-  </div>`;
+  </div>${teacherRemindersCard26()}`;
 }
 function timerTypeChanged30(){
   const type=document.getElementById('timerType30')?.value;
