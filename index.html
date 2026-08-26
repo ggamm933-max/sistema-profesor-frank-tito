@@ -20,6 +20,28 @@ button.secondary{background:#e2e8f0;color:#172033}button.danger{background:#dc26
 .nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:3px 0}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}.nav-group-title{font-weight:800;color:#94a3b8;font-size:12px;text-transform:uppercase;padding:14px 10px 5px;letter-spacing:.3px}.nav-sub{padding-left:10px}.nav-sub button{font-size:14px}.nav-group-toggle{font-weight:800!important;color:#fff!important;background:#172033!important}.nav-group-toggle:hover{background:#1e293b!important}
 .main{margin-left:250px;width:calc(100% - 250px);padding:28px}.topbar{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}
 .userpill{background:white;border:1px solid var(--line);padding:9px 12px;border-radius:12px}
+
+
+
+.seat-history{margin-top:20px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#f8fafc}
+.history-row{display:grid;grid-template-columns:90px 90px 90px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid #e5e7eb;align-items:center}
+.history-row:last-child{border-bottom:0}
+.history-tag{font-weight:800}
+.seat-config{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#f8fafc}
+.seat-config-row{display:grid;grid-template-columns:minmax(220px,1fr) 130px 150px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #e5e7eb}
+.seat-config-row:last-child{border-bottom:0}
+.fixed-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#fee2e2;color:#991b1b;font-size:12px;font-weight:800}
+.front-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#dcfce7;color:#166534;font-size:12px;font-weight:800}
+.seat-note{padding:12px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;margin-top:14px;font-size:13px}
+.seat-grid{display:grid;gap:12px;margin-top:18px}
+.seat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;min-height:105px;box-shadow:0 1px 2px #0001}
+.seat-number{font-weight:800;font-size:14px;margin-bottom:8px;color:#334155}
+.seat-card select{padding:9px;font-size:13px}
+.seat-empty{color:#94a3b8;font-size:13px}
+.seat-summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.seat-chip{padding:8px 12px;border-radius:999px;background:#e2e8f0;font-weight:700;font-size:13px}
+@media(max-width:900px){.seat-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
+@media(max-width:600px){.seat-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 8px #0f172a08}
 .stat{font-size:28px;font-weight:800;margin:5px 0}.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;background:#e2e8f0}.badge.ok{background:#dcfce7;color:#166534}.badge.warn{background:#fef3c7;color:#92400e}.badge.bad{background:#fee2e2;color:#991b1b}
@@ -191,6 +213,13 @@ function startFirebaseSync(){
               if(cs!==undefined) window._classSectionFilter30=cs;
               return;
             }
+            // En Asistencia no reconstruimos toda la página al guardar.
+            // El render completo elimina temporalmente la tabla y desplaza la vista
+            // hasta el panel de alertas. Solo actualizamos la tabla de estudiantes.
+            if(page === 'attendance'){
+              if(typeof renderAttendanceTable25 === 'function') renderAttendanceTable25();
+              return;
+            }
             render();
           }
         }
@@ -259,7 +288,7 @@ function buildNav(){
     nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join('');
     return;
   }
-  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['iaEPT','🤖','IA EPT']];
+  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['seating','💺','Asientos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['iaEPT','🤖','IA EPT']];
   const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
@@ -278,7 +307,7 @@ function render(){
    materials:"Materiales",activities:"Actividades",
    submissions:me.role==="teacher"?"Entregas":"Mis entregas",
    chat:"Mensajes",grades:"Evaluaciones",
-   tracking:"Seguimiento",attendance:"Asistencia",incidents:"Incidentes",
+   tracking:"Seguimiento",attendance:"Asistencia",incidents:"Incidentes",seating:"Ubicación de asientos",
    reports:"Reportes",backup:"Respaldo",announcements:"Avisos"
  };
  pageTitle.textContent=titles[page]||"Aula Virtual";
@@ -286,7 +315,7 @@ function render(){
  const fn={
    home:home,students:students,courses:courses,materials:materials,
    activities:activities,submissions:submissions,chat:chat,grades:grades,
-   tracking:tracking,attendance:attendance,incidents:incidents,
+   tracking:tracking,attendance:attendance,incidents:incidents,seating:seating,
    reports:reports,backup:backup,announcements:announcements
  }[page];
  content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
@@ -2325,7 +2354,7 @@ function renderAttendanceTable25(){
  ${arr.map(u=>{
    const key=date+"|"+u.u, val=db.attendance&&db.attendance[key]||"";
    return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
-   <td><select class="attSel25" data-user="${u.u}" style="min-width:150px">
+   <td><select class="attSel25" data-user="${u.u}" style="min-width:150px" onchange="autoSaveAttendance25(this)">
     <option value="" ${!val?"selected":""}>Sin registrar</option>
     <option value="Presente" ${val==="Presente"?"selected":""}>✅ Presente</option>
     <option value="Tardanza" ${val==="Tardanza"?"selected":""}>🕐 Tardanza</option>
@@ -2337,6 +2366,15 @@ function renderAttendanceTable25(){
  }).join("")||`<tr><td colspan="3">No hay estudiantes para este filtro.</td></tr>`}
  </table></div>`;
 }
+function autoSaveAttendance25(sel){
+  const date=document.getElementById("attDate25")?.value;
+  if(!date || !sel?.dataset?.user) return;
+  if(!db.attendance) db.attendance={};
+  const key=date+"|"+sel.dataset.user;
+  if(sel.value) db.attendance[key]=sel.value; else delete db.attendance[key];
+  save();
+}
+
 function saveAttendance25(){
  const date=document.getElementById("attDate25")?.value;
  if(!date){alert("Selecciona una fecha.");return}
@@ -2836,6 +2874,17 @@ function todayLocal30(){const d=new Date();return `${d.getFullYear()}-${String(d
 function classRecordById(id){ensureClassData();return db.classRecords.find(x=>String(x.id)===String(id))}
 function classEvalRecord(classId,u){ensureClassData();return db.classEvaluations.find(x=>String(x.classId)===String(classId)&&x.user===u)}
 function avgNums(a){const x=a.map(Number).filter(Number.isFinite);return x.length?x.reduce((s,n)=>s+n,0)/x.length:null}
+function recordComponentAvg(arrName,recordId){
+  const vals=(db[arrName]||[])
+    .filter(x=>x.recordId===recordId && x.grade!==null && x.grade!==undefined && x.grade!=="")
+    .map(x=>Number(x.grade))
+    .filter(Number.isFinite);
+  return avgNums(vals);
+}
+function formatRecordAverage(arrName,recordId){
+  const a=recordComponentAvg(arrName,recordId);
+  return a===null?'—':(Math.round(a*10)/10).toString();
+}
 function componentAvg(arr,u){
   const vals=(arr||[]).filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="").map(x=>Number(x.grade));
   return avgNums(vals);
@@ -3158,31 +3207,518 @@ function saveClassEval30(){
 function simpleComponentPanel(title,emoji,key,arrName){
   ensureClassData();
   const arr=(db[arrName]||[]);
-  const students=(db.users||[]).filter(u=>u.role==='student');
+  const gid=`cmpFilterGrade_${arrName}`;
+  const sid=`cmpFilterSec_${arrName}`;
+  const lid=`cmpRecords_${arrName}`;
+
   return `<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h2>${emoji} ${title}</h2><p class="muted">Cada registro queda acumulado y se promedia automáticamente.</p></div><button onclick="newComponentRecord('${key}','${arrName}','${escClass(title)}')">＋ Nuevo registro</button></div>
-    <div class="list" style="margin-top:15px">${arr.slice().reverse().map((r,i)=>`<div class="item"><div><b>${escClass(r.title||title)}</b><div class="muted">${escClass(r.date||'')} · ${escClass(r.grade||'')} ${escClass(r.section||'')}</div></div><button onclick="openComponentRecord('${key}','${arrName}','${escClass(r.id)}')">Evaluar</button></div>`).join('')||`<div class="item"><b>No hay registros todavía.</b></div>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div>
+        <h2>${emoji} ${title}</h2>
+        <p class="muted">Cada registro queda acumulado y se promedia automáticamente.</p>
+      </div>
+      <button onclick="newComponentRecord('${key}','${arrName}','${escClass(title)}')">＋ Nuevo registro</button>
+    </div>
+
+    <div class="grid3" style="margin-top:20px;gap:16px">
+      <div>
+        <label>🎓 Grado</label>
+        <select id="${gid}" onchange="filterSimpleComponentRecords('${arrName}')">
+          <option>Todos</option>
+          ${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>🔤 Sección</label>
+        <select id="${sid}" onchange="filterSimpleComponentRecords('${arrName}')">
+          <option>Todas</option>
+          <option>A</option>
+          <option>B</option>
+        </select>
+      </div>
+      <div>
+        <label>🔎 Registro</label>
+        <div class="muted" style="padding-top:10px">Filtra los registros por grado y sección.</div>
+      </div>
+    </div>
+
+    <div id="${lid}" class="list" style="margin-top:15px">
+      ${renderSimpleComponentRecords(arrName,title,key,'Todos','Todas')}
+    </div>
   </div>`;
 }
+
+function normalizeRecordGrade(g){
+  const s=String(g||'').trim();
+  return ['1.º','2.º','3.º','4.º','5.º'].includes(s)?s:'';
+}
+function normalizeRecordSection(s){
+  const v=String(s||'').trim().toUpperCase();
+  return (v==='A'||v==='B')?v:'';
+}
+function recordScope(arrName,rec){
+  let grade=normalizeRecordGrade(rec.grade);
+  let section=normalizeRecordSection(rec.section);
+  const scores=(db[arrName]||[]).filter(x=>x.recordId===rec.id && x.user);
+  const users=(db.users||[]);
+  if(!grade){
+    const gs=[...new Set(scores.map(x=>{
+      const u=users.find(u=>u.u===x.user);
+      return normalizeRecordGrade(u?.grade);
+    }).filter(Boolean))];
+    if(gs.length===1)grade=gs[0];
+  }
+  if(!section){
+    const ss=[...new Set(scores.map(x=>{
+      const u=users.find(u=>u.u===x.user);
+      return normalizeRecordSection(u?.section);
+    }).filter(Boolean))];
+    if(ss.length===1)section=ss[0];
+  }
+  return {grade,section};
+}
+function componentDisplayTitle(arrName,r,title){
+  if(r.title && !/Grades$/i.test(String(r.title))) return r.title;
+  const map={
+    activitiesGrades:'Desarrollo de actividades',
+    participations:'Participación',
+    behaviorGrades:'Conducta',
+    uniformGrades:'Uniforme',
+    notebookGrades:'Cuaderno',
+    folderGrades:'Folder',
+    examGrades:'Examen / Fichas'
+  };
+  return map[arrName]||title;
+}
+
+function isRealComponentRecord(arrName,r){
+  // Los registros de notas antiguas pueden estar mezclados dentro del mismo arreglo.
+  // Un registro de evaluación real tiene sesión/fecha/grado-sección o un id cmp_.
+  if(!r || r.user || r.recordId) return false;
+  if(String(r.id||'').startsWith('cmp_')) return true;
+  if(r.session || r.sessionTitle || r.date || normalizeRecordGrade(r.grade) && normalizeRecordSection(r.section)) return true;
+
+  // Ocultar entradas antiguas mal formadas como "uniformGrades · 15".
+  const badTitle=String(r.title||'').trim().toLowerCase();
+  const badNames=new Set([
+    'activitiesgrades','participations','behaviorgrades','uniformgrades',
+    'notebookgrades','foldergrades','examgrades'
+  ]);
+  return !badNames.has(badTitle);
+}
+
+function renderSimpleComponentRecords(arrName,title,key,gradeFilter,sectionFilter){
+  const arr=(db[arrName]||[]);
+  const seen=new Set();
+
+  const filtered=arr.slice().reverse().filter(r=>{
+    if(!isRealComponentRecord(arrName,r)) return false;
+
+    const scope=recordScope(arrName,r);
+    if((gradeFilter!=='Todos' && scope.grade!==gradeFilter) ||
+       (sectionFilter!=='Todas' && scope.section!==sectionFilter)) return false;
+
+    // Un solo registro por sesión + grado + sección.
+    // Esto evita que una misma evaluación aparezca repetida varias veces.
+    const sessionKey=String(r.session || '') ||
+      `${String(r.sessionTitle||'').trim()}|${String(r.date||'')}`;
+    const uniqueKey=`${arrName}|${sessionKey}|${scope.grade}|${scope.section}`;
+    if(seen.has(uniqueKey)) return false;
+    seen.add(uniqueKey);
+    return true;
+  });
+
+  return filtered.map(r=>{
+    const scope=recordScope(arrName,r);
+    const displayTitle=componentDisplayTitle(arrName,r,title);
+    return `<div class="item">
+      <div>
+        <b>${escClass(displayTitle)}</b>
+        <div class="muted" style="margin-top:6px;line-height:1.7">
+          📖 <b>Sesión:</b> ${escClass(
+            (r.sessionNumber ? 'Sesión '+r.sessionNumber+(r.sessionTitle?': ':'') : '') +
+            (r.sessionTitle||'No vinculada')
+          )}
+          <br>
+          📅 <b>Fecha:</b> ${escClass(r.date||'—')}
+          &nbsp; · &nbsp;
+          🎓 <b>Grado:</b> ${escClass(scope.grade||'No vinculado')}
+          &nbsp; · &nbsp;
+          🔤 <b>Sección:</b> ${escClass(scope.section||'No vinculada')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button onclick="openComponentRecord('${key}','${arrName}','${escClass(r.id)}')">Evaluar</button>
+        <button class="secondary" onclick="editComponentRecord('${key}','${arrName}','${escClass(r.id)}')">✏️ Modificar</button>
+        <button class="secondary" onclick="deleteComponentRecord('${arrName}','${escClass(r.id)}')">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  }).join('') || `<div class="item"><b>No hay registros para este filtro.</b></div>`;
+}
+
+function filterSimpleComponentRecords(arrName){
+  const keyMap={
+    activitiesGrades:'activities',
+    participations:'participation',
+    behaviorGrades:'behavior',
+    uniformGrades:'uniform',
+    notebookGrades:'notebook',
+    folderGrades:'folder',
+    examGrades:'exam'
+  };
+  const key=keyMap[arrName]||arrName;
+  const g=document.getElementById(`cmpFilterGrade_${arrName}`)?.value||'Todos';
+  const s=document.getElementById(`cmpFilterSec_${arrName}`)?.value||'Todas';
+  const box=document.getElementById(`cmpRecords_${arrName}`);
+  if(!box)return;
+  box.innerHTML=renderSimpleComponentRecords(arrName,arrName,key,g,s);
+}
+
+
 function newComponentRecord(key,arrName,title){
+  ensureClassData();
   const today=todayLocal30();
-  modalBody.innerHTML=`<h2>＋ Nuevo registro: ${escClass(title)}</h2><label>Fecha</label><input id="cmpDate" type="date" value="${today}"><label>Título / actividad</label><input id="cmpTitle" value="${escClass(title)}"><div class="grid3"><div><label>Grado</label><select id="cmpGrade"><option>Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div><div><label>Sección</label><select id="cmpSec"><option>Todas</option><option>A</option><option>B</option></select></div></div><div class="actions"><button onclick="saveComponentRecord('${key}','${arrName}')">Crear</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  const sessions=allSessionsForUI();
+  const grades=['1.º','2.º','3.º','4.º','5.º'];
+
+  modalBody.innerHTML=`
+    <h2>＋ Nuevo registro: ${escClass(title)}</h2>
+
+    <div class="grid3">
+      <div>
+        <label>🎓 Grado</label>
+        <select id="cmpGrade" onchange="loadComponentSessions()">
+          <option value="">Seleccionar grado</option>
+          ${grades.map(x=>`<option value="${x}">${x}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>🔤 Sección</label>
+        <select id="cmpSec" onchange="loadComponentSessions()">
+          <option value="">Seleccionar sección</option>
+          <option>A</option>
+          <option>B</option>
+        </select>
+      </div>
+      <div>
+        <label>📅 Fecha de la sesión</label>
+        <input id="cmpDate" type="date" value="${today}" readonly>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>📖 Sesión de aprendizaje</label>
+      <select id="cmpSession" onchange="selectComponentSession()">
+        <option value="">Primero selecciona grado y sección</option>
+      </select>
+      <p class="muted" style="margin-top:6px">
+        Aquí se muestran las sesiones que ya creaste. La fecha se toma automáticamente de la sesión.
+      </p>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>Título / actividad</label>
+      <input id="cmpTitle" value="${escClass(title)}" readonly>
+    </div>
+
+    <div class="actions">
+      <button onclick="saveComponentRecord('${key}','${arrName}')">Crear</button>
+      <button class="secondary" onclick="closeModal()">Cancelar</button>
+    </div>`;
+
   modal.classList.remove('hidden');
 }
+
+function loadComponentSessions(){
+  const grade=document.getElementById('cmpGrade')?.value||'';
+  const section=document.getElementById('cmpSec')?.value||'';
+  const sel=document.getElementById('cmpSession');
+  if(!sel)return;
+
+  if(!grade||!section){
+    sel.innerHTML='<option value="">Primero selecciona grado y sección</option>';
+    return;
+  }
+
+  const sessions=allSessionsForUI().filter(s=>{
+    return sessionAppliesToGrade(s,grade) &&
+      (!s.section || s.section===section || s.section==='Todas');
+  });
+
+  sel.innerHTML='<option value="">Selecciona la sesión de aprendizaje</option>'+
+    sessions.map(s=>`<option value="${escClass(s.id)}">
+      Sesión ${escClass(s.number||'')} — ${escClass(s.title||'')}
+      ${s.date?' · '+escClass(s.date):''}
+    </option>`).join('');
+
+  if(!sessions.length){
+    sel.innerHTML='<option value="">No hay sesiones creadas para este grado y sección</option>';
+  }
+}
+
+function selectComponentSession(){
+  const id=document.getElementById('cmpSession')?.value;
+  const s=(db.sessions||[]).find(x=>String(x.id)===String(id));
+  if(!s)return;
+
+  const date=document.getElementById('cmpDate');
+  const title=document.getElementById('cmpTitle');
+
+  if(date)date.value=s.date||todayLocal30();
+  if(title)title.value=s.title||'';
+}
+
 function saveComponentRecord(key,arrName){
-  ensureClassData();const r={id:'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),date:document.getElementById('cmpDate').value,title:document.getElementById('cmpTitle').value.trim(),grade:document.getElementById('cmpGrade').value,section:document.getElementById('cmpSec').value};
-  if(!r.title){alert('Escribe un título.');return}db[arrName].push(r);save();closeModal();render();
+  ensureClassData();
+
+  const grade=document.getElementById('cmpGrade')?.value||'';
+  const section=document.getElementById('cmpSec')?.value||'';
+  const sessionId=document.getElementById('cmpSession')?.value||'';
+  const ses=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+
+  if(!grade||!section){
+    alert('Selecciona el grado y la sección.');
+    return;
+  }
+  if(!ses){
+    alert('Selecciona una sesión de aprendizaje ya creada.');
+    return;
+  }
+
+  const r={
+    id:'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    date:ses.date||todayLocal30(),
+    title:ses.title||document.getElementById('cmpTitle')?.value.trim()||key,
+    grade,
+    section,
+    session:ses.id,
+    sessionNumber:ses.number||'',
+    sessionTitle:ses.title||'',
+    unit:ses.unit||''
+  };
+
+  db[arrName].push(r);
+  save();
+  closeModal();
+  render();
 }
+
+function editComponentRecord(key,arrName,id){
+  ensureClassData();
+  const rec=(db[arrName]||[]).find(x=>x.id===id);
+  if(!rec)return;
+
+  const grades=['1.º','2.º','3.º','4.º','5.º'];
+  const scope=recordScope(arrName,rec);
+
+  modalBody.innerHTML=`
+    <h2>✏️ Modificar registro</h2>
+
+    <div class="grid3">
+      <div>
+        <label>🎓 Grado</label>
+        <select id="editCmpGrade" onchange="loadEditComponentSessions('${arrName}','${escClass(id)}')">
+          ${grades.map(x=>`<option value="${x}" ${scope.grade===x?'selected':''}>${x}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label>🔤 Sección</label>
+        <select id="editCmpSec" onchange="loadEditComponentSessions('${arrName}','${escClass(id)}')">
+          <option value="A" ${scope.section==='A'?'selected':''}>A</option>
+          <option value="B" ${scope.section==='B'?'selected':''}>B</option>
+        </select>
+      </div>
+      <div>
+        <label>📅 Fecha de la sesión</label>
+        <input id="editCmpDate" type="date" value="${escClass(rec.date||'')}" readonly>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label>📖 Sesión de aprendizaje</label>
+      <select id="editCmpSession" onchange="selectEditComponentSession()">
+        <option value="">Seleccionar sesión</option>
+      </select>
+      <p class="muted">La fecha y el título se toman de la sesión seleccionada.</p>
+    </div>
+
+    <div class="actions">
+      <button onclick="updateComponentRecord('${key}','${arrName}','${escClass(id)}')">💾 Guardar cambios</button>
+      <button class="secondary" onclick="closeModal()">Cancelar</button>
+    </div>`;
+
+  modal.classList.remove('hidden');
+  loadEditComponentSessions(arrName,id);
+}
+
+function loadEditComponentSessions(arrName,id){
+  const rec=(db[arrName]||[]).find(x=>x.id===id);
+  const grade=document.getElementById('editCmpGrade')?.value||'';
+  const section=document.getElementById('editCmpSec')?.value||'';
+  const sel=document.getElementById('editCmpSession');
+  if(!sel)return;
+
+  const sessions=allSessionsForUI().filter(s=>
+    sessionAppliesToGrade(s,grade) &&
+    (!s.section || s.section===section || s.section==='Todas')
+  );
+
+  sel.innerHTML='<option value="">Seleccionar sesión</option>'+
+    sessions.map(s=>`<option value="${escClass(s.id)}" ${rec&&String(rec.session)===String(s.id)?'selected':''}>
+      Sesión ${escClass(s.number||'')} — ${escClass(s.title||'')}${s.date?' · '+escClass(s.date):''}
+    </option>`).join('');
+
+  if(!sessions.length){
+    sel.innerHTML='<option value="">No hay sesiones creadas para este grado y sección</option>';
+  }
+
+  if(rec && rec.session && sessions.some(s=>String(s.id)===String(rec.session))){
+    selectEditComponentSession();
+  }
+}
+
+function selectEditComponentSession(){
+  const id=document.getElementById('editCmpSession')?.value;
+  const s=(db.sessions||[]).find(x=>String(x.id)===String(id));
+  if(!s)return;
+  const date=document.getElementById('editCmpDate');
+  if(date)date.value=s.date||todayLocal30();
+}
+
+function updateComponentRecord(key,arrName,id){
+  ensureClassData();
+  const rec=(db[arrName]||[]).find(x=>x.id===id);
+  if(!rec)return;
+
+  const grade=document.getElementById('editCmpGrade')?.value||'';
+  const section=document.getElementById('editCmpSec')?.value||'';
+  const sessionId=document.getElementById('editCmpSession')?.value||'';
+  const ses=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+
+  if(!grade||!section){
+    alert('Selecciona el grado y la sección.');
+    return;
+  }
+  if(!ses){
+    alert('Selecciona una sesión de aprendizaje.');
+    return;
+  }
+
+  rec.grade=grade;
+  rec.section=section;
+  rec.session=ses.id;
+  rec.sessionNumber=ses.number||'';
+  rec.sessionTitle=ses.title||'';
+  rec.title=ses.title||rec.title;
+  rec.date=ses.date||todayLocal30();
+  rec.unit=ses.unit||rec.unit||'';
+
+  save();
+  closeModal();
+  render();
+}
+
+function deleteComponentRecord(arrName,id){
+  ensureClassData();
+  const rec=(db[arrName]||[]).find(x=>x.id===id);
+  if(!rec)return;
+
+  const ok=confirm(
+    `¿Eliminar este registro?\n\n`+
+    `${rec.title||'Registro'}\n`+
+    `📅 ${rec.date||''} · ${rec.grade||''} ${rec.section||''}\n\n`+
+    `También se eliminarán las notas asociadas a este registro.`
+  );
+  if(!ok)return;
+
+  db[arrName]=(db[arrName]||[]).filter(x=>x.id!==id);
+  db[arrName]=db[arrName].filter(x=>x.recordId!==id);
+
+  save();
+  render();
+}
+
 function openComponentRecord(key,arrName,id){
-  ensureClassData();const rec=db[arrName].find(x=>x.id===id);if(!rec)return;
-  const students=(db.users||[]).filter(u=>u.role==='student'&&(rec.grade==='Todos'||!rec.grade||u.grade===rec.grade)&&(rec.section==='Todas'||!rec.section||u.section===rec.section));
-  const arr=db[arrName]; const valueFor=u=>{const x=arr.find(x=>x.recordId===id&&x.user===u);return x?.grade??''};
-  const box=`<h2>${escClass(rec.title)}</h2><p class="muted">${escClass(rec.date)} · ${escClass(rec.grade)} ${escClass(rec.section)}</p>
-  <div style="overflow:auto"><table><tr><th>Estudiante</th><th>Nota 0–20</th><th>Nivel</th></tr>${students.map(u=>{const n=valueFor(u.u);return `<tr><td>${escClass(u.name)}</td><td><input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px"></td><td class="cmpLevel" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td></tr>`}).join('')}</table></div>
-  <div class="actions" style="margin-top:15px"><button onclick="saveComponentGrades('${key}','${arrName}','${escClass(id)}')">💾 Guardar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
-  modalBody.innerHTML=box;modal.classList.remove('hidden');
-  modalBody.querySelectorAll('.cmpGrade').forEach(e=>e.oninput=()=>{const o=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(e.dataset.user)}"]`);if(o)o.textContent=e.value===''?'—':classLevel(e.value)});
+  ensureClassData();
+  const rec=(db[arrName]||[]).find(x=>x.id===id);
+  if(!rec)return;
+
+  const scope=recordScope(arrName,rec);
+  const students=(db.users||[]).filter(u=>{
+    if(u.role!=='student')return false;
+    if(scope.grade && u.grade!==scope.grade)return false;
+    if(scope.section && u.section!==scope.section)return false;
+    return true;
+  });
+
+  const arr=db[arrName]||[];
+  const valueFor=u=>{
+    const x=arr.find(x=>x.recordId===id&&x.user===u.u);
+    return x?.grade??'';
+  };
+
+  const title=componentDisplayTitle(arrName,rec,key);
+  const box=`
+    <h2>${escClass(title)}</h2>
+    <p class="muted">
+      ${rec.sessionTitle?`📖 Sesión ${escClass(rec.sessionNumber||'')}: ${escClass(rec.sessionTitle)} · `:''}
+      📅 ${escClass(rec.date||'—')} · 🎓 ${escClass(scope.grade||'Grado no vinculado')} ${scope.section?`· ${escClass(scope.section)}`:''}
+    </p>
+    ${!scope.grade?`<div class="alert">No se pudo identificar automáticamente el grado de este registro antiguo.</div>`:''}
+    <div style="overflow:auto">
+      <table>
+        <tr><th>Estudiante</th><th>Nota 0–20</th><th>Nivel</th></tr>
+        ${students.map(u=>{
+          const n=valueFor(u);
+          return `<tr>
+            <td>${escClass(u.name)}</td>
+            <td><input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px" oninput="autoSaveComponentGrade('${escClass(arrName)}','${escClass(id)}',this)"></td>
+            <td class="cmpLevel" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td>
+          </tr>`;
+        }).join('') || `<tr><td colspan="3">No hay estudiantes para este grado y sección.</td></tr>`}
+      </table>
+    </div>
+    <div class="actions" style="margin-top:15px">
+      <button onclick="saveComponentGrades('${key}','${arrName}','${escClass(id)}')">💾 Guardar</button>
+      <button class="secondary" onclick="closeModal()">Cerrar</button>
+    </div>`;
+
+  modalBody.innerHTML=box;
+  modal.classList.remove('hidden');
+  modalBody.querySelectorAll('.cmpGrade').forEach(e=>{
+    e.oninput=()=>{
+      const o=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(e.dataset.user)}"]`);
+      if(o)o.textContent=e.value===''?'—':classLevel(e.value);
+    };
+  });
 }
+
+function autoSaveComponentGrade(arrName,recordId,input){
+  ensureClassData();
+  const user=input?.dataset?.user;
+  if(!user)return;
+  const val=input.value;
+  const arr=db[arrName]||[];
+  let x=arr.find(x=>x.recordId===recordId&&x.user===user);
+
+  if(val===''){
+    if(x) db[arrName]=arr.filter(y=>y!==x);
+  }else{
+    const n=Math.max(0,Math.min(20,Number(val)));
+    if(Number.isNaN(n))return;
+    if(!x){
+      x={id:'score_'+Date.now()+'_'+Math.random(),recordId,user,grade:n};
+      db[arrName].push(x);
+    }else{
+      x.grade=n;
+    }
+  }
+  save();
+
+  const level=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(user)}"]`);
+  if(level)level.textContent=val===''?'—':classLevel(val);
+}
+
 function saveComponentGrades(key,arrName,recordId){
   ensureClassData();const arr=db[arrName];document.querySelectorAll('.cmpGrade').forEach(e=>{
     const user=e.dataset.user,val=e.value;
@@ -4048,6 +4584,452 @@ function resetTimer30(){
 }
 
 /* ===== GRUPOS: SOLO MISMO GRADO Y SECCIÓN ===== */
+
+
+function seatLayoutKey(g,s){return `${g}|${s}`;}
+function getSeatLayout(g,s){
+  if(!db.seatingLayout || typeof db.seatingLayout!=="object" || Array.isArray(db.seatingLayout)) db.seatingLayout={};
+  const k=seatLayoutKey(g,s);
+  if(!db.seatingLayout[k] || typeof db.seatingLayout[k]!=="object") db.seatingLayout[k]={cols:6,rows:7};
+  const lay=db.seatingLayout[k];
+  lay.cols=Math.max(1,Math.min(12,Number(lay.cols)||6));
+  lay.rows=Math.max(1,Math.min(20,Number(lay.rows)||7));
+  return lay;
+}
+function setSeatLayout(){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  const cols=Math.max(1,Math.min(12,Number(document.getElementById('seatCols')?.value)||6));
+  const rows=Math.max(1,Math.min(20,Number(document.getElementById('seatRows')?.value)||7));
+  if(!db.seatingLayout) db.seatingLayout={};
+  db.seatingLayout[seatLayoutKey(g,s)]={cols,rows};
+  window.__seatCols=cols; window.__seatRows=rows; window.__seatCount=cols*rows;
+  // Conserva los estudiantes ya ubicados y solo ajusta el tamaño de la cuadrícula.
+  const arr=getSeatData(g,s);
+  if(arr.length>cols*rows) arr.length=cols*rows;
+  while(arr.length<cols*rows) arr.push('');
+  save();
+  render();
+}
+function seating(){
+  if(!me || me.role!=="teacher") return `<div class="card"><h3>Acceso no disponible</h3></div>`;
+  if(!db || typeof db!=="object") db={};
+  if(!db.seating || typeof db.seating!=="object" || Array.isArray(db.seating)) db.seating={};
+  if(!db.seatingPrefs || typeof db.seatingPrefs!=="object" || Array.isArray(db.seatingPrefs)) db.seatingPrefs={};
+  if(!db.seatingLayout || typeof db.seatingLayout!=="object" || Array.isArray(db.seatingLayout)) db.seatingLayout={};
+  if(!Array.isArray(db.seatingHistory)) db.seatingHistory=[];
+
+  const grades=['1.º','2.º','3.º','4.º','5.º'];
+  const g=window.__seatGrade||'1.º';
+  const s=window.__seatSection||'A';
+  const lay=getSeatLayout(g,s);
+  const cols=lay.cols, rows=lay.rows, count=cols*rows;
+  window.__seatCols=cols; window.__seatRows=rows; window.__seatCount=count;
+  const students=seatStudents(g,s);
+
+  return `<div class="card">
+    <h2>💺 Ubicación de estudiantes</h2>
+    <p class="muted">Distribuye los estudiantes por grado y sección. Cada distribución se guarda por separado y además puedes registrar el uso de esos lugares para saber quién ocupó un lugar determinado en una fecha.</p>
+
+    <div class="grid3">
+      <div><label>Grado</label><select id="seatGrade" onchange="changeSeatFilter()">${grades.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join('')}</select></div>
+      <div><label>Sección</label><select id="seatSection" onchange="changeSeatFilter()"><option ${s==='A'?'selected':''}>A</option><option ${s==='B'?'selected':''}>B</option></select></div>
+      <div><label>Columnas</label><input id="seatCols" type="number" min="1" max="12" value="${cols}"></div>
+      <div><label>Filas</label><input id="seatRows" type="number" min="1" max="20" value="${rows}"></div>
+      <div><label>Total de asientos</label><input type="number" value="${count}" readonly></div>
+      <div style="display:flex;align-items:end"><button onclick="setSeatLayout()">📐 Aplicar filas y columnas</button></div>
+    </div>
+
+    <div class="seat-note"><b>📐 ${cols} columnas × ${rows} filas = ${count} asientos.</b> Las primeras ${Math.min(2,rows)} filas son la zona delantera.</div>
+
+    <div class="seat-config">
+      <h3 style="margin-top:0">⚙️ Reglas para el sorteo</h3>
+      <div class="seat-note">El sistema procurará separar estudiantes del mismo sexo. Los marcados como <b>📌 Fijo adelante</b> se colocan en las primeras filas.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="secondary" onclick="markAllSex('M')">♂ Marcar todos como varón</button>
+        <button class="secondary" onclick="markAllSex('F')">♀ Marcar todas como mujer</button>
+        <button class="secondary" onclick="unmarkAllSex()">↩ Quitar sexo</button>
+        <button class="secondary" onclick="unfixAllStudents()">📌 Quitar sitios fijos</button>
+      </div>
+      <div style="margin-top:14px">
+        ${students.length ? students.map(u=>{
+          const pref=getSeatPref(u.u);
+          return `<div class="seat-config-row">
+            <div><b>${escClass(u.name)}</b><br><span class="muted">${escClass(g)} · ${escClass(s)}</span></div>
+            <select data-seat-user="${escClass(u.u)}" onchange="setSeatSex(this.dataset.seatUser,this.value)">
+              <option value="">Sexo</option>
+              <option value="M" ${pref.sex==='M'?'selected':''}>♂ Varón</option>
+              <option value="F" ${pref.sex==='F'?'selected':''}>♀ Mujer</option>
+            </select>
+            <label style="margin:0"><input type="checkbox" data-seat-user="${escClass(u.u)}" ${pref.fixed?'checked':''} onchange="setSeatFixed(this.dataset.seatUser,this.checked)"> 📌 Fijo adelante</label>
+          </div>`;
+        }).join('') : `<p class="muted">No hay estudiantes registrados en ${g} ${s}.</p>`}
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:15px">
+      <button onclick="randomSeats()">🎲 Sortear respetando las reglas</button>
+      <button class="secondary" onclick="clearSeats()">🧹 Dejar asientos vacíos</button>
+      <button class="secondary" onclick="saveSeats()">💾 Guardar distribución</button>
+      <button class="secondary" onclick="registerSeatUse()">📋 Registrar clase actual</button>
+    </div>
+
+    <div id="seatSummary" class="seat-summary"></div>
+    <div id="seatGrid">${renderSeatGrid(g,s,count)}</div>
+
+    <div class="seat-history">
+      <h3 style="margin-top:0">🔎 Historial de lugares</h3>
+      <p class="muted">Busca un lugar para saber qué estudiantes de qué grado/sección lo ocuparon en una fecha.</p>
+      <div class="grid3">
+        <div><label>Fecha</label><input id="historyDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label>Lugar</label><input id="historySeat" type="number" min="1" max="100" value="1"></div>
+        <div style="display:flex;align-items:end"><button onclick="searchSeatHistory()">🔎 Buscar</button></div>
+      </div>
+      <div id="seatHistoryResults"></div>
+      <div class="actions" style="margin-top:14px">
+        <button class="secondary" onclick="showAllSeatHistory()">📋 Ver historial guardado</button>
+        <button class="secondary" onclick="resetSeatHistory()">🧹 Resetear todo el historial</button>
+      </div>
+      <div id="seatHistoryAll"></div>
+    </div>
+  </div>`;
+}
+
+function showAllSeatHistory(){
+  const box=document.getElementById('seatHistoryAll');
+  if(!box)return;
+  const records=Array.isArray(db.seatingHistory)?db.seatingHistory.slice().reverse():[];
+  if(!records.length){
+    box.innerHTML='<div class="item" style="margin-top:12px"><b>No hay historial guardado.</b></div>';
+    return;
+  }
+  box.innerHTML=`<div style="margin-top:14px"><h4 style="margin-bottom:8px">Historial guardado</h4>`+
+    records.map(r=>`<div class="history-row" style="grid-template-columns:110px 80px 80px 1fr auto">
+      <span class="history-tag">${escClass(r.date||'')}</span>
+      <span class="history-tag">${escClass(r.grade||'')}</span>
+      <span class="history-tag">${escClass(r.section||'')}</span>
+      <span>${(r.seats||[]).filter(Boolean).length} estudiantes ubicados</span>
+      <button class="secondary" onclick="deleteSeatHistory('${escClass(r.id)}')">🗑️ Eliminar</button>
+    </div>`).join('')+`</div>`;
+}
+function deleteSeatHistory(id){
+  if(!id)return;
+  const r=(db.seatingHistory||[]).find(x=>x.id===id);
+  if(!r)return;
+  if(!confirm(`¿Eliminar el registro del ${r.date||''} — ${r.grade||''} ${r.section||''}?`))return;
+  db.seatingHistory=(db.seatingHistory||[]).filter(x=>x.id!==id);
+  save();
+  showAllSeatHistory();
+}
+function resetSeatHistory(){
+  const total=(db.seatingHistory||[]).length;
+  if(!total){
+    alert('No hay historial para resetear.');
+    return;
+  }
+  if(!confirm(`¿Seguro que deseas ELIMINAR TODO el historial de lugares? Se borrarán ${total} registros. Las distribuciones actuales de asientos NO se borrarán.`))return;
+  if(!confirm('Última confirmación: ¿eliminar todo el historial?'))return;
+  db.seatingHistory=[];
+  save();
+  const a=document.getElementById('seatHistoryAll');
+  if(a)a.innerHTML='<div class="item" style="margin-top:12px"><b>✅ Historial reseteado. Las distribuciones de asientos siguen intactas.</b></div>';
+  const b=document.getElementById('seatHistoryResults');
+  if(b)b.innerHTML='';
+}
+function registerSeatUse(){
+  const g=window.__seatGrade||document.getElementById('seatGrade')?.value||'1.º';
+  const s=window.__seatSection||document.getElementById('seatSection')?.value||'A';
+  const date=new Date().toISOString().slice(0,10);
+  const arr=getSeatData(g,s);
+  if(!db.seatingHistory) db.seatingHistory=[];
+  db.seatingHistory.push({
+    id:'sh_'+Date.now(),
+    date, grade:g, section:s,
+    seats:arr.slice(),
+    savedAt:new Date().toISOString()
+  });
+  save();
+  alert(`Clase registrada: ${g} ${s}. La distribución queda guardada en el historial.`);
+}
+
+function searchSeatHistory(){
+  const date=document.getElementById('historyDate')?.value;
+  const seat=Math.max(1,Number(document.getElementById('historySeat')?.value||1));
+  const box=document.getElementById('seatHistoryResults');
+  const records=(db.seatingHistory||[]).filter(r=>r.date===date && r.seats && r.seats[seat-1]);
+  if(!box)return;
+  if(!records.length){
+    box.innerHTML='<div class="item" style="margin-top:12px"><b>No hay registros para ese lugar y fecha.</b></div>';
+    return;
+  }
+  box.innerHTML=`<div style="margin-top:12px"><b>📍 Lugar ${seat} — ${date}</b></div>`+
+    records.map(r=>{
+      const uid=r.seats[seat-1];
+      const st=(db.users||[]).find(u=>u.u===uid);
+      return `<div class="history-row">
+        <span class="history-tag">${escClass(r.grade)}</span>
+        <span class="history-tag">${escClass(r.section)}</span>
+        <span class="history-tag">Lugar ${seat}</span>
+        <span>${escClass(st?.name||'Estudiante eliminado')}</span>
+      </div>`;
+    }).join('');
+}
+
+function seatKey(g,s){ return `${g}|${s}`; }
+function getSeatData(g,s){
+  if(!db.seating) db.seating={};
+  const k=seatKey(g,s);
+  if(!Array.isArray(db.seating[k])) db.seating[k]=[];
+  return db.seating[k];
+}
+function getSeatPref(user){
+  if(!db.seatingPrefs) db.seatingPrefs={};
+  if(!db.seatingPrefs[user]) db.seatingPrefs[user]={sex:'',fixed:false};
+  return db.seatingPrefs[user];
+}
+function setSeatSex(user,sex){
+  getSeatPref(user).sex=sex||'';
+  save();
+}
+function setSeatFixed(user,fixed){
+  getSeatPref(user).fixed=!!fixed;
+  save();
+}
+function markAllSex(sex){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  seatStudents(g,s).forEach(u=>getSeatPref(u.u).sex=sex);
+  save(); render();
+}
+function unmarkAllSex(){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  seatStudents(g,s).forEach(u=>getSeatPref(u.u).sex='');
+  save(); render();
+}
+function unfixAllStudents(){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  seatStudents(g,s).forEach(u=>getSeatPref(u.u).fixed=false);
+  save(); render();
+}
+function seatStudents(g,s){
+  return Array.isArray(db.users) ? db.users.filter(u=>u.role==='student'&&u.grade===g&&u.section===s) : [];
+}
+function renderSeatGrid(g,s,count){
+  const lay=getSeatLayout(g,s);
+  const cols=lay.cols, rows=lay.rows, total=cols*rows;
+  const assigned=getSeatData(g,s);
+  while(assigned.length<total) assigned.push('');
+  const students=seatStudents(g,s);
+  const used=new Set(assigned.filter(Boolean));
+  const free=students.filter(u=>!used.has(u.u)).length;
+  const assignedCount=assigned.filter(Boolean).length;
+  const summary=document.getElementById('seatSummary');
+  if(summary) summary.innerHTML=`<span class="seat-chip">👥 Estudiantes: ${students.length}</span><span class="seat-chip">💺 Ocupados: ${assignedCount}</span><span class="seat-chip">⭕ Sin asiento: ${free}</span><span class="seat-chip">📐 ${cols} columnas × ${rows} filas</span>`;
+
+  let html=`<div class="seat-grid" style="grid-template-columns:repeat(${cols},minmax(130px,1fr))">`;
+  for(let i=0;i<total;i++){
+    const val=assigned[i]||'';
+    const row=Math.floor(i/cols)+1;
+    const front=row<=Math.min(2,rows);
+    html+=`<div class="seat-card">
+      <div class="seat-number">💺 Asiento ${i+1} · ${row}.ª fila${front?' · 👀 adelante':''}</div>
+      <select onchange="assignSeat(${i},this.value)">
+        <option value="">— Vacío —</option>
+        ${students.filter(u=>!used.has(u.u) || u.u===val).map(u=>`<option value="${escClass(u.u)}" ${u.u===val?'selected':''}>${escClass(u.name)}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+  html+='</div>';
+  return html;
+}
+function changeSeatFilter(){
+  window.__seatGrade=document.getElementById('seatGrade')?.value||'1.º';
+  window.__seatSection=document.getElementById('seatSection')?.value||'A';
+  const lay=getSeatLayout(window.__seatGrade,window.__seatSection);
+  window.__seatCols=lay.cols; window.__seatRows=lay.rows; window.__seatCount=lay.cols*lay.rows;
+  const root=document.querySelector('.card');
+  if(root) setTimeout(()=>render(),0);
+}
+
+function assignSeat(index,user){
+  const g=window.__seatGrade||document.getElementById('seatGrade')?.value||'1.º';
+  const s=window.__seatSection||document.getElementById('seatSection')?.value||'A';
+  const arr=getSeatData(g,s);
+  if(user){
+    const old=arr.indexOf(user);
+    if(old!==-1 && old!==index) arr[old]='';
+  }
+  arr[index]=user||'';
+  save();
+  const grid=document.getElementById('seatGrid');
+  if(grid)grid.innerHTML=renderSeatGrid(g,s,getSeatLayout(g,s).cols*getSeatLayout(g,s).rows);
+}
+
+function seatRows(count,cols=6){return Math.ceil(count/cols);}
+function seatNeighbors(index,count,cols=6){
+  const rows=seatRows(count,cols), r=Math.floor(index/cols), c=index%cols, out=[];
+  [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dr,dc])=>{
+    const rr=r+dr,cc=c+dc;
+    if(rr>=0&&rr<rows&&cc>=0&&cc<cols){
+      const j=rr*cols+cc;
+      if(j<count)out.push(j);
+    }
+  });
+  return out;
+}
+function randomSeats(){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  const lay=getSeatLayout(g,s);
+  const cols=lay.cols, rows=lay.rows, count=cols*rows;
+  const students=[...seatStudents(g,s)];
+
+  if(students.length>count){
+    alert(`Hay ${students.length} estudiantes y solo ${count} asientos. Aumenta el número de asientos.`);
+    return;
+  }
+
+  const missing=students.filter(u=>!getSeatPref(u.u).sex);
+  if(missing.length){
+    alert(`Falta indicar el sexo de ${missing.length} estudiante(s). Completa Varón/Mujer antes del sorteo.`);
+    return;
+  }
+
+  const fixed=students.filter(u=>getSeatPref(u.u).fixed);
+  // Los "fijos adelante" ocupan únicamente las primeras 2 filas (10 asientos).
+  // Si hay menos de 10 asientos, se usan los disponibles de adelante.
+  const frontRows=Math.min(2,rows);
+  const frontLimit=Math.min(count,cols*frontRows);
+  const frontSeats=Array.from({length:frontLimit},(_,i)=>i);
+
+  if(fixed.length>frontSeats.length){
+    alert(`Hay ${fixed.length} estudiantes marcados como “fijo adelante”, pero solo hay ${frontSeats.length} asientos delanteros. Marca menos estudiantes como fijos o aumenta los asientos.`);
+    return;
+  }
+
+  const normal=students.filter(u=>!getSeatPref(u.u).fixed);
+
+  // IMPORTANTE:
+  // No se cancela el sorteo si hay más varones que mujeres (o viceversa).
+  // Esa situación puede hacer matemáticamente imposible separar a todos.
+  // En su lugar se buscan muchas distribuciones y se elige la que tenga
+  // la menor cantidad posible de compañeros del mismo sexo juntos.
+  function conflictScore(arr){
+    let score=0, pairs=0;
+    for(let i=0;i<count;i++){
+      if(!arr[i])continue;
+      const sex=getSeatPref(arr[i]).sex;
+      for(const n of seatNeighbors(i,count,cols)){
+        if(n<=i || !arr[n])continue;
+        pairs++;
+        if(getSeatPref(arr[n]).sex===sex) score+=1;
+      }
+    }
+    return {score,pairs};
+  }
+
+  function shuffled(a){
+    return a.slice().sort(()=>Math.random()-0.5);
+  }
+
+  function makeAttempt(){
+    const arr=new Array(count).fill('');
+    const freeFront=shuffled(frontSeats);
+
+    // Colocar primero a los estudiantes con sitio fijo adelante.
+    fixed.forEach((u,k)=>{
+      arr[freeFront[k]]=u.u;
+    });
+
+    // Para el resto, repartir aleatoriamente intentando alternar sexo.
+    const remaining=shuffled(normal);
+    const empty=Array.from({length:count},(_,i)=>i).filter(i=>!arr[i]);
+
+    // Elegir cada asiento buscando que el sexo sea diferente al de sus vecinos
+    // ya colocados. Si no es posible, escoger la opción con menos conflictos.
+    remaining.forEach(user=>{
+      let best=[];
+      let bestScore=Infinity;
+
+      for(const pos of empty){
+        if(arr[pos])continue;
+        let sc=0;
+        const sex=getSeatPref(user.u).sex;
+        for(const n of seatNeighbors(pos,count,cols)){
+          if(arr[n] && getSeatPref(arr[n]).sex===sex) sc++;
+        }
+        if(sc<bestScore){bestScore=sc;best=[pos];}
+        else if(sc===bestScore)best.push(pos);
+      }
+
+      if(best.length){
+        const pos=best[Math.floor(Math.random()*best.length)];
+        arr[pos]=user.u;
+        const idx=empty.indexOf(pos);
+        if(idx>=0)empty.splice(idx,1);
+      }
+    });
+
+    return arr;
+  }
+
+  let bestArr=null, bestScore=Infinity;
+
+  // Muchas posibilidades para encontrar una distribución mucho mejor.
+  const attempts=Math.min(3000,Math.max(500,students.length*50));
+  for(let a=0;a<attempts;a++){
+    const candidate=makeAttempt();
+    const result=conflictScore(candidate).score;
+
+    if(result<bestScore){
+      bestScore=result;
+      bestArr=candidate;
+      if(bestScore===0)break;
+    }
+  }
+
+  if(!bestArr){
+    alert('No se pudo generar la distribución.');
+    return;
+  }
+
+  db.seating[seatKey(g,s)]=bestArr;
+  window.__seatGrade=g;
+  window.__seatSection=s;
+  window.__seatCols=cols;
+  window.__seatRows=rows;
+  window.__seatCount=count;
+  save();
+
+  const grid=document.getElementById('seatGrid');
+  if(grid)grid.innerHTML=renderSeatGrid(g,s,count);
+
+  const result=conflictScore(bestArr);
+  if(result.score===0){
+    alert('✅ Sorteo realizado. Los estudiantes fijos quedaron adelante y se logró separar varones y mujeres en los asientos adyacentes.');
+  }else{
+    alert(`✅ Sorteo realizado. Los estudiantes fijos quedaron adelante. Se buscó la mejor distribución posible; quedaron ${result.score} pares de estudiantes del mismo sexo juntos porque la cantidad de varones/mujeres puede hacer imposible separarlos a todos.`);
+  }
+}
+function clearSeats(){
+  const g=document.getElementById('seatGrade')?.value||'1.º';
+  const s=document.getElementById('seatSection')?.value||'A';
+  const lay=getSeatLayout(g,s);
+  const count=lay.cols*lay.rows;
+  if(!confirm(`¿Dejar vacíos los ${count} asientos de ${g} ${s}?`))return;
+  db.seating[seatKey(g,s)]=new Array(count).fill('');
+  save();
+  window.__seatGrade=g; window.__seatSection=s; window.__seatCols=lay.cols; window.__seatRows=lay.rows; window.__seatCount=count;
+  const grid=document.getElementById('seatGrid');
+  if(grid)grid.innerHTML=renderSeatGrid(g,s,count);
+}
+function saveSeats(){
+  save();
+  alert('Distribución de asientos guardada correctamente.');
+}
+
 function groups(){
   if(me.role!=='teacher')return `<div class="card"><h2>👥 Grupos</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
@@ -4243,7 +5225,7 @@ function buildNav(){
     const arr=[['home','🏠','Inicio'],['courses','📚','Mis cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📤','Mis entregas'],['chat','💬','Mensajes'],['announcements','📢','Avisos']];
     nav.innerHTML=arr.map(a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`).join(''); return;
   }
-  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['courses','📚','Cursos'],['creaEmprende','🏆','Crea y Emprende'],['timers','⏱️','Cronómetros']];
+  const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['seating','💺','Asientos'],['courses','📚','Cursos'],['creaEmprende','🏆','Crea y Emprende'],['timers','⏱️','Cronómetros']];
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
   const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
@@ -4324,24 +5306,24 @@ function creaEmprende(){
         <div class="muted" style="font-size:12px">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div>
       </td>
       <td>
-        <select id="cyStatus_${index}" onchange="toggleCYRow(${index})">
+        <select id="cyStatus_${index}" onchange="toggleCYRow(${index}); autoSaveCY('${key}',${index})">
           <option value="">Seleccionar</option>
           <option value="participó" ${status==='participó'?'selected':''}>✅ Participó</option>
           <option value="no participó" ${status==='no participó'?'selected':''}>❌ No participó</option>
         </select>
       </td>
       <td>
-        <input id="cyProject_${index}" value="${escClass(r.project||'')}" placeholder="Proyecto / grupo / función">
+        <input id="cyProject_${index}" value="${escClass(r.project||'')}" placeholder="Proyecto / grupo / función" oninput="queueAutoSaveCY('${key}',${index})">
       </td>
       <td>
-        <select id="cyReason_${index}" ${reasonDisabled}>
+        <select id="cyReason_${index}" ${reasonDisabled} onchange="autoSaveCY('${key}',${index})">
           <option value="">—</option>
           ${['No presentó proyecto','No quiso participar','Inasistencia','Problema familiar','Motivo de salud','Otro']
             .map(x=>`<option ${r.reason===x?'selected':''}>${x}</option>`).join('')}
         </select>
       </td>
       <td>
-        <input id="cyDetail_${index}" value="${escClass(r.detail||'')}" placeholder="Detalle u observación">
+        <input id="cyDetail_${index}" value="${escClass(r.detail||'')}" placeholder="Detalle u observación" oninput="queueAutoSaveCY('${key}',${index})">
       </td>
       <td>
         <button class="small" onclick="saveCY('${key}',${index})">💾 Guardar</button>
@@ -4421,6 +5403,80 @@ function setCYFilter(){
   window.cyStage=document.getElementById('cyStage')?.value.trim()||'Etapa institucional';
   render();
 }
+
+const cyAutoSaveTimers={};
+
+function queueAutoSaveCY(encodedUsername,rowIndex){
+  const timerKey=encodedUsername+'|'+rowIndex;
+  clearTimeout(cyAutoSaveTimers[timerKey]);
+  cyAutoSaveTimers[timerKey]=setTimeout(()=>{
+    autoSaveCY(encodedUsername,rowIndex);
+    delete cyAutoSaveTimers[timerKey];
+  },350);
+}
+
+function autoSaveCY(encodedUsername,rowIndex){
+  ensureClassData();
+
+  const username=decodeURIComponent(encodedUsername||'');
+  const student=(db.users||[]).find(u=>u.role==='student'&&u.u===username);
+  if(!student)return;
+
+  const grade=document.getElementById('cyGrade')?.value||window.cyGrade||student.grade||'1.º';
+  const section=document.getElementById('cySection')?.value||window.cySection||student.section||'A';
+  const stage=document.getElementById('cyStage')?.value.trim()||window.cyStage||'Etapa institucional';
+  const status=document.getElementById('cyStatus_'+rowIndex)?.value||'';
+  const project=document.getElementById('cyProject_'+rowIndex)?.value.trim()||'';
+  const reason=document.getElementById('cyReason_'+rowIndex)?.value||'';
+  const detail=document.getElementById('cyDetail_'+rowIndex)?.value.trim()||'';
+
+  // Guardado automático REAL: permite guardar también cuando el
+  // usuario todavía está completando los campos.
+  let r=(db.creaEmprende||[]).find(x=>
+    x.grade===grade &&
+    x.section===section &&
+    x.stage===stage &&
+    (x.studentKey===username || x.username===username ||
+     (x.studentId!=null && x.studentId===student.id))
+  );
+
+  if(!r){
+    r={
+      id:'cy_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      studentKey:username,
+      username,
+      studentId:student.id??null,
+      studentName:student.name||'',
+      grade,
+      section,
+      stage
+    };
+    db.creaEmprende.push(r);
+  }else{
+    r.studentKey=username;
+    r.username=username;
+    r.studentId=student.id??r.studentId??null;
+    r.studentName=student.name||r.studentName||'';
+    r.grade=grade;
+    r.section=section;
+    r.stage=stage;
+  }
+
+  r.status=status;
+  r.project=project;
+  r.reason=status==='no participó'?reason:'';
+  r.detail=detail;
+  r.updatedAt=new Date().toISOString();
+
+  window.cyGrade=grade;
+  window.cySection=section;
+  window.cyStage=stage;
+
+  // Guarda en localStorage y Firebase, pero NO ejecuta render(),
+  // por lo que la fila permanece en pantalla.
+  save();
+}
+
 
 function saveCY(encodedUsername,rowIndex){
   ensureClassData();
@@ -4707,9 +5763,9 @@ function updateClassRecord30(id){
 
 function render(){
   if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades','creaEmprende'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos'};
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
