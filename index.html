@@ -4367,7 +4367,33 @@ function saveStudentWeeklyRubric30(user){
   openProjectWeekly();
 }
 
+function ensureDefaultExpositionRubric30(){
+  ensureClassData();
+  if(!Array.isArray(db.expositionRubric.criteria)) db.expositionRubric.criteria=[];
+  // Primera configuración: dejar lista la rúbrica de exposición individual.
+  const names=['1. Dominio del tema','2. Análisis económico','3. Sustenta la viabilidad','4. Propuesta de mejora','5. Comunicación y respuesta'];
+  const current=db.expositionRubric.criteria;
+  if(!current.length){
+    names.forEach((name,i)=>current.push({id:'crit_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),name}));
+    save();
+    return;
+  }
+  // Si quedó la configuración inicial anterior con "Nuevo criterio", la actualizamos.
+  const looksOld=current.length<=2 && current.some(c=>String(c.name||'').toLowerCase().includes('nuevo criterio'));
+  if(looksOld){
+    const first=current[0]||{id:'crit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)};
+    first.name=names[0];
+    const ids=current.slice(1).map(c=>c.id);
+    if(ids.length) db.expositionRubric.scores=db.expositionRubric.scores.filter(s=>!ids.includes(s.criterionId));
+    current.length=0;
+    current.push(first);
+    names.slice(1).forEach((name,i)=>current.push({id:'crit_'+Date.now()+'_'+(i+1)+'_'+Math.random().toString(36).slice(2,6),name}));
+    save();
+  }
+}
+
 function openExpositionRubricConfig(){
+  ensureDefaultExpositionRubric30();
   ensureClassData();
   const criteria=db.expositionRubric.criteria||[];
   modalBody.classList.remove('projectMainModal');
@@ -4385,12 +4411,13 @@ function removeExpositionCriterion(id){ensureClassData();if(!confirm('¿Eliminar
 function saveExpositionRubric(){ensureClassData();[...document.querySelectorAll('.rubricName30')].forEach(i=>{const c=db.expositionRubric.criteria.find(x=>x.id===i.dataset.id);if(c)c.name=i.value.trim()||'Criterio sin nombre'});save();alert('✅ Rúbrica de exposición guardada.');openExpositionEvaluation();}
 
 function openExpositionEvaluation(){
+  ensureDefaultExpositionRubric30();
   ensureClassData();
   const criteria=db.expositionRubric.criteria||[];
-  if(!criteria.length){alert('Primero agrega los criterios de la rúbrica de exposición.');openExpositionRubricConfig();return;}
+  if(!criteria.length){alert('No hay criterios en la rúbrica de exposición.');openExpositionRubricConfig();return;}
   modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>🎤 Evaluación semanal de exposición</h2>
-  <p class="muted">La exposición se registra por grupo. Si un estudiante presenta solo, se usa un grupo de un integrante.</p>
+  <p class="muted"><b>La exposición es grupal, pero la evaluación es individual.</b> Cada integrante recibe una nota según su propio desempeño. No se copia automáticamente la misma nota a todo el grupo.</p>
   <div class="grid3" style="margin-bottom:15px">
     <div><label>Semana</label><select id="expoWeek30" onchange="renderExpositionStudents30()">${[1,2,3,4,5,6].map(w=>`<option value="${w}">Semana ${w}</option>`).join('')}</select></div>
     <div><label>Fecha de evaluación</label><input id="expoDate30" type="date" value="${todayLocal30()}"></div>
@@ -4402,24 +4429,46 @@ function openExpositionEvaluation(){
   modalBody.classList.add('wide');modal.classList.remove('hidden');renderExpositionStudents30();
 }
 function renderExpositionStudents30(){
-  ensureClassData();const box=document.getElementById('expoTable30');if(!box)return;
+  ensureDefaultExpositionRubric30();
+  ensureClassData();
+  const box=document.getElementById('expoTable30');if(!box)return;
   const criteria=db.expositionRubric.criteria||[],week=Number(document.getElementById('expoWeek30')?.value||1);
   const grade=document.getElementById('expoGrade30')?.value||'Todos',sec=document.getElementById('expoSection30')?.value||'Todas';
   const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
   const groups=(db.groups||[]).filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec));
   const headers=criteria.map(c=>`<th>${escClass(c.name)}<br><small>0–20</small></th>`).join('');
-  const rows=groups.map(g=>{
-    const members=(g.members||[]).filter(id=>students.some(u=>u.u===id));
-    if(!members.length)return '';
-    const cells=criteria.map(c=>{
-      const s=(db.expositionRubric.scores||[]).find(x=>x.user===members[0]&&Number(x.week)===week&&x.criterionId===c.id);
-      return `<td><input class="expoScore30" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="${s?.score??''}" style="width:75px"></td>`;
-    }).join('');
-    const vals=criteria.map(c=>(db.expositionRubric.scores||[]).find(x=>x.user===members[0]&&Number(x.week)===week&&x.criterionId===c.id)?.score).filter(x=>x!==undefined);
-    const av=avgNums(vals);
-    return `<tr><td><b>${escClass(g.name)}</b><br><span class="muted">${members.map(id=>projectStudentName(id)).join(', ')}</span>${members.length===1?'<br><small>Trabajo individual</small>':''}</td>${cells}<td>${av===null?'—':av.toFixed(2)}</td></tr>`;
-  }).join('');
-  box.innerHTML=`<table><tr><th>Grupo / integrantes</th>${headers}<th>Nota exposición</th></tr>${rows||'<tr><td colspan="'+(criteria.length+2)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table><p class="muted" style="margin-top:10px">La misma calificación de exposición se guarda para todos los integrantes del grupo.</p><button onclick="saveExpositionScores()">💾 Guardar exposiciones</button>`;
+  const rows=[];
+  groups.forEach(g=>{
+    const members=(g.members||[]).map(id=>db.users.find(u=>u.u===id)).filter(u=>u && students.some(s=>s.u===u.u));
+    if(!members.length)return;
+    members.forEach((student,idx)=>{
+      const cells=criteria.map(c=>{
+        const s=(db.expositionRubric.scores||[]).find(x=>x.user===student.u&&Number(x.week)===week&&x.criterionId===c.id);
+        return `<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="${s?.score??''}" style="width:75px"></td>`;
+      }).join('');
+      const vals=criteria.map(c=>(db.expositionRubric.scores||[]).find(x=>x.user===student.u&&Number(x.week)===week&&x.criterionId===c.id)?.score).filter(x=>x!==undefined && x!==null && x!=='');
+      const av=avgNums(vals);
+      rows.push(`<tr>
+        <td><b>${escClass(g.name)}</b><br>${escClass(student.name)}<br><small class="muted">${idx+1} de ${members.length} integrantes · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td>
+        ${cells}
+        <td><b>${av===null?'—':av.toFixed(2)}</b></td>
+      </tr>`);
+    });
+  });
+  box.innerHTML=`<table><tr><th>Grupo / estudiante</th>${headers}<th>Nota individual</th></tr>${rows.join('')||'<tr><td colspan="'+(criteria.length+2)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table>
+  <p class="muted" style="margin-top:10px">🎯 La nota se calcula por estudiante con sus propios criterios. Los integrantes del mismo grupo pueden obtener notas diferentes.</p>
+  <button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
+
+  // Calcular la nota individual inmediatamente al escribir cada criterio, sin esperar a guardar.
+  box.querySelectorAll('.expoScore30').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const row=inp.closest('tr');
+      if(!row)return;
+      const vals=[...row.querySelectorAll('.expoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(x=>Number.isFinite(x));
+      const cell=row.lastElementChild;
+      if(cell)cell.innerHTML=`<b>${vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—'}</b>`;
+    });
+  });
 }
 function saveExpositionScores(){
   ensureClassData();
@@ -4427,18 +4476,17 @@ function saveExpositionScores(){
   const inputs=[...document.querySelectorAll('.expoScore30')];
   let count=0;
   inputs.forEach(e=>{
-    const groupId=e.dataset.group,criterionId=e.dataset.criterion,val=e.value;
+    const user=e.dataset.user,groupId=e.dataset.group,criterionId=e.dataset.criterion,val=e.value;
     const g=(db.groups||[]).find(x=>x.id===groupId);if(!g)return;
-    (g.members||[]).forEach(user=>{
-      let s=db.expositionRubric.scores.find(x=>x.user===user&&Number(x.week)===week&&x.criterionId===criterionId);
-      if(val===''){if(s)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==s);return;}
-      if(!s){s={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId};db.expositionRubric.scores.push(s);}
-      const student=(db.users||[]).find(x=>x.u===user);
-      s.date=date;s.grade=student?.grade||'';s.section=student?.section||'';s.category=categoryForStudent(student);s.groupId=groupId;s.groupName=g.name;s.score=Math.max(0,Math.min(20,Number(val)));s.savedAt=Date.now();
-      count++;
-    });
+    if(!(g.members||[]).includes(user))return;
+    let s=db.expositionRubric.scores.find(x=>x.user===user&&Number(x.week)===week&&x.criterionId===criterionId);
+    if(val===''){if(s)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==s);return;}
+    if(!s){s={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId};db.expositionRubric.scores.push(s);}
+    const student=(db.users||[]).find(x=>x.u===user);
+    s.date=date;s.grade=student?.grade||'';s.section=student?.section||'';s.category=categoryForStudent(student);s.groupId=groupId;s.groupName=g.name;s.score=Math.max(0,Math.min(20,Number(val)));s.savedAt=Date.now();
+    count++;
   });
-  save();alert(`✅ Exposición de la semana ${week} guardada para ${count} registro(s) de integrantes.`);openProjectEvaluation();
+  save();alert(`✅ Evaluación individual de exposición guardada.\n${count} criterio(s) registrado(s).`);openProjectEvaluation();
 }
 
 /* ===== CONFIGURACIÓN DE PESOS ===== */
