@@ -3151,6 +3151,7 @@ function ensureClassData(){
   if(!Array.isArray(db.examGrades))db.examGrades=[];
   if(!Array.isArray(db.projectGrades))db.projectGrades=[];
   if(!Array.isArray(db.projectWeeklyGrades))db.projectWeeklyGrades=[];
+  if(!Array.isArray(db.projectWork))db.projectWork=[];
   if(!Array.isArray(db.creaEmprende))db.creaEmprende=[];
   if(!db.projectRubrics||typeof db.projectRubrics!=='object')db.projectRubrics={};
   if(!Array.isArray(db.projectRubrics.A_portfolio))db.projectRubrics.A_portfolio=[
@@ -5871,12 +5872,12 @@ function buildNav(){
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
   const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
-  const evalOpen=['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','grades','project'].includes(page);
+  const evalOpen=['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','grades','project','projectWork'].includes(page);
   const moreOpen=extra.some(a=>a[0]===page);
   nav.innerHTML=top.map(b).join('')+
     `<div class="nav-group-title">📊 EVALUACIÓN</div>`+
     `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación</span></button>`+
-    `<div id="evalMenu" class="nav-sub" style="display:${evalOpen?'block':'none'}">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['registro','✅','Registro de clase'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}</div>`+
+    `<div id="evalMenu" class="nav-sub" style="display:${evalOpen?'block':'none'}">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['projectWork','🛠️','Trabajo de proyecto'])}${b(['registro','✅','Registro de clase'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}</div>`+
     `<button class="nav-group-toggle" onclick="toggleMoreMenu()">☰ <span>Más opciones</span></button>`+
     `<div id="moreMenu" class="nav-sub" style="display:${moreOpen?'block':'none'}">${extra.filter(a=>!['grades'].includes(a[0])).map(b).join('')}</div>`;
 }
@@ -5906,6 +5907,208 @@ function iaActivity30(){const t=iaTopic30(),g=document.getElementById('iaGrade30
 function iaGame30(){const t=iaTopic30(),b=iaBase30(t);document.getElementById('iaOutput30').innerHTML=`<h2>🎮 Juego rápido — ${escClass(t)}</h2><p>Selecciona la respuesta correcta. El juego usa preguntas internas y no necesita internet.</p><div id="iaGameBody30">${iaGameQuestion30(t,b,0)}</div>`}
 function iaGameQuestion30(t,b,i){const correct=b.keys[i%b.keys.length],opts=[correct,b.keys[(i+1)%b.keys.length],b.keys[(i+2)%b.keys.length]];return `<div class="item"><h3>Pregunta ${i+1}</h3><p>¿Cuál de estas opciones está directamente relacionada con <b>${escClass(t)}</b>?</p>${opts.map((o,j)=>`<button class="secondary" style="margin:5px" onclick="alert('${j===0?'✅ Correcto':'❌ Intenta nuevamente'}')">${escClass(o)}</button>`).join('')}</div>`}
 function iaQuiz30(){const t=iaTopic30(),b=iaBase30(t),n=Math.min(10,iaCount30());document.getElementById('iaOutput30').innerHTML=`<h2>🧠 Quiz — ${escClass(t)}</h2><p>Modo básico de práctica. Cada pregunta tiene una respuesta clave sugerida.</p>${Array.from({length:n},(_,i)=>`<div class="item" style="margin-bottom:10px"><b>${i+1}. ¿Cuál es una idea clave de ${escClass(t)}?</b><br><select><option>Seleccionar...</option>${b.keys.map(k=>`<option>${escClass(k)}</option>`).join('')}</select></div>`).join('')}` }
+
+/* ===== TRABAJO DE PROYECTO ===== */
+function projectWorkScore(materials, participation){
+  const m=materials==='si'?20:materials==='no'?5:null;
+  const p={alta:20,media:15,baja:10,noparticipo:5,representacion:20}[participation];
+  if(m===null||p==null)return null;
+  return +(m*.30+p*.70).toFixed(2);
+}
+function projectWorkRec(user,activityId){
+  ensureClassData();
+  return (db.projectWork||[]).find(r=>r.user===user&&r.activityId===activityId)||null;
+}
+function pwActivityBase(activityId){
+  return (db.projectWork||[]).find(r=>r.activityId===activityId)||{};
+}
+function pwMembers(activityId){
+  const b=pwActivityBase(activityId);
+  return {g1:Array.isArray(b.group1Members)?b.group1Members:[],g2:Array.isArray(b.group2Members)?b.group2Members:[]};
+}
+function pwLockedCondition(user,activityId){
+  const m=pwMembers(activityId);
+  if(m.g1.includes(user.u))return 'grupo1';
+  if(m.g2.includes(user.u))return 'grupo2';
+  return 'apoyo';
+}
+function configurePWMembers(){
+  ensureClassData();
+  const id=window.pwActivity;
+  if(!id){alert('Primero crea o selecciona una actividad.');return;}
+  const grade=window.pwGrade||'2.º',section=window.pwSection||'A';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section&&!studentIsRetired31(u)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(!students.length){alert('No hay estudiantes disponibles en esta aula.');return;}
+  const base=pwActivityBase(id), old1=Array.isArray(base.group1Members)?base.group1Members:[], old2=Array.isArray(base.group2Members)?base.group2Members:[];
+  const listing=students.map((u,i)=>`${i+1}. ${u.name}`).join('\n');
+  const ask=(label,old)=>{
+    const nums=old.map(x=>students.findIndex(u=>u.u===x)+1).filter(n=>n>0).join(',');
+    const ans=prompt(`${label}\n\nEscribe los números de los integrantes separados por coma (máximo 5).\n\n${listing}\n\nActual: ${nums||'ninguno'}`,nums);
+    if(ans===null)return null;
+    const arr=[...new Set(ans.split(',').map(x=>parseInt(x.trim(),10)).filter(n=>n>=1&&n<=students.length))];
+    if(arr.length>5){alert('Cada grupo puede tener máximo 5 integrantes.');return ask(label,old);}
+    return arr.map(n=>students[n-1].u);
+  };
+  const g1=ask('👥 INTEGRANTES DEL GRUPO 1',old1); if(g1===null)return;
+  const g2=ask('👥 INTEGRANTES DEL GRUPO 2',old2); if(g2===null)return;
+  const overlap=g1.filter(u=>g2.includes(u));
+  if(overlap.length){alert('Un estudiante no puede pertenecer a los dos grupos.');return;}
+  (db.projectWork||[]).forEach(r=>{if(r.activityId===id){r.group1Members=g1.slice();r.group2Members=g2.slice();
+    if(g1.includes(r.user))r.condition='grupo1'; else if(g2.includes(r.user))r.condition='grupo2'; else r.condition='apoyo';
+    if(r.condition==='grupo1'&&r.project1)r.project='p1'; else if(r.condition==='grupo2'&&r.project2)r.project='p2';
+  }});
+  save();render();
+}
+function resetProjectWorkRow(i){
+  ensureClassData();
+  const id=window.pwActivity;if(!id)return;
+  const grade=window.pwGrade||'2.º',section=window.pwSection||'A';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const u=students[i];if(!u||studentIsRetired31(u))return;
+  if(!confirm(`¿Restablecer el registro de ${u.name}? Se borrará únicamente su nota y los datos de esta actividad.`))return;
+  const r=projectWorkRec(u.u,id);if(r){r.materials='';r.participation='';r.observation='';r.score=null;r.project='';}
+  save();render();
+}
+function projectWork(){
+  if(me.role!=='teacher')return `<div class="card"><h2>🚀 Trabajo de proyecto</h2><p class="muted">Registro disponible para el docente.</p></div>`;
+  ensureClassData();
+  const grade=window.pwGrade||'2.º', section=window.pwSection||'A';
+  const activities=(db.projectWork||[]).filter(r=>r.grade===grade&&r.section===section&&r.activityId).reduce((a,r)=>{if(!a.includes(r.activityId))a.push(r.activityId);return a},[]);
+  const activityId=window.pwActivity||'';
+  const existing=activityId?((db.projectWork||[]).find(r=>r.activityId===activityId)||{}):{};
+  const title=existing.title||window.pwTitleValue||'';
+  const date=existing.date||window.pwDateValue||todayLocal30();
+  const project1=existing.project1||window.pwProject1Value||'';
+  const project2=existing.project2||window.pwProject2Value||'';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const opts=(val,arr)=>arr.map(x=>`<option value="${escClass(x[0])}" ${val===x[0]?'selected':''}>${x[1]}</option>`).join('');
+  const projectOpts=(val,cond)=>{
+    const arr=[];
+    if(project1)arr.push(['p1',`📌 ${escClass(project1)}`]);
+    if(project2)arr.push(['p2',`📌 ${escClass(project2)}`]);
+    if(!arr.length)arr.push(['','Primero agrega los nombres de los proyectos']);
+    return `<option value="" ${!val?'selected':''}>— Seleccionar —</option>`+arr.map(x=>`<option value="${x[0]}" ${val===x[0]?'selected':''}>${x[1]}</option>`).join('');
+  };
+  const rows=students.map((u,i)=>{
+    const retired=studentIsRetired31(u);
+    const r=activityId?projectWorkRec(u.u,activityId):null;
+    const members=pwMembers(activityId);
+    const membersConfigured=members.g1.length>0||members.g2.length>0;
+    const lockedCond=!retired && activityId && membersConfigured;
+    const cond=lockedCond?pwLockedCondition(u,activityId):(r?.condition||'');
+    const mat=r?.materials||'';
+    const part=r?.participation||'';
+    let proj=r?.project||'';
+    if(cond==='grupo1'&&project1)proj='p1';
+    if(cond==='grupo2'&&project2)proj='p2';
+    const sc=retired?null:projectWorkScore(mat,part);
+    return `<tr><td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge">⚫ RETIRADO</span>':''}</td>
+      <td><select id="pwCond_${i}" onchange="syncPWProject(${i})" ${retired||lockedCond?'disabled':''}>${opts(cond,[['grupo1','Grupo 1'],['grupo2','Grupo 2'],['apoyo','Apoyo'],['representacion','🏫 Representación institucional']])}</select></td>
+      <td><select id="pwProj_${i}" ${retired||cond==='grupo1'||cond==='grupo2'||cond==='apoyo'?'disabled':''}>${projectOpts(proj,cond)}</select></td>
+      <td><select id="pwMat_${i}" ${retired?'disabled':''}>${opts(mat,[['si','✅ Sí'],['no','❌ No']])}</select></td>
+      <td><select id="pwPart_${i}" ${retired?'disabled':''}>${opts(part,[['alta','🟢 Alta'],['media','🟡 Parcial'],['baja','🟠 Poco'],['noparticipo','🔴 No participó'],['representacion','🏫 Representación']])}</select></td>
+      <td><input id="pwObs_${i}" value="${escClass(r?.observation||'')}" placeholder="Observación" ${retired?'disabled':''}></td>
+      <td><b>${sc===null?'—':sc.toFixed(2)}</b></td>
+      <td><button class="small" onclick="saveProjectWorkRow(${i})" ${retired?'disabled':''}>💾</button> <button class="small secondary" onclick="resetProjectWorkRow(${i})" ${retired?'disabled':''}>↺</button></td></tr>`;
+  }).join('');
+  return `<div class="card"><h2>🚀 Trabajo de proyecto</h2>
+    <p class="muted">Registra únicamente cuando realmente haya trabajo o avance de proyecto. Esta opción es independiente de Registro de clase.</p>
+    <div class="grid3"><div><label>Grado</label><select id="pwGrade" onchange="setPWFilter()">${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${x===grade?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div><label>Sección</label><select id="pwSection" onchange="setPWFilter()"><option ${section==='A'?'selected':''}>A</option><option ${section==='B'?'selected':''}>B</option></select></div>
+    <div><label>Fecha</label><input id="pwDate" type="date" value="${escClass(date)}" onchange="window.pwDateValue=this.value"></div></div>
+    <div style="margin-top:12px"><label>Actividad / avance del proyecto</label><input id="pwTitle" value="${escClass(title)}" oninput="window.pwTitleValue=this.value" placeholder="Ej.: Avance del prototipo y organización de materiales"></div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label>🏆 Nombre del proyecto – Grupo 1</label><input id="pwProject1" value="${escClass(project1)}" oninput="window.pwProject1Value=this.value" placeholder="Ej.: Naturabella Andina"></div>
+      <div><label>🏆 Nombre del proyecto – Grupo 2</label><input id="pwProject2" value="${escClass(project2)}" oninput="window.pwProject2Value=this.value" placeholder="Ej.: EcoTacho Smart"></div>
+      <div class="item" style="align-self:end"><b>📌 Importante:</b> Grupo 1 y Grupo 2 pueden tener proyectos diferentes. Usa <b>👥 Configurar integrantes</b> para elegir los 5 integrantes de cada grupo. Antes de configurarlos, la condición queda editable; después, los integrantes quedan bloqueados y los demás quedan como <b>Apoyo</b>.</div>
+    </div>
+    ${activityId?'<div style="margin-top:10px"><button class="secondary" onclick="savePWProjectNames()">💾 Guardar nombres de proyectos</button></div>':''}
+    <div style="margin-top:12px"><label>Actividades registradas</label><select id="pwActivitySelect" onchange="window.pwActivity=this.value;render()"><option value="">— Nueva actividad —</option>${activities.map(id=>{const x=(db.projectWork||[]).find(r=>r.activityId===id);return `<option value="${escClass(id)}" ${id===activityId?'selected':''}>${escClass(x?.title||'Actividad')} · ${escClass(x?.date||'')}</option>`}).join('')}</select></div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="badge">Materiales 30 %</span><span class="badge ok">Participación y aporte 70 %</span><button onclick="newProjectWork()">➕ Nueva actividad</button>${activityId?'<button class="secondary" onclick="editProjectWorkTitle()">✏️ Corregir nombre</button><button class="secondary" onclick="configurePWMembers()">👥 Configurar integrantes</button>':''}</div>
+    ${activityId?`<p class="muted" style="margin-top:10px">Actividad seleccionada: <b>${escClass(title||'Sin título')}</b> · ${escClass(date)}</p>`:'<p class="muted" style="margin-top:10px">Escribe la actividad, los nombres de los proyectos y pulsa <b>Nueva actividad</b> para iniciar un registro.</p>'}
+    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Condición</th><th>Proyecto</th><th>Materiales</th><th>Participación / aporte</th><th>Observación</th><th>Nota</th><th></th></tr>${activityId?rows:'<tr><td colspan="9" style="text-align:center;padding:20px">Selecciona o crea una actividad para registrar el trabajo.</td></tr>'}</table></div>
+    <div style="margin-top:14px" class="card"><b>📌 Criterio:</b> traer materiales cuenta en la nota. La representación institucional se registra como situación justificada y no se penaliza por no haber podido permanecer en el aula.</div>
+    <div style="margin-top:14px"><h3>📊 Promedio de trabajo de proyecto</h3><div style="overflow:auto"><table><tr><th>Estudiante</th><th>Actividades registradas</th><th>Promedio</th></tr>${students.map(u=>{const rs=(db.projectWork||[]).filter(r=>r.user===u.u&&r.grade===grade&&r.section===section&&Number.isFinite(Number(r.score)));const av=avgNums(rs.map(r=>Number(r.score)));return `<tr><td>${escClass(u.name)}${studentIsRetired31(u)?' ⚫ RETIRADO':''}</td><td>${rs.length}</td><td><b>${av===null?'—':av.toFixed(2)}</b></td></tr>`}).join('')}</table></div></div>
+  </div>`;
+}
+function savePWProjectNames(){
+  ensureClassData();
+  const id=window.pwActivity;
+  if(!id){alert('Primero crea o selecciona una actividad.');return;}
+  const p1=(document.getElementById('pwProject1')?.value||'').trim();
+  const p2=(document.getElementById('pwProject2')?.value||'').trim();
+  if(!p1&&!p2){alert('Escribe al menos el nombre de un proyecto.');return;}
+  (db.projectWork||[]).forEach(r=>{
+    if(r.activityId===id){ r.project1=p1; r.project2=p2; }
+  });
+  window.pwProject1Value=p1;
+  window.pwProject2Value=p2;
+  save();
+  render();
+  alert('✅ Nombres de los proyectos guardados. Ahora aparecen en la columna Proyecto.');
+}
+
+function syncPWProject(i){
+  const c=document.getElementById('pwCond_'+i)?.value||'';
+  const s=document.getElementById('pwProj_'+i);
+  if(!s)return;
+  const p1=window.pwProject1Value||((db.projectWork||[]).find(r=>r.activityId===window.pwActivity)?.project1)||'';
+  const p2=window.pwProject2Value||((db.projectWork||[]).find(r=>r.activityId===window.pwActivity)?.project2)||'';
+  if(c==='grupo1'&&p1)s.value='p1';
+  else if(c==='grupo2'&&p2)s.value='p2';
+}
+function setPWFilter(){window.pwGrade=document.getElementById('pwGrade')?.value||'2.º';window.pwSection=document.getElementById('pwSection')?.value||'A';window.pwActivity='';window.pwTitleValue=document.getElementById('pwTitle')?.value||'';window.pwProject1Value=document.getElementById('pwProject1')?.value||'';window.pwProject2Value=document.getElementById('pwProject2')?.value||'';window.pwDateValue=document.getElementById('pwDate')?.value||todayLocal30();render();}
+function newProjectWork(){
+  ensureClassData();
+  const grade=document.getElementById('pwGrade')?.value||window.pwGrade||'2.º',section=document.getElementById('pwSection')?.value||window.pwSection||'A';
+  const title=(document.getElementById('pwTitle')?.value||'').trim();
+  const date=document.getElementById('pwDate')?.value||todayLocal30();
+  const project1=(document.getElementById('pwProject1')?.value||'').trim();
+  const project2=(document.getElementById('pwProject2')?.value||'').trim();
+  if(!title){alert('Escribe el nombre de la actividad o avance del proyecto.');return;}
+  if(!project1&&!project2){alert('Agrega al menos el nombre de un proyecto para poder identificar los grupos.');return;}
+  const id='pw_'+Date.now();
+  window.pwGrade=grade;window.pwSection=section;window.pwActivity=id;window.pwTitleValue=title;window.pwDateValue=date;window.pwProject1Value=project1;window.pwProject2Value=project2;
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section);
+  students.forEach(u=>db.projectWork.push({id:'pwr_'+Date.now()+'_'+Math.random().toString(36).slice(2),activityId:id,title,date,grade,section,user:u.u,condition:'',project:'',project1,project2,group1Members:[],group2Members:[],materials:'',participation:'',observation:'',score:null}));
+  save();render();
+}
+function editProjectWorkTitle(){
+  ensureClassData();
+  const id=window.pwActivity;
+  if(!id){alert('Selecciona una actividad registrada para corregir su nombre.');return;}
+  const rec=(db.projectWork||[]).find(r=>r.activityId===id);
+  if(!rec){alert('No se encontró la actividad seleccionada.');return;}
+  const actual=String(rec.title||'').trim();
+  const nuevo=prompt('Corrige el nombre de la actividad o avance del proyecto:',actual);
+  if(nuevo===null)return;
+  const title=nuevo.trim();
+  if(!title){alert('El nombre de la actividad no puede quedar vacío.');return;}
+  (db.projectWork||[]).forEach(r=>{if(r.activityId===id)r.title=title;});
+  window.pwTitleValue=title;
+  save();
+  render();
+}
+function saveProjectWorkRow(i){
+  ensureClassData();
+  const id=window.pwActivity;if(!id)return;
+  const grade=window.pwGrade||'2.º',section=window.pwSection||'A';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const u=students[i];if(!u||studentIsRetired31(u))return;
+  const base=(db.projectWork||[]).find(x=>x.activityId===id)||{};
+  const r=projectWorkRec(u.u,id)||{id:'pwr_'+Date.now()+'_'+Math.random().toString(36).slice(2),activityId:id,title:document.getElementById('pwTitle')?.value||'',date:document.getElementById('pwDate')?.value||todayLocal30(),grade,section,user:u.u};
+  r.title=base.title||document.getElementById('pwTitle')?.value||r.title||'';
+  r.date=base.date||document.getElementById('pwDate')?.value||r.date||todayLocal30();
+  r.project1=base.project1||window.pwProject1Value||'';r.project2=base.project2||window.pwProject2Value||'';
+  r.group1Members=Array.isArray(base.group1Members)?base.group1Members.slice():(r.group1Members||[]);r.group2Members=Array.isArray(base.group2Members)?base.group2Members.slice():(r.group2Members||[]);
+  const members=pwMembers(id);
+  const membersConfigured=members.g1.length>0||members.g2.length>0;
+  const selectedCondition=document.getElementById('pwCond_'+i)?.value||'';
+  const locked=membersConfigured?pwLockedCondition(u,id):selectedCondition;
+  r.condition=locked||'';r.project=document.getElementById('pwProj_'+i)?.value||'';
+  if(r.condition==='grupo1'&&r.project1)r.project='p1';else if(r.condition==='grupo2'&&r.project2)r.project='p2';r.materials=document.getElementById('pwMat_'+i)?.value||'';r.participation=document.getElementById('pwPart_'+i)?.value||'';r.observation=document.getElementById('pwObs_'+i)?.value||'';r.score=projectWorkScore(r.materials,r.participation);
+  const idx=(db.projectWork||[]).findIndex(x=>x.user===u.u&&x.activityId===id);if(idx>=0)db.projectWork[idx]=r;else db.projectWork.push(r);save();render();
+}
 
 /* ===== CREA Y EMPRENDE ===== */
 function creaEmprende(){
@@ -6459,10 +6662,10 @@ function updateClassRecord30(id){
 /* ===== FIN SESIONES POR GRADO/SECCIÓN + REGISTRO VINCULADO ===== */
 
 function render(){
-  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades','creaEmprende'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
+  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,submissions,chat,grades,tracking,attendance,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
