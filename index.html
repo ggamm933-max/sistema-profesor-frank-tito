@@ -1174,18 +1174,37 @@ function openUnit(id){
  <button class="secondary" style="margin-top:12px" onclick="closeModal()">Cerrar</button>`;
  modal.classList.remove("hidden");
 }
+
+function sessionGroups26(x){
+  if(Array.isArray(x?.groups) && x.groups.length) return x.groups;
+  const g=String(x?.grade||"");
+  if(g==="1.º-2.º") return ["1.º A","1.º B","2.º A"];
+  if(g==="3.º-5.º") return ["3.º A","3.º B","4.º A","4.º B","5.º A","5.º B"];
+  return [];
+}
+function nextSessionNumber26(unitId, groups){
+  const ss=(db.sessions||[]).filter(s=>s.unit===unitId);
+  const nums=ss.filter(s=>sessionGroups26(s).some(g=>groups.includes(g))).map(s=>Number(s.number)||0);
+  return Math.max(0,...nums)+1;
+}
+
 function addSession(unitId){
- const count=(db.sessions||[]).filter(x=>x.unit===unitId).length;
+ const groups=["1.º A","1.º B","2.º A","2.º B","3.º A","3.º B","4.º A","4.º B","5.º A","5.º B"];
+ const defaultGroups=["1.º A","1.º B","2.º A"];
+ const next=nextSessionNumber26(unitId,defaultGroups);
  modalBody.innerHTML=`<h2>＋ Nueva sesión</h2>
- <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${count+1}">
+ <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${next}">
  <label>Título de la sesión</label><input id="sesT" placeholder="Ej.: Excel y fórmulas">
  <label>Descripción / propósito</label><textarea id="sesD" placeholder="Escribe brevemente qué desarrollarán los estudiantes."></textarea>
- <label>Grado desde el que se crea</label>
- <select id="sesG">
-   <option value="1.º">1.º → se compartirá automáticamente con 2.º</option>
-   <option value="3.º">3.º → se compartirá automáticamente con 4.º y 5.º</option>
- </select>
- <p class="muted" style="margin-top:6px">La sesión se guardará una sola vez: 1.º–2.º o 3.º–5.º.</p>
+ <label>Grado y sección</label>
+ <div style="display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:8px;margin-top:8px">
+ ${groups.map(g=>`<label style="display:flex;align-items:center;gap:7px;margin:0;padding:9px;border:1px solid var(--line);border-radius:10px">
+   <input class="sessionGroup26" type="checkbox" value="${g}" ${defaultGroups.includes(g)?"checked":""}> ${g}
+ </label>`).join("")}
+ </div>
+ <p class="muted" style="font-size:12px;margin-top:8px">
+   Puedes compartir una sesión entre varios grupos. <b>2.º A y 2.º B siempre se seleccionan por separado.</b>
+ </p>
  <label>Fecha</label><input id="sesF" type="date">
  <label>Estado</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option></select>
  <div class="actions" style="margin-top:15px"><button onclick="saveSession(${unitId})">Guardar sesión</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
@@ -1196,26 +1215,35 @@ function saveSession(unitId){
  const number=Number(document.getElementById("sesN").value);
  const title=document.getElementById("sesT").value.trim();
  const description=document.getElementById("sesD").value.trim();
- const baseGrade=document.getElementById("sesG").value;
- const grade=baseGrade==='1.º'?'1.º-2.º':'3.º-5.º';
+ const groups=[...document.querySelectorAll(".sessionGroup26:checked")].map(x=>x.value);
  const date=document.getElementById("sesF").value;
  const status=document.getElementById("sesS").value;
  if(!number||!title){alert("Completa el número y el título.");return}
- db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,date,status,grade,section:''});
+ if(!groups.length){alert("Selecciona al menos un grado y sección.");return}
+ const grade=groups.includes("2.º B") ? (groups.includes("2.º A") ? "2.º A · 2.º B" : "2.º B") : (groups.includes("2.º A") ? "2.º A" : "");
+ db.sessions.push({
+   id:Date.now()+Math.random(),unit:unitId,number,title,description,date,status,
+   grade:grade||groups.join(" · "),section:"",groups
+ });
  save();closeModal();openUnit(unitId);
 }
 function editSession(id){
  const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
- const g=sessionGroupForGrade(x.grade||'');
+ const selected=sessionGroups26(x);
+ const groups=["1.º A","1.º B","2.º A","2.º B","3.º A","3.º B","4.º A","4.º B","5.º A","5.º B"];
  modalBody.innerHTML=`<h2>✏️ Editar sesión</h2>
- <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${x.number}">
- <label>Título de la sesión</label><input id="sesT" value="${String(x.title||'').replace(/"/g,'&quot;')}">
+ <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${x.number||1}">
+ <label>Título de la sesión</label><input id="sesT" value="${String(x.title||"").replace(/"/g,"&quot;")}">
  <label>Descripción / propósito</label><textarea id="sesD">${x.description||""}</textarea>
- <label>Grupo de grados</label>
- <select id="sesG">
-   <option value="1.º-2.º" ${g==='1.º-2.º'?'selected':''}>1.º y 2.º</option>
-   <option value="3.º-5.º" ${g==='3.º-5.º'?'selected':''}>3.º, 4.º y 5.º</option>
- </select>
+ <label>Grado y sección</label>
+ <div style="display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:8px;margin-top:8px">
+ ${groups.map(g=>`<label style="display:flex;align-items:center;gap:7px;margin:0;padding:9px;border:1px solid var(--line);border-radius:10px">
+   <input class="sessionGroup26" type="checkbox" value="${g}" ${selected.includes(g)?"checked":""}> ${g}
+ </label>`).join("")}
+ </div>
+ <p class="muted" style="font-size:12px;margin-top:8px">
+   Puedes compartir la sesión o separar los grupos. <b>2.º A y 2.º B no se mezclan automáticamente.</b>
+ </p>
  <label>Fecha</label><input id="sesF" type="date" value="${x.date||""}">
  <label>Estado</label><select id="sesS">
  <option ${x.status==="Programada"?"selected":""}>Programada</option>
@@ -1228,10 +1256,14 @@ function editSession(id){
 function saveEditedSession(id){
  const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
  const title=document.getElementById("sesT").value.trim();
+ const groups=[...document.querySelectorAll(".sessionGroup26:checked")].map(x=>x.value);
  if(!title){alert("Escribe el título de la sesión.");return}
+ if(!groups.length){alert("Selecciona al menos un grado y sección.");return}
  x.number=Number(document.getElementById("sesN").value)||1;
  x.title=title;x.description=document.getElementById("sesD").value.trim();
  x.date=document.getElementById("sesF").value;x.status=document.getElementById("sesS").value;
+ x.groups=groups;
+ x.grade=groups.join(" · ");x.section="";
  save();closeModal();openUnit(x.unit);
 }
 function viewSession(id){
@@ -2542,24 +2574,84 @@ function attendanceAlertPanel26(){
  </div>`;
 }
 
+let incidentsGradeFilter26="Todos";
+let incidentsSectionFilter26="Todas";
+
+function setIncidentsFilter26(type,value){
+  if(type==="grade") incidentsGradeFilter26=value;
+  if(type==="section") incidentsSectionFilter26=value;
+  render();
+}
+
 function incidents(){
- if(me.role!=="teacher") return `<div class="card"><h2>📝 Incidentes</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
- if(!Array.isArray(db.incidents)) db.incidents=[];
- const users=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
- const rows=db.incidents.slice().reverse().map((x,i)=>`
-   <tr><td>${x.date||"—"}</td><td><b>${x.studentName||x.student||"—"}</b></td>
-   <td>${x.type||"—"}</td><td>${x.description||"—"}</td><td>${x.action||"—"}</td>
-   <td><button class="small" onclick="deleteIncident26(${db.incidents.length-1-i})">Eliminar</button></td></tr>`).join("");
- return `<div class="card">
-   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-    <div><h2>📝 Registro de incidentes</h2><p class="muted">Anota situaciones relevantes y las acciones realizadas con un estudiante.</p></div>
-    <button onclick="newIncident26()">＋ Registrar incidente</button>
-   </div>
-   <div style="margin-top:18px">${rows?
-   `<div style="overflow:auto"><table><tr><th>Fecha</th><th>Estudiante</th><th>Tipo</th><th>Descripción</th><th>Acción / seguimiento</th><th></th></tr>${rows}</table></div>`
-   :`<div class="item"><div><b>No hay incidentes registrados.</b><div class="muted">Aquí podrás dejar constancia de situaciones que necesites recordar.</div></div></div>`}</div>
-   <div style="margin-top:18px">${attendanceAlertPanel26()}</div>
- </div>`;
+  if(me.role!=="teacher") return `<div class="card"><h2>📝 Incidentes</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
+  if(!Array.isArray(db.incidents)) db.incidents=[];
+
+  const users=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
+
+  const filteredIncidents=db.incidents.filter(x=>{
+    const u=users.find(st=>st.u===x.student);
+    const grade=u?.grade||"";
+    const section=u?.section||"";
+    return (incidentsGradeFilter26==="Todos"||grade===incidentsGradeFilter26) &&
+           (incidentsSectionFilter26==="Todas"||section===incidentsSectionFilter26);
+  });
+
+  const rows=filteredIncidents.slice().reverse().map(x=>{
+    const originalIndex=db.incidents.indexOf(x);
+    const u=users.find(st=>st.u===x.student);
+    return `
+      <tr>
+        <td>${x.date||"—"}</td>
+        <td><b>${x.studentName||x.student||"—"}</b></td>
+        <td>${u?.grade||"—"} ${u?.section||""}</td>
+        <td>${x.type||"—"}</td>
+        <td>${x.description||"—"}</td>
+        <td>${x.action||"—"}</td>
+        <td><button class="small" onclick="deleteIncident26(${originalIndex})">Eliminar</button></td>
+      </tr>`;
+  }).join("");
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><h2>📝 Registro de incidentes</h2><p class="muted">Anota situaciones relevantes y las acciones realizadas con un estudiante.</p></div>
+      <button onclick="newIncident26()">＋ Registrar incidente</button>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 10px">
+      <div style="min-width:180px">
+        <label style="margin-top:0">Filtrar por grado</label>
+        <select onchange="setIncidentsFilter26('grade',this.value)">
+          <option value="Todos" ${incidentsGradeFilter26==="Todos"?"selected":""}>Todos los grados</option>
+          <option value="1.º" ${incidentsGradeFilter26==="1.º"?"selected":""}>1.º</option>
+          <option value="2.º" ${incidentsGradeFilter26==="2.º"?"selected":""}>2.º</option>
+          <option value="3.º" ${incidentsGradeFilter26==="3.º"?"selected":""}>3.º</option>
+          <option value="4.º" ${incidentsGradeFilter26==="4.º"?"selected":""}>4.º</option>
+          <option value="5.º" ${incidentsGradeFilter26==="5.º"?"selected":""}>5.º</option>
+        </select>
+      </div>
+      <div style="min-width:180px">
+        <label style="margin-top:0">Filtrar por sección</label>
+        <select onchange="setIncidentsFilter26('section',this.value)">
+          <option value="Todas" ${incidentsSectionFilter26==="Todas"?"selected":""}>Todas las secciones</option>
+          <option value="A" ${incidentsSectionFilter26==="A"?"selected":""}>A</option>
+          <option value="B" ${incidentsSectionFilter26==="B"?"selected":""}>B</option>
+        </select>
+      </div>
+      <div class="item" style="margin:0;min-width:220px">
+        <b>Filtro actual:</b>&nbsp; ${incidentsGradeFilter26} · ${incidentsSectionFilter26}
+      </div>
+    </div>
+
+    <div style="margin-top:18px">${rows?
+      `<div style="overflow:auto"><table>
+        <tr><th>Fecha</th><th>Estudiante</th><th>Grado / sección</th><th>Tipo</th><th>Descripción</th><th>Acción / seguimiento</th><th></th></tr>
+        ${rows}
+      </table></div>`
+      :`<div class="item"><div><b>No hay incidentes para el filtro seleccionado.</b><div class="muted">Prueba con otro grado o sección.</div></div></div>`}</div>
+
+    <div style="margin-top:18px">${attendanceAlertPanel26()}</div>
+  </div>`;
 }
 
 function newIncident26(){
@@ -4416,10 +4508,19 @@ function openExpositionEvaluation(){
   const criteria=db.expositionRubric.criteria||[];
   if(!criteria.length){alert('No hay criterios en la rúbrica de exposición.');openExpositionRubricConfig();return;}
   modalBody.classList.remove('projectMainModal');
-  modalBody.innerHTML=`<h2>🎤 Evaluación semanal de exposición</h2>
+  const expoSessions=(db.sessions||[]).slice().sort((a,b)=>Number(a.number||0)-Number(b.number||0));
+  const expoSessionNumbers=[...new Set(expoSessions.map(s=>Number(s.number)).filter(n=>Number.isFinite(n)&&n>0))];
+  const expoOptions=expoSessionNumbers.length
+    ? expoSessionNumbers.map(n=>{
+        const s=expoSessions.find(x=>Number(x.number)===n);
+        return `<option value="${n}">Sesión ${n}${s?.title?` — ${escClass(s.title)}`:""}</option>`;
+      }).join("")
+    : [1,2,3,4,5,6].map(n=>`<option value="${n}">Sesión ${n}</option>`).join("");
+
+  modalBody.innerHTML=`<h2>🎤 Evaluación de exposición</h2>
   <p class="muted"><b>La exposición es grupal, pero la evaluación es individual.</b> Cada integrante recibe una nota según su propio desempeño. No se copia automáticamente la misma nota a todo el grupo.</p>
   <div class="grid3" style="margin-bottom:15px">
-    <div><label>Semana</label><select id="expoWeek30" onchange="renderExpositionStudents30()">${[1,2,3,4,5,6].map(w=>`<option value="${w}">Semana ${w}</option>`).join('')}</select></div>
+    <div><label>Sesión</label><select id="expoWeek30" onchange="renderExpositionStudents30()">${expoOptions}</select></div>
     <div><label>Fecha de evaluación</label><input id="expoDate30" type="date" value="${todayLocal30()}"></div>
     <div><label>Grado</label><select id="expoGrade30" onchange="renderExpositionStudents30()"><option value="Todos">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
   </div>
@@ -4432,7 +4533,7 @@ function renderExpositionStudents30(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
   const box=document.getElementById('expoTable30');if(!box)return;
-  const criteria=db.expositionRubric.criteria||[],week=Number(document.getElementById('expoWeek30')?.value||1);
+  const criteria=db.expositionRubric.criteria||[],week=Number(document.getElementById('expoWeek30')?.value||1); // week conserva el número de sesión para no romper registros existentes.
   const grade=document.getElementById('expoGrade30')?.value||'Todos',sec=document.getElementById('expoSection30')?.value||'Todas';
   const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
   const groups=(db.groups||[]).filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec));
@@ -4472,7 +4573,7 @@ function renderExpositionStudents30(){
 }
 function saveExpositionScores(){
   ensureClassData();
-  const week=Number(document.getElementById('expoWeek30')?.value||1),date=document.getElementById('expoDate30')?.value||todayLocal30();
+  const week=Number(document.getElementById('expoWeek30')?.value||1),date=document.getElementById('expoDate30')?.value||todayLocal30(); // week = número de sesión.
   const inputs=[...document.querySelectorAll('.expoScore30')];
   let count=0;
   inputs.forEach(e=>{
@@ -5892,52 +5993,94 @@ function toggleCYRow(rowIndex){
 /* ===== SESIONES POR GRADO/SECCIÓN + REGISTRO DE CLASE VINCULADO v2 ===== */
 function sessionGroupForGrade(g){
   g=String(g||'').trim();
-  if(g==='1.º'||g==='2.º') return '1.º-2.º';
+  if(g==='1.º'||g==='2.º') return g;
   if(g==='3.º'||g==='4.º'||g==='5.º') return '3.º-5.º';
   return g;
 }
-function sessionAppliesToGrade(s,g){
-  const sg=String(s.grade||'');
-  return sg===sessionGroupForGrade(g) || sg===g;
+function isFirstSecondSessionGroup(g){
+  return ['1.º A','1.º B','2.º A','2.º B'].includes(String(g||''));
+}
+function sessionAppliesToGrade(s,g,section){
+  const sg=String(s.grade||'').trim();
+  const sec=String(s.section||'').trim();
+  const target=String(g||'').trim();
+  if(target==='1.º'||target==='2.º'){
+    if(sg===target) return !section || !sec || sec===section;
+    if(sg==='1.º-2.º') return true; // sesiones antiguas
+    return false;
+  }
+  if(['3.º','4.º','5.º'].includes(target)){
+    return sg==='3.º-5.º' || sg===target;
+  }
+  return sg===target;
 }
 function sessionGradeLabel(x){
-  const g=sessionGroupForGrade(x.grade||'');
+  const g=String(x.grade||'').trim();
+  if(g==='1.º'||g==='2.º') return `${g}${x.section?' '+x.section:''}`;
   if(g==='1.º-2.º') return '1.º y 2.º';
   if(g==='3.º-5.º') return '3.º, 4.º y 5.º';
   return g || 'Sin grado';
 }
+function sessionTabLabel(g){
+  if(isFirstSecondSessionGroup(g)) return g;
+  if(g==='3.º-5.º') return '3.º, 4.º y 5.º';
+  return g;
+}
 function allSessionsForUI(){
-  (db.sessions||[]).forEach(s=>{ if(['1.º','2.º'].includes(String(s.grade))) s.grade='1.º-2.º'; else if(['3.º','4.º','5.º'].includes(String(s.grade))) s.grade='3.º-5.º'; });
   return (db.sessions||[]).slice().sort((a,b)=>{
     const ga=String(a.grade||''), gb=String(b.grade||'');
-    return ga.localeCompare(gb)||Number(a.number||0)-Number(b.number||0);
+    return ga.localeCompare(gb)||String(a.section||'').localeCompare(String(b.section||''))||Number(a.number||0)-Number(b.number||0);
   });
 }
 function normalizeSessionGroups(){
-  (db.sessions||[]).forEach(s=>{
-    const g=String(s.grade||'').trim();
-    if(['1.º','2.º'].includes(g)) s.grade='1.º-2.º';
-    else if(['3.º','4.º','5.º'].includes(g)) s.grade='3.º-5.º';
-  });
+  // Mantener las sesiones antiguas de 1.º-2.º y 3.º-5.º sin modificarlas.
+  return db.sessions||[];
 }
 function sessionGroupLabel(g){
+  if(isFirstSecondSessionGroup(g)) return g;
   if(g==='1.º-2.º') return '1.º y 2.º';
   if(g==='3.º-5.º') return '3.º, 4.º y 5.º';
   return 'Sin grupo';
 }
-function openUnit(id, selectedGroup='1.º-2.º'){
+function selectedSessionGroups26(selectedGroup){
+  const legacy=selectedGroup==='1.º-2.º';
+  return legacy ? ['1.º A','1.º B','2.º A','2.º B','3.º-5.º'] : [selectedGroup];
+}
+function nextSessionNumber26(unitId, selectedGroup){
+  const legacyGrade = selectedGroup==='3.º-5.º' ? '3.º-5.º' : null;
+  let nums=[];
+  (db.sessions||[]).filter(s=>s.unit===unitId).forEach(s=>{
+    if(isFirstSecondSessionGroup(selectedGroup)){
+      const [gr,se]=selectedGroup.split(' ');
+      if(String(s.grade)===gr && String(s.section||'')===se) nums.push(Number(s.number)||0);
+    }else if(legacyGrade && String(s.grade)==='3.º-5.º'){
+      nums.push(Number(s.number)||0);
+    }
+  });
+  return (Math.max(0,...nums)+1);
+}
+function openUnit(id, selectedGroup='1.º A'){
   const u=(db.units||[]).find(x=>x.id===id); if(!u)return;
   normalizeSessionGroups();
   if(!db.sessions)db.sessions=[];
-  const groups=['1.º-2.º','3.º-5.º'];
-  const ses=db.sessions.filter(x=>x.unit===id && x.grade===selectedGroup).sort((a,b)=>Number(a.number||0)-Number(b.number||0));
+  if(selectedGroup==='1.º-2.º') selectedGroup='1.º A';
+  const firstSecond=['1.º A','1.º B','2.º A','2.º B'];
+  const groups=[...firstSecond,'3.º-5.º'];
+  let ses;
+  if(isFirstSecondSessionGroup(selectedGroup)){
+    const [gr,se]=selectedGroup.split(' ');
+    ses=db.sessions.filter(x=>x.unit===id && String(x.grade)===gr && String(x.section||'')===se);
+  }else{
+    ses=db.sessions.filter(x=>x.unit===id && String(x.grade)==='3.º-5.º');
+  }
+  ses.sort((a,b)=>Number(a.number||0)-Number(b.number||0));
   modalBody.innerHTML=`<h2>📚 Unidad ${u.number}: ${escClass(u.title)}</h2>
   <p class="muted">${escClass(u.description||'')}</p><hr>
   <div class="session-group-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
-    ${groups.map(g=>`<button class="${g===selectedGroup?'':'secondary'}" onclick="openUnit(${id},'${g}')">🎓 ${sessionGroupLabel(g)}</button>`).join('')}
+    ${groups.map(g=>`<button class="${g===selectedGroup?'':'secondary'}" onclick="openUnit(${id},'${g}')">🎓 ${sessionTabLabel(g)}</button>`).join('')}
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-    <h3>📖 Sesiones de aprendizaje — ${sessionGroupLabel(selectedGroup)}</h3>
+    <h3>📖 Sesiones de aprendizaje — ${sessionTabLabel(selectedGroup)}</h3>
     ${me.role==='teacher'?`<button onclick="addSession(${id},'${selectedGroup}')">＋ Agregar sesión</button>`:''}
   </div>
   <div class="list" style="margin-top:12px">
@@ -5945,32 +6088,34 @@ function openUnit(id, selectedGroup='1.º-2.º'){
     <div><span class="badge">${escClass(x.status||'Programada')}</span>
     <h3 style="margin:7px 0">Sesión ${escClass(x.number)}: ${escClass(x.title)}</h3>
     <div class="muted">${escClass(x.description||'')}</div>
-    <div style="margin-top:7px"><b>🎓 Grupo:</b> ${sessionGroupLabel(x.grade)}${x.section?` · ${escClass(x.section)}`:' · A y B'}</div>
+    <div style="margin-top:7px"><b>🎓 Grupo:</b> ${escClass(sessionGradeLabel(x))}</div>
     ${x.date?`<small>📅 Fecha: ${escClass(x.date)}</small>`:''}</div>
     <div class="actions" style="align-self:flex-start"><button onclick="viewSession(${x.id})">Ver</button>
     ${me.role==='teacher'?`<button class="secondary" onclick="editSession(${x.id})">✏️ Editar</button><button class="danger" onclick="deleteSession(${x.id})">🗑️ Eliminar</button>`:''}</div>
-  </div>`).join('') || `<div class="card"><p class="muted">Todavía no hay sesiones para <b>${sessionGroupLabel(selectedGroup)}</b>. Usa “＋ Agregar sesión”.</p></div>`}
+  </div>`).join('') || `<div class="card"><p class="muted">Todavía no hay sesiones para <b>${sessionTabLabel(selectedGroup)}</b>. Usa “＋ Agregar sesión”.</p></div>`}
   </div>
   <button class="secondary" style="margin-top:15px" onclick="closeModal()">Cerrar</button>`;
   modal.classList.remove('hidden');
 }
-function addSession(unitId, group='1.º-2.º'){
-  const count=(db.sessions||[]).filter(x=>x.unit===unitId && x.grade===group).length;
+function addSession(unitId, group='1.º A'){
+  if(group==='1.º-2.º') group='1.º A';
+  const firstSecond=isFirstSecondSessionGroup(group);
+  const count=nextSessionNumber26(unitId,group);
   modalBody.innerHTML=`<h2>＋ Nueva sesión</h2>
-  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionGroupLabel(group)}<br><span class="muted">Esta sesión aparecerá automáticamente para todos los grados de este grupo.</span></div>
-  <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${count+1}">
+  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(group)}<br><span class="muted">${firstSecond?'Esta sesión quedará registrada únicamente para este grado y sección.':'Esta sesión mantiene la configuración actual para 3.º, 4.º y 5.º.'}</span></div>
+  <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${count}">
   <label>Título de la sesión</label><input id="sesT" placeholder="Ej.: Conocemos el problema de nuestra comunidad">
   <label>Descripción / propósito</label><textarea id="sesD" placeholder="Escribe brevemente qué desarrollarán los estudiantes."></textarea>
   <div class="grid3">
-    <div><label>Grupo de grados</label><input id="sesGLabel" value="${sessionGroupLabel(group)}" disabled></div>
-    <div><label>Sección</label><select id="sesSec"><option value="">A y B</option><option>A</option><option>B</option></select></div>
+    <div><label>Grupo de grados</label><input id="sesGLabel" value="${sessionTabLabel(group)}" disabled></div>
+    ${firstSecond?`<div><label>Sección</label><input id="sesSec" value="${escClass(group.split(' ')[1])}" disabled></div>`:`<div><label>Sección</label><select id="sesSec"><option value="">A y B</option><option>A</option><option>B</option></select></div>`}
     <div><label>Fecha</label><input id="sesF" type="date"></div>
   </div>
   <label>Estado</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option></select>
   <div class="actions" style="margin-top:15px"><button onclick="saveSession(${unitId},'${group}')">Guardar sesión</button><button class="secondary" onclick="openUnit(${unitId},'${group}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
-function saveSession(unitId, group='1.º-2.º'){
+function saveSession(unitId, group='1.º A'){
   if(!db.sessions)db.sessions=[];
   const number=Number(document.getElementById('sesN').value);
   const title=document.getElementById('sesT').value.trim();
@@ -5979,25 +6124,31 @@ function saveSession(unitId, group='1.º-2.º'){
   const date=document.getElementById('sesF').value;
   const status=document.getElementById('sesS').value;
   if(!number||!title){alert('Completa número y título de la sesión.');return}
-  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade:group,section,date,status});
+  let grade=group, sec=section;
+  if(isFirstSecondSessionGroup(group)){
+    const parts=group.split(' '); grade=parts[0]; sec=parts[1];
+  }
+  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade,section:sec,date,status});
   save();openUnit(unitId,group);
 }
 function editSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
-  normalizeSessionGroups();
-  const group=(x.grade==='1.º-2.º'||x.grade==='3.º-5.º')?x.grade:'3.º-5.º';
+  const oldGroup=(String(x.grade)==='1.º'||String(x.grade)==='2.º') ? `${x.grade} ${x.section||'A'}` : (String(x.grade)==='1.º-2.º'?'1.º A':'3.º-5.º');
+  const firstSecond=isFirstSecondSessionGroup(oldGroup);
   modalBody.innerHTML=`<h2>✏️ Editar sesión</h2>
-  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionGroupLabel(group)}</div>
+  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(oldGroup)}</div>
   <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${x.number}">
   <label>Título de la sesión</label><input id="sesT" value="${escClass(x.title)}">
   <label>Descripción / propósito</label><textarea id="sesD">${escClass(x.description||'')}</textarea>
   <div class="grid3">
-    <div><label>Grupo de grados</label><select id="sesG"><option value="1.º-2.º" ${group==='1.º-2.º'?'selected':''}>1.º y 2.º</option><option value="3.º-5.º" ${group==='3.º-5.º'?'selected':''}>3.º, 4.º y 5.º</option></select></div>
-    <div><label>Sección</label><select id="sesSec"><option value="" ${!x.section?'selected':''}>A y B</option><option ${x.section==='A'?'selected':''}>A</option><option ${x.section==='B'?'selected':''}>B</option></select></div>
+    <div><label>Grupo de grados</label><select id="sesG" ${firstSecond?'disabled':''}>
+      ${firstSecond?`<option value="${escClass(oldGroup)}">${sessionTabLabel(oldGroup)}</option>`:`<option value="3.º-5.º">3.º, 4.º y 5.º</option>`}
+    </select></div>
+    ${firstSecond?`<div><label>Sección</label><input id="sesSec" value="${escClass(x.section||oldGroup.split(' ')[1])}" disabled></div>`:`<div><label>Sección</label><select id="sesSec"><option value="" ${!x.section?'selected':''}>A y B</option><option ${x.section==='A'?'selected':''}>A</option><option ${x.section==='B'?'selected':''}>B</option></select></div>`}
     <div><label>Fecha</label><input id="sesF" type="date" value="${escClass(x.date||'')}"></div>
   </div>
   <label>Estado</label><select id="sesS"><option ${x.status==='Programada'?'selected':''}>Programada</option><option ${x.status==='En desarrollo'?'selected':''}>En desarrollo</option><option ${x.status==='Finalizada'?'selected':''}>Finalizada</option></select>
-  <div class="actions" style="margin-top:15px"><button onclick="saveEditedSession(${id})">Guardar cambios</button><button class="danger" onclick="deleteSession(${id})">🗑️ Eliminar sesión</button><button class="secondary" onclick="openUnit(${x.unit},'${group}')">Cancelar</button></div>`;
+  <div class="actions" style="margin-top:15px"><button onclick="saveEditedSession(${id})">Guardar cambios</button><button class="danger" onclick="deleteSession(${id})">🗑️ Eliminar sesión</button><button class="secondary" onclick="openUnit(${x.unit},'${oldGroup}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
 function saveEditedSession(id){
@@ -6007,8 +6158,10 @@ function saveEditedSession(id){
   if(!title||!group){alert('Completa título y grupo de grados.');return}
   x.number=Number(document.getElementById('sesN').value)||1;
   x.title=title;x.description=document.getElementById('sesD').value.trim();
-  x.grade=group;x.section=document.getElementById('sesSec').value;x.date=document.getElementById('sesF').value;x.status=document.getElementById('sesS').value;
-  save();openUnit(x.unit,group);
+  let grade=group, sec=document.getElementById('sesSec').value;
+  if(isFirstSecondSessionGroup(group)){ const parts=group.split(' '); grade=parts[0]; sec=parts[1]; }
+  x.grade=grade;x.section=sec;x.date=document.getElementById('sesF').value;x.status=document.getElementById('sesS').value;
+  save();openUnit(x.unit,isFirstSecondSessionGroup(group)?group:'3.º-5.º');
 }
 function deleteSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id); if(!x)return;
@@ -6017,7 +6170,9 @@ function deleteSession(id){
   if(db.materials)db.materials=db.materials.filter(m=>m.session!==id);
   if(db.activities)db.activities=db.activities.filter(a=>a.session!==id);
   if(db.classRecords)db.classRecords.forEach(r=>{if(String(r.session)===String(id))r.session='';});
-  save();openUnit(x.unit,sessionGroupForGrade(x.grade));
+  save();
+  const g=(String(x.grade)==='1.º'||String(x.grade)==='2.º')?`${x.grade} ${x.section||'A'}`:(String(x.grade)==='3.º-5.º'?'3.º-5.º':x.grade);
+  openUnit(x.unit,g);
 }
 function viewSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id); if(!x)return;
