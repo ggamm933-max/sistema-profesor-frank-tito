@@ -5909,12 +5909,7 @@ function iaGameQuestion30(t,b,i){const correct=b.keys[i%b.keys.length],opts=[cor
 function iaQuiz30(){const t=iaTopic30(),b=iaBase30(t),n=Math.min(10,iaCount30());document.getElementById('iaOutput30').innerHTML=`<h2>🧠 Quiz — ${escClass(t)}</h2><p>Modo básico de práctica. Cada pregunta tiene una respuesta clave sugerida.</p>${Array.from({length:n},(_,i)=>`<div class="item" style="margin-bottom:10px"><b>${i+1}. ¿Cuál es una idea clave de ${escClass(t)}?</b><br><select><option>Seleccionar...</option>${b.keys.map(k=>`<option>${escClass(k)}</option>`).join('')}</select></div>`).join('')}` }
 
 /* ===== TRABAJO DE PROYECTO ===== */
-function projectWorkScore(materials, participation){
-  const m=materials==='si'?20:materials==='no'?5:null;
-  const p={alta:20,media:15,baja:10,noparticipo:5,representacion:20}[participation];
-  if(m===null||p==null)return null;
-  return +(m*.30+p*.70).toFixed(2);
-}
+function projectWorkScore(materials, participation){ return null; }
 function projectWorkRec(user,activityId){
   ensureClassData();
   return (db.projectWork||[]).find(r=>r.user===user&&r.activityId===activityId)||null;
@@ -5966,7 +5961,7 @@ function resetProjectWorkRow(i){
   const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   const u=students[i];if(!u||studentIsRetired31(u))return;
   if(!confirm(`¿Restablecer el registro de ${u.name}? Se borrará únicamente su nota y los datos de esta actividad.`))return;
-  const r=projectWorkRec(u.u,id);if(r){r.materials='';r.participation='';r.observation='';r.score=null;r.project='';}
+  const r=projectWorkRec(u.u,id);if(r){r.materials='';r.participation='';r.observation='';r.score=null;r.project='';r.projectUnlocked=true;}
   save();render();
 }
 function projectWork(){
@@ -6001,14 +5996,14 @@ function projectWork(){
     let proj=r?.project||'';
     if(cond==='grupo1'&&project1)proj='p1';
     if(cond==='grupo2'&&project2)proj='p2';
-    const sc=retired?null:projectWorkScore(mat,part);
+    const sc=retired?null:(r?.score!==null&&r?.score!==undefined&&r?.score!==''?Number(r.score):null);
     return `<tr><td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge">⚫ RETIRADO</span>':''}</td>
       <td><select id="pwCond_${i}" onchange="syncPWProject(${i})" ${retired||lockedCond?'disabled':''}>${opts(cond,[['grupo1','Grupo 1'],['grupo2','Grupo 2'],['apoyo','Apoyo'],['representacion','🏫 Representación institucional']])}</select></td>
-      <td><select id="pwProj_${i}" ${retired||cond==='grupo1'||cond==='grupo2'||cond==='apoyo'?'disabled':''}>${projectOpts(proj,cond)}</select></td>
-      <td><select id="pwMat_${i}" ${retired?'disabled':''}>${opts(mat,[['si','✅ Sí'],['no','❌ No']])}</select></td>
-      <td><select id="pwPart_${i}" ${retired?'disabled':''}>${opts(part,[['alta','🟢 Alta'],['media','🟡 Parcial'],['baja','🟠 Poco'],['noparticipo','🔴 No participó'],['representacion','🏫 Representación']])}</select></td>
+      <td><select id="pwProj_${i}" ${retired||((cond==='grupo1'||cond==='grupo2'||cond==='apoyo')&&!r?.projectUnlocked)?'disabled':''}>${projectOpts(proj,cond)}</select></td>
+      <td><select id="pwMat_${i}" ${retired?'disabled':''}><option value="" ${!mat?'selected':''}>— Seleccionar —</option>${opts(mat,[['si','✅ Sí'],['no','❌ No']])}</select></td>
+      <td><select id="pwPart_${i}" ${retired?'disabled':''}><option value="" ${!part?'selected':''}>— Seleccionar —</option>${opts(part,[['alta','🟢 Alta'],['media','🟡 Parcial'],['baja','🟠 Poco'],['noparticipo','🔴 No participó'],['representacion','🏫 Representación']])}</select></td>
       <td><input id="pwObs_${i}" value="${escClass(r?.observation||'')}" placeholder="Observación" ${retired?'disabled':''}></td>
-      <td><b>${sc===null?'—':sc.toFixed(2)}</b></td>
+      <td><input id="pwScore_${i}" type="number" min="0" max="20" step="0.1" value="${sc===null?'':sc}" placeholder="Nota" style="width:90px" ${retired?'disabled':''}></td>
       <td><button class="small" onclick="saveProjectWorkRow(${i})" ${retired?'disabled':''}>💾</button> <button class="small secondary" onclick="resetProjectWorkRow(${i})" ${retired?'disabled':''}>↺</button></td></tr>`;
   }).join('');
   return `<div class="card"><h2>🚀 Trabajo de proyecto</h2>
@@ -6020,10 +6015,10 @@ function projectWork(){
     <div class="grid3" style="margin-top:12px">
       <div><label>🏆 Nombre del proyecto – Grupo 1</label><input id="pwProject1" value="${escClass(project1)}" oninput="window.pwProject1Value=this.value" placeholder="Ej.: Naturabella Andina"></div>
       <div><label>🏆 Nombre del proyecto – Grupo 2</label><input id="pwProject2" value="${escClass(project2)}" oninput="window.pwProject2Value=this.value" placeholder="Ej.: EcoTacho Smart"></div>
-      <div class="item" style="align-self:end"><b>📌 Importante:</b> Grupo 1 y Grupo 2 pueden tener proyectos diferentes. Usa <b>👥 Configurar integrantes</b> para elegir los 5 integrantes de cada grupo. Antes de configurarlos, la condición queda editable; después, los integrantes quedan bloqueados y los demás quedan como <b>Apoyo</b>.</div>
+
     </div>
     ${activityId?'<div style="margin-top:10px"><button class="secondary" onclick="savePWProjectNames()">💾 Guardar nombres de proyectos</button></div>':''}
-    <div style="margin-top:12px"><label>Actividades registradas</label><select id="pwActivitySelect" onchange="window.pwActivity=this.value;render()"><option value="">— Nueva actividad —</option>${activities.map(id=>{const x=(db.projectWork||[]).find(r=>r.activityId===id);return `<option value="${escClass(id)}" ${id===activityId?'selected':''}>${escClass(x?.title||'Actividad')} · ${escClass(x?.date||'')}</option>`}).join('')}</select></div>
+    <div style="margin-top:12px"><label>Actividades registradas</label><select id="pwActivitySelect" onchange="selectPWActivity(this.value)"><option value="">— Nueva actividad —</option>${activities.map(id=>{const x=(db.projectWork||[]).find(r=>r.activityId===id);return `<option value="${escClass(id)}" ${id===activityId?'selected':''}>${escClass(x?.title||'Actividad')} · ${escClass(x?.date||'')}</option>`}).join('')}</select></div>
     <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="badge">Materiales 30 %</span><span class="badge ok">Participación y aporte 70 %</span><button onclick="newProjectWork()">➕ Nueva actividad</button>${activityId?'<button class="secondary" onclick="editProjectWorkTitle()">✏️ Corregir nombre</button><button class="secondary" onclick="configurePWMembers()">👥 Configurar integrantes</button>':''}</div>
     ${activityId?`<p class="muted" style="margin-top:10px">Actividad seleccionada: <b>${escClass(title||'Sin título')}</b> · ${escClass(date)}</p>`:'<p class="muted" style="margin-top:10px">Escribe la actividad, los nombres de los proyectos y pulsa <b>Nueva actividad</b> para iniciar un registro.</p>'}
     <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Condición</th><th>Proyecto</th><th>Materiales</th><th>Participación / aporte</th><th>Observación</th><th>Nota</th><th></th></tr>${activityId?rows:'<tr><td colspan="9" style="text-align:center;padding:20px">Selecciona o crea una actividad para registrar el trabajo.</td></tr>'}</table></div>
@@ -6057,6 +6052,23 @@ function syncPWProject(i){
   if(c==='grupo1'&&p1)s.value='p1';
   else if(c==='grupo2'&&p2)s.value='p2';
 }
+function selectPWActivity(id){
+  ensureClassData();
+  window.pwActivity=id||'';
+  if(id){
+    const r=(db.projectWork||[]).find(x=>x.activityId===id);
+    if(r){
+      // Al abrir una actividad, recuperamos siempre su aula para no saltar a 1.º.
+      window.pwGrade=r.grade||window.pwGrade||'2.º';
+      window.pwSection=r.section||window.pwSection||'A';
+      window.pwTitleValue=r.title||'';
+      window.pwDateValue=r.date||todayLocal30();
+      window.pwProject1Value=r.project1||'';
+      window.pwProject2Value=r.project2||'';
+    }
+  }
+  render();
+}
 function setPWFilter(){window.pwGrade=document.getElementById('pwGrade')?.value||'2.º';window.pwSection=document.getElementById('pwSection')?.value||'A';window.pwActivity='';window.pwTitleValue=document.getElementById('pwTitle')?.value||'';window.pwProject1Value=document.getElementById('pwProject1')?.value||'';window.pwProject2Value=document.getElementById('pwProject2')?.value||'';window.pwDateValue=document.getElementById('pwDate')?.value||todayLocal30();render();}
 function newProjectWork(){
   ensureClassData();
@@ -6070,7 +6082,7 @@ function newProjectWork(){
   const id='pw_'+Date.now();
   window.pwGrade=grade;window.pwSection=section;window.pwActivity=id;window.pwTitleValue=title;window.pwDateValue=date;window.pwProject1Value=project1;window.pwProject2Value=project2;
   const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===section);
-  students.forEach(u=>db.projectWork.push({id:'pwr_'+Date.now()+'_'+Math.random().toString(36).slice(2),activityId:id,title,date,grade,section,user:u.u,condition:'',project:'',project1,project2,group1Members:[],group2Members:[],materials:'',participation:'',observation:'',score:null}));
+  students.forEach(u=>db.projectWork.push({id:'pwr_'+Date.now()+'_'+Math.random().toString(36).slice(2),activityId:id,title,date,grade,section,user:u.u,condition:'',project:'',project1,project2,group1Members:[],group2Members:[],materials:'',participation:'',observation:'',score:null,projectUnlocked:false}));
   save();render();
 }
 function editProjectWorkTitle(){
@@ -6105,8 +6117,11 @@ function saveProjectWorkRow(i){
   const membersConfigured=members.g1.length>0||members.g2.length>0;
   const selectedCondition=document.getElementById('pwCond_'+i)?.value||'';
   const locked=membersConfigured?pwLockedCondition(u,id):selectedCondition;
-  r.condition=locked||'';r.project=document.getElementById('pwProj_'+i)?.value||'';
-  if(r.condition==='grupo1'&&r.project1)r.project='p1';else if(r.condition==='grupo2'&&r.project2)r.project='p2';r.materials=document.getElementById('pwMat_'+i)?.value||'';r.participation=document.getElementById('pwPart_'+i)?.value||'';r.observation=document.getElementById('pwObs_'+i)?.value||'';r.score=projectWorkScore(r.materials,r.participation);
+  r.condition=locked||'';r.project=document.getElementById('pwProj_'+i)?.value||'';r.projectUnlocked=!!r.projectUnlocked;
+  if(r.condition==='grupo1'&&r.project1)r.project='p1';else if(r.condition==='grupo2'&&r.project2)r.project='p2';r.materials=document.getElementById('pwMat_'+i)?.value||'';r.participation=document.getElementById('pwPart_'+i)?.value||'';r.observation=document.getElementById('pwObs_'+i)?.value||'';
+  const scoreRaw=document.getElementById('pwScore_'+i)?.value||'';
+  r.score=scoreRaw===''?null:Math.max(0,Math.min(20,Number(scoreRaw)));
+  if(scoreRaw!==''&&!Number.isFinite(r.score))r.score=null;
   const idx=(db.projectWork||[]).findIndex(x=>x.user===u.u&&x.activityId===id);if(idx>=0)db.projectWork[idx]=r;else db.projectWork.push(r);save();render();
 }
 
