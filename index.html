@@ -290,41 +290,82 @@ function getBimesterClose30(){
   if(!db.bimesterClose)db.bimesterClose={
     I:{enabled:false,date:'',closed:false,converted:0},
     II:{enabled:false,date:'',closed:false,converted:0},
-    III:{enabled:false,date:'',closed:false,converted:0},
-    IV:{enabled:false,date:'',closed:false,converted:0}
+    III:{enabled:false,date:'2026-10-09',closed:false,converted:0,start:'2026-08-10',end:'2026-10-09'},
+    IV:{enabled:false,date:'',closed:false,converted:0,start:'2026-10-19',end:'2026-12-18'}
   };
+  if(db.bimesterClose.III){
+    if(!db.bimesterClose.III.start)db.bimesterClose.III.start='2026-08-10';
+    if(!db.bimesterClose.III.end)db.bimesterClose.III.end='2026-10-09';
+    if(!db.bimesterClose.III.date)db.bimesterClose.III.date='2026-10-09';
+  }
+  if(db.bimesterClose.IV && !db.bimesterClose.III?.closed) db.bimesterClose.IV.enabled=false;
   return db.bimesterClose;
 }
 function todayLocal30(){
   const d=new Date(),off=d.getTimezoneOffset();
   return new Date(d.getTime()-off*60000).toISOString().slice(0,10);
 }
+function bimesterForDate31(date){
+  if(!date)return '';
+  const bs=getBimesterClose30(),d=String(date);
+  for(const k of ['III','IV']){const b=bs[k];if(b&&b.start&&b.end&&d>=b.start&&d<=b.end)return k;}
+  return '';
+}
+function closedForDate31(date){
+  const k=bimesterForDate31(date);
+  return !!(k&&getBimesterClose30()[k]?.closed);
+}
+function blockClosedDate31(date){
+  const k=bimesterForDate31(date);
+  if(!k||!getBimesterClose30()[k]?.closed)return false;
+  alert(`🔒 ${k} Bimestre cerrado.\n\nNo se pueden modificar notas de este período.\n\n🔓 Reabre el bimestre para realizar cambios.`);
+  return true;
+}
 function renderBimesterClose30(){
   const bs=getBimesterClose30();
-  const rows=['I','II','III','IV'].map(k=>{
+  const thirdClosed=!!bs.III?.closed;
+  const rows=['III','IV'].map(k=>{
     const b=bs[k];
-    return `<div class="item" style="margin-top:10px">
-      <div><b>${k} Bimestre</b></div>
-      <label style="display:flex;align-items:center;gap:8px;margin:0"><input class="bimEnable30" data-bim="${k}" type="checkbox" ${b.enabled?'checked':''}> Activar</label>
-      <input class="bimDate30" data-bim="${k}" type="date" value="${escClass(b.date||'')}" style="max-width:180px">
+    const lockedIV=(k==='IV' && !thirdClosed);
+    const lockedClosed=(k==='III' && b.closed);
+    const controlsLocked=lockedIV || lockedClosed;
+    const activateDisabled=controlsLocked ? 'disabled' : '';
+    const dateDisabled=controlsLocked ? 'disabled' : '';
+    const closeDisabled=lockedIV ? 'disabled' : '';
+    const lockMsg=lockedIV ? '<div class="muted" style="margin-top:5px">🔒 Se habilita únicamente cuando se cierre el III Bimestre.</div>' : '';
+    return `<div class="item" style="margin-top:10px;${lockedIV?'opacity:.65;background:#f3f4f6':''}">
+      <div><b>${k} Bimestre</b>${k==='III'?`<div class="muted">📅 Del 10 de agosto al 09 de octubre de 2026</div>`:k==='IV'?`<div class="muted">📅 Del 19 de octubre al 18 de diciembre de 2026</div>`:''}${lockMsg}</div>
+      <label style="display:flex;align-items:center;gap:8px;margin:0"><input class="bimEnable30" data-bim="${k}" type="checkbox" ${b.enabled?'checked':''} ${activateDisabled}> Activar</label>
+      <input class="bimDate30" data-bim="${k}" type="date" value="${escClass(b.date||'')}" style="max-width:180px" ${dateDisabled}>
       <span class="badge">${b.closed?'🔒 Cerrado':'🟢 Abierto'}</span>
-      <button class="small" onclick="closeBimester30('${k}')">${b.closed?'🔓 Reabrir':'🔒 Cerrar ahora'}</button>
+      <button class="small" onclick="closeBimester30('${k}')" ${closeDisabled}>${b.closed?'🔓 Reabrir':'🔒 Cerrar ahora'}</button>
     </div>`;
   }).join('');
   return `<div class="card"><h2>🔒 Cierre de bimestres</h2>
-    <p class="muted">Configura la fecha. Antes del cierre, las actividades pendientes siguen como recuperación pendiente.</p>
-    <div class="alert">Al cerrar el bimestre, las recuperaciones que sigan pendientes pasan a <b>0</b>. Las recuperaciones realizadas conservan su nota.</div>
+    <p class="muted">Este sistema fue creado para trabajar desde el <b>III Bimestre</b>. Antes del cierre, las actividades pendientes siguen como recuperación pendiente.</p>
+    <div class="alert">Al cerrar el bimestre, las recuperaciones que sigan pendientes pasan automáticamente a <b>05</b>. Esto aplica a faltas injustificadas, faltas justificadas, representación y salud. Las recuperaciones realizadas conservan su nota.</div>
     ${rows}
     <div class="actions" style="margin-top:16px"><button onclick="saveBimesterDates30()">💾 Guardar fechas</button><button class="secondary" onclick="checkBimesterClosures30(true)">🔎 Comprobar fechas</button></div>
   </div>`;
 }
 function saveBimesterDates30(){
   const bs=getBimesterClose30();
-  document.querySelectorAll('.bimEnable30').forEach(x=>bs[x.dataset.bim].enabled=x.checked);
-  document.querySelectorAll('.bimDate30').forEach(x=>bs[x.dataset.bim].date=x.value||'');
-  save();alert('✅ Fechas de cierre guardadas.');render();
+  document.querySelectorAll('.bimDate30').forEach(x=>{
+    const k=x.dataset.bim;
+    if(k==='IV' && !bs.III?.closed)return;
+    if(bs[k]?.closed)return;
+    bs[k].date=x.value||'';
+  });
+  document.querySelectorAll('.bimEnable30').forEach(x=>{
+    const k=x.dataset.bim;
+    if(k==='IV' && !bs.III?.closed)return;
+    if(bs[k]?.closed)return;
+    bs[k].enabled=x.checked;
+  });
+  if(!bs.III?.closed)bs.IV.enabled=false;
+  save();alert('✅ Fechas guardadas. El IV Bimestre solo se habilita después de cerrar el III.');render();
 }
-function convertPendingRecoveriesToZero30(){
+function convertPendingRecoveriesToZero30(bimesterKey){
   let count=0;
   if(!Array.isArray(db.classRecoveries))db.classRecoveries=[];
   (db.classRecords||[]).forEach(rec=>{
@@ -335,36 +376,80 @@ function convertPendingRecoveriesToZero30(){
       let r=getRecovery30(rec.id,u.u);
       if(r?.grade!=null)return;
       if(!r){
-        r={id:'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:rec.id,user:u.u,date:rec.date,title:rec.title,method:'not_recovered',observation:'No recuperó al cierre del bimestre',grade:0,createdAt:Date.now(),updatedAt:Date.now()};
+        r={id:'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:rec.id,user:u.u,date:rec.date,title:rec.title,method:'not_recovered',observation:'No recuperó al cierre del bimestre',grade:5,automaticClose05:true,bimester:bimesterKey,createdAt:Date.now(),updatedAt:Date.now()};
         db.classRecoveries.push(r);
       }else{
-        r.grade=0;r.method='not_recovered';r.observation='No recuperó al cierre del bimestre';r.updatedAt=Date.now();
+        r.grade=5;r.method='not_recovered';r.observation='No recuperó al cierre del bimestre: 05 automático';r.automaticClose05=true;r.bimester=bimesterKey;r.updatedAt=Date.now();
       }
       count++;
     });
   });
   return count;
 }
+
+function saveBimesterFinalSnapshot31(k){
+  ensureClassData();
+  if(!db.bimesterFinals||typeof db.bimesterFinals!=='object')db.bimesterFinals={};
+  const snap={};
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
+    const d=evaluationDetail(u.u);
+    // Al cerrar el bimestre, si el estudiante activo no tiene nota en Proyecto
+    // o en Proceso, el sistema registra 05 automático en ese componente.
+    // No se coloca 05 a estudiantes retirados.
+    let project=d.project;
+    let process=d.process;
+    let final=d.final;
+    let level=d.level;
+    let automaticProject05=false;
+    let automaticProcess05=false;
+    if(!studentIsRetired31(u)){
+      // Al cerrar el bimestre, cualquier componente principal sin nota recibe 05.
+      if(project===null){ project=5; automaticProject05=true; }
+      if(process===null){ process=5; automaticProcess05=true; }
+      if(project!==null && process!==null){
+        final=project*.70+process*.30;
+        level=classLevel(final);
+      }
+    }
+    snap[u.u]={project,process,final,level,savedAt:Date.now(),automaticProject05,automaticProcess05};
+  });
+  db.bimesterFinals[k]=snap;
+}
+function clearBimesterFinalSnapshot31(k){
+  if(db.bimesterFinals&&typeof db.bimesterFinals==='object')delete db.bimesterFinals[k];
+}
 function closeBimester30(k){
   const bs=getBimesterClose30(),b=bs[k];
   if(!b)return;
   if(b.closed){
-    if(confirm(`¿Reabrir el ${k} Bimestre? Los 0 ya generados no se borrarán.`)){b.closed=false;save();render();}
+    if(confirm(`¿Reabrir el ${k} Bimestre? Se eliminarán únicamente los 05 colocados automáticamente por este cierre. Las demás notas no se modificarán.`)){
+      const before=(db.classRecoveries||[]).length;
+      db.classRecoveries=(db.classRecoveries||[]).filter(r=>!(r && r.automaticClose05===true && r.bimester===k));
+      const removed=before-db.classRecoveries.length;
+      clearBimesterFinalSnapshot31(k);
+      b.closed=false;b.converted=0;save();alert(`🔓 ${k} Bimestre reabierto.\n\n${removed} 05 automático(s) generado(s) por este cierre eliminado(s).\nLas notas manuales y de recuperación se conservaron.\n\n📊 La evaluación final vuelve a estar disponible para modificar.`);render();
+    }
     return;
   }
   if(!b.date){alert('Primero coloca la fecha de cierre.');return;}
-  if(!confirm(`¿Cerrar el ${k} Bimestre ahora? Las recuperaciones pendientes se convertirán en 0.`))return;
-  const n=convertPendingRecoveriesToZero30();
+  if(!confirm(`¿Cerrar el ${k} Bimestre ahora? Las recuperaciones pendientes se convertirán automáticamente en 05 y la evaluación final quedará registrada.`))return;
+  const n=convertPendingRecoveriesToZero30(k);
+  saveBimesterFinalSnapshot31(k);
   b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
-  save();alert(`🔒 ${k} Bimestre cerrado.\n\n${n} pendiente(s) convertida(s) a 0.`);render();
+  if(k==='III'){
+    bs.IV.enabled=true;
+  }
+  save();alert(`🔒 ${k} Bimestre cerrado.\n\n${n} pendiente(s) convertida(s) a 05.\n\n📊 La evaluación final fue registrada automáticamente para este cierre.${k==='III'?'\n\n🟢 IV Bimestre habilitado. Coloca su fecha de cierre manualmente.':''}`);render();
 }
 function checkBimesterClosures30(show){
   const bs=getBimesterClose30(),today=todayLocal30(),done=[];
-  ['I','II','III','IV'].forEach(k=>{
+  ['III','IV'].forEach(k=>{
     const b=bs[k];
     if(b.enabled&&b.date&&!b.closed&&today>=b.date){
-      const n=convertPendingRecoveriesToZero30();
-      b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;done.push(`${k} Bimestre: ${n} pendiente(s) → 0`);
+      const n=convertPendingRecoveriesToZero30(k);
+      b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
+      if(k==='III') bs.IV.enabled=true;
+      done.push(`${k} Bimestre: ${n} pendiente(s) → 05`);
     }
   });
   if(done.length){save();if(show)alert('🔒 Cierre procesado:\n\n'+done.join('\n'));}
@@ -1991,6 +2076,25 @@ async function sendChat22(to){
 }
 /* ===== FIN MENSAJES ===== */
 
+/* ===== ESTADO DEL ESTUDIANTE Y CONTROL DE FALTAS v3.1 ===== */
+function studentAbsenceCount31(username){return Object.keys(db.attendance||{}).filter(k=>k.endsWith("|"+username)&&db.attendance[k]==="Falta").length;}
+function studentIsRetired31(u){return String(u?.status||'Activo').toLowerCase()==='retirado';}
+function studentDisapprovedByAbsences31(u){return !!(u&&u.role==='student'&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true);}
+function syncStudentAttendanceStatus31(u){if(!u||u.role!=='student')return false;const f=studentAbsenceCount31(u.u);if(f>=5&&!studentIsRetired31(u)&&u.attendanceReconsidered!==true&&!u.attendanceDisapproved){u.attendanceDisapproved=true;return true;}if(f<5&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true){u.attendanceDisapproved=false;return true;}return false;}
+function syncAllStudentAttendanceStatus31(){let c=false;(db.users||[]).forEach(u=>{if(syncStudentAttendanceStatus31(u))c=true;});return c;}
+function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
+function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
+
+function studentIsRetired32(user){
+  const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
+  return !!u && String(u.status||'').trim().toLowerCase()==='retirado';
+}
+function blockRetiredGrade32(user){
+  if(!studentIsRetired32(user)) return false;
+  const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
+  alert(`⚫ ${u?.name||'Este estudiante'} está RETIRADO. No se pueden registrar ni modificar notas.`);
+  return true;
+}
 /* ===== GESTIÓN DE ESTUDIANTES v3.0 — LISTA POR GRADO/SECCIÓN ===== */
 function students(){
   if(!Array.isArray(db.users)) db.users=[];
@@ -2039,6 +2143,12 @@ function students(){
                oninput="renderStudents23()"
                placeholder="Nombre o usuario"
                style="height:48px">
+      </div>
+      <div>
+        <label style="font-size:16px">📌 Estado</label>
+        <select id="studentStatus23" onchange="renderStudents23()" style="height:48px">
+          <option>Todos</option><option>Activo</option><option>Retirado</option><option>A punto de desaprobar por faltas</option><option>Desaprobado por faltas</option>
+        </select>
       </div>
     </div>
   </div>
@@ -2092,6 +2202,8 @@ function renderStudents23(){
   const q=(document.getElementById('studentSearch23')?.value||'').trim().toLowerCase();
   const g=(document.getElementById('studentGrade23')?.value||'Todos').trim();
   const sec=(document.getElementById('studentSection23')?.value||'Todas').trim().toUpperCase();
+  const statusFilter=(document.getElementById('studentStatus23')?.value||'Todos').trim();
+  syncAllStudentAttendanceStatus31();
 
   /*
    * FILTRO ESTRICTO:
@@ -2107,8 +2219,10 @@ function renderStudents23(){
     const name=String(u.name||'').toLowerCase();
     const user=String(u.u||'').toLowerCase();
 
+    const status=studentAcademicStatus31(u);
     return (g==='Todos' || ug===g) &&
            (sec==='TODAS' || us===sec) &&
+           (statusFilter==='Todos' || status===statusFilter) &&
            (!q || name.includes(q) || user.includes(q));
   });
 
@@ -2161,7 +2275,7 @@ function renderStudents23(){
       </div>
       <div style="overflow:auto">
         <table>
-          <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
+          <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Faltas</th><th>Estado</th><th>Acciones</th></tr>
           ${arr.map((u,i)=>`<tr>
             <td>${i+1}</td>
             <td><b>${escClass(u.name||'')}</b></td>
@@ -2199,13 +2313,15 @@ function renderStudents23(){
         </div>
         <div style="overflow:auto">
           <table>
-            <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Usuario</th><th>Acciones</th></tr>
+            <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Faltas</th><th>Estado</th><th>Acciones</th></tr>
             ${list.map((u,i)=>`<tr>
               <td>${i+1}</td>
               <td><b>${escClass(u.name||'')}</b></td>
               <td><span class="badge">${escClass(normalizeStudentGrade23(u.grade||u.grado)||'Sin grado')}</span></td>
               <td><span class="badge">${escClass(normalizeStudentSection23(u.section||u.seccion)||'Sin sección')}</span></td>
               <td>${escClass(u.u||'')}</td>
+              <td>${studentAbsenceCount31(u.u)}${studentAbsenceCount31(u.u)>=5?' 🔴':''}</td>
+              <td>${studentStatusBadge31(u)}</td>
               <td><div class="actions">
                 <button onclick="editStudent23('${escClass(u.u||'')}')">✏️ Editar</button>
                 <button class="secondary" onclick="resetStudentPassword23('${escClass(u.u||'')}')">🔑 Contraseña</button>
@@ -2233,6 +2349,14 @@ function addStudent23(editUser){
       <div><label>Sección</label><select id="stSec23"><option ${u&&u.section==='A'?'selected':''}>A</option><option ${u&&u.section==='B'?'selected':''}>B</option></select></div>
       <div><label>Contraseña</label><input id="stPass23" value="${u?escClass(u.p||u.pw||'1234'):'1234'}"></div>
     </div>
+    <div class="card" style="margin-top:15px;background:#f8fafc">
+      <b>📌 Estado del estudiante</b>
+      <p class="muted" style="margin:6px 0">Con 5 faltas el sistema lo marca automáticamente como desaprobado. Si reconsideras el caso, puedes desmarcarlo.</p>
+      <label>Situación</label>
+      <select id="stStatus31"><option value="Activo" ${!u||!studentIsRetired31(u)?'selected':''}>🟢 Activo</option><option value="Retirado" ${u&&studentIsRetired31(u)?'selected':''}>⚫ Retirado</option></select>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="stDis31" type="checkbox" ${u&&studentDisapprovedByAbsences31(u)?'checked':''}> 🔴 Desaprobado por 5 faltas</label>
+      ${u&&u.attendanceReconsidered===true?'<p style="margin:8px 0 0;color:#166534"><b>✅ Reconsiderado por el docente.</b> Se mantiene desmarcado aunque tenga 5 o más faltas.</p>':''}
+    </div>
     <div class="actions" style="margin-top:15px"><button onclick="saveStudent23('${editUser||''}')">💾 Guardar estudiante</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
@@ -2243,16 +2367,22 @@ function saveStudent23(oldUser){
   const grade=document.getElementById('stGrade23')?.value;
   const section=document.getElementById('stSec23')?.value;
   const pass=document.getElementById('stPass23')?.value.trim()||'1234';
+  const newStatus=document.getElementById('stStatus31')?.value||'Activo';
+  const disChecked=document.getElementById('stDis31')?.checked===true;
   if(!name||!username||!grade||!section){alert('Completa nombre, usuario, grado y sección.');return;}
   if(!Array.isArray(db.users))db.users=[];
   if(oldUser){
     const u=db.users.find(x=>x.u===oldUser);
     if(!u){alert('No se encontró al estudiante.');return;}
-    u.name=name;u.grade=grade;u.section=section;u.p=pass;
+    u.name=name;u.grade=grade;u.section=section;u.p=pass;u.status=newStatus;
+    if(disChecked){u.attendanceDisapproved=true;u.attendanceReconsidered=false;}
+    else if(studentAbsenceCount31(u.u)>=5){u.attendanceDisapproved=false;u.attendanceReconsidered=true;}
+    else {u.attendanceDisapproved=false;u.attendanceReconsidered=false;}
     if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   }else{
     if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
-    db.users.push({id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass});
+    const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false};
+    db.users.push(nu);if(disChecked)nu.attendanceDisapproved=true;else syncStudentAttendanceStatus31(nu);
   }
   save();closeModal();render();
 }
@@ -2395,9 +2525,10 @@ function tracking(){
      return gradeOK&&secOK&&!relevant.some(x=>String(x.activity)===String(a.id));
    }).length;
    const att=Object.keys(attendance).filter(k=>k.endsWith("|"+u.u)).map(k=>attendance[k]);
+   syncStudentAttendanceStatus31(u);
    const faltas=att.filter(x=>x==="Falta").length;
    const tardanzas=att.filter(x=>x==="Tardanza").length;
-   const estado=faltas>=3?"🔴 Alerta":faltas>=2||tardanzas>=3?"🟠 Seguimiento":"🟢 Normal";
+   const estado=studentAcademicStatus31(u)==='Retirado'?studentStatusBadge31(u):studentAcademicStatus31(u)==='Desaprobado por faltas'?studentStatusBadge31(u):studentAcademicStatus31(u)==='A punto de desaprobar por faltas'?studentStatusBadge31(u):faltas>=3?"🔴 Alerta":faltas>=2||tardanzas>=3?"🟠 Seguimiento":"🟢 Normal";
    const avg=graded.length?(graded.reduce((t,x)=>t+Number(x.grade),0)/graded.length).toFixed(1):"—";
    return `<tr><td><b>${u.name||u.u}</b><br><span class="muted">${u.u||""}</span></td>
     <td>${u.grade||"—"} · ${u.section||"—"}</td><td>${relevant.length}</td><td>${graded.length}</td>
@@ -2415,8 +2546,8 @@ function tracking(){
    <div class="item" style="margin:0"><b>Filtro actual:</b><br>${trackingGradeFilter28} · ${trackingSectionFilter28}</div>
   </div>
   ${alerts.length?`<div style="margin-top:18px"><h3>🚨 Alertas que requieren atención</h3>
-   ${alerts.map(a=>`<div class="item" style="margin-top:8px"><div><b>${a.level==="alta"?"🔴":"🟠"} ${a.text}</b></div>
-   <button class="small" onclick="go('incidents')">Registrar incidente</button></div>`).join("")}</div>`
+   ${alerts.map(a=>`<div class="item" style="margin-top:8px"><div><b>${a.level==="retirado"?"⚫":a.level==="alta"?"🔴":"🟠"} ${a.text}</b>${a.level==="retirado"?`<div class="muted">Este estudiante ya no genera nuevas faltas ni requiere recuperación de sus registros posteriores al retiro.</div>`:""}</div>
+   ${a.level!=="retirado"?`<button class="small" onclick="go('incidents')">Registrar incidente</button>`:""}</div>`).join("")}</div>`
    :`<div class="item" style="margin-top:18px"><div><b>🟢 Sin alertas de asistencia para el filtro seleccionado</b></div></div>`}
   <div style="overflow:auto;margin-top:18px"><table>
    <tr><th>Estudiante</th><th>Grado / sección</th><th>Entregas</th><th>Calificadas</th><th>Pendientes</th><th>Faltas</th><th>Tardanzas</th><th>Estado</th><th>Promedio</th><th></th></tr>
@@ -2438,8 +2569,9 @@ function studentDetail24(username){
  const counts={Presente:0,Tardanza:0,Falta:0,Justificada:0};
  att.forEach(x=>{if(counts[x.status]!==undefined)counts[x.status]++});
  modalBody.innerHTML=`<h2>📈 Seguimiento: ${u.name||u.u}</h2>
- <p><span class="badge">${u.grade||"—"} · ${u.section||"—"}</span> <span class="muted">Usuario: ${u.u}</span></p>
+ <p><span class="badge">${u.grade||"—"} · ${u.section||"—"}</span> ${studentStatusBadge31(u)} <span class="muted">Usuario: ${u.u}</span></p>
  <h3>🗓️ Asistencia</h3><p>✅ ${counts.Presente} · 🕐 ${counts.Tardanza} · ❌ ${counts.Falta} · 📄 ${counts.Justificada}</p>
+ <p><b>Faltas:</b> ${counts.Falta}${counts.Falta>=5?' · 🔴 Desaprobado por faltas':''}</p>
  <h3>📚 Actividades</h3><div style="overflow:auto"><table><tr><th>Actividad</th><th>Estado / nota</th><th>Fecha</th></tr>${rows||`<tr><td colspan="3">No hay actividades.</td></tr>`}</table></div>
  <h3 style="margin-top:18px">📝 Incidentes (${incidents.length})</h3>
  ${incidents.length?incidents.map(x=>`<div class="item"><div><b>${x.date} · ${x.type}</b><div>${x.description}</div><div class="muted">Acción: ${x.action||"—"}</div></div></div>`).join(""):`<p class="muted">No hay incidentes registrados.</p>`}
@@ -2461,7 +2593,7 @@ function attendance(){
     <div><label>Grado</label><select id="attGrade25" onchange="renderAttendanceTable25()"><option>Todos</option>${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option>${g}</option>`).join("")}</select></div>
     <div><label>Sección</label><select id="attSection25" onchange="renderAttendanceTable25()"><option>Todas</option><option>A</option><option>B</option></select></div>
    </div>
-   <div id="attTable25" style="margin-top:18px"></div>
+   <div class="item" style="margin-top:16px">⚫ <b>Retirado:</b> no genera nuevas faltas. 🟠 <b>4 faltas:</b> a punto de desaprobar. 🔴 <b>5 faltas:</b> desaprobado por faltas.</div><div id="attTable25" style="margin-top:18px"></div>
    ${attendanceAlertPanel26()}
  </div>`;
 }
@@ -2475,6 +2607,10 @@ function renderAttendanceTable25(){
  <tr><th>Estudiante</th><th>Grado / sección</th><th>Estado</th></tr>
  ${arr.map(u=>{
    const key=date+"|"+u.u, val=db.attendance&&db.attendance[key]||"";
+   if(studentIsRetired31(u)){
+     return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
+       <td><span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span></td></tr>`;
+   }
    return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
    <td><select class="attSel25" data-user="${u.u}" style="min-width:150px" onchange="autoSaveAttendance25(this)">
     <option value="" ${!val?"selected":""}>Sin registrar</option>
@@ -2491,9 +2627,12 @@ function renderAttendanceTable25(){
 function autoSaveAttendance25(sel){
   const date=document.getElementById("attDate25")?.value;
   if(!date || !sel?.dataset?.user) return;
+  const stu=(db.users||[]).find(u=>u.u===sel.dataset.user&&(u.role==='student'||u.role==='estudiante'));
+  if(stu&&studentIsRetired31(stu)) return;
   if(!db.attendance) db.attendance={};
   const key=date+"|"+sel.dataset.user;
   if(sel.value) db.attendance[key]=sel.value; else delete db.attendance[key];
+  if(stu)syncStudentAttendanceStatus31(stu);
   save();
 }
 
@@ -2505,6 +2644,7 @@ function saveAttendance25(){
    const key=date+"|"+sel.dataset.user;
    if(sel.value)db.attendance[key]=sel.value;else delete db.attendance[key];
  });
+ syncAllStudentAttendanceStatus31();
  save();
  alert("Asistencia guardada correctamente.");
  renderAttendanceTable25();
@@ -2522,13 +2662,21 @@ function attendanceAlerts26(){
  const alerts=[];
  users.forEach(u=>{
    const entries=Object.keys(records).filter(k=>k.endsWith("|"+u.u)).map(k=>({key:k,date:k.split("|")[0],status:records[k]}));
+   // Un estudiante retirado debe aparecer claramente como RETIRADO y no generar
+   // alertas de faltas, tardanzas ni recuperaciones. Se conserva su historial.
+   syncStudentAttendanceStatus31(u);
+   if(studentIsRetired31(u)){
+     alerts.push({u,level:"retirado",text:`${u.name||u.u} se encuentra RETIRADO.`});
+     return;
+   }
    entries.forEach(x=>{
      if(x.status==="Representacion") alerts.push({u,level:"recuperacion",text:`${u.name||u.u} faltó el ${x.date} porque estuvo representando al colegio. Recuerda recuperar la actividad o evaluación de ese día.`});
      if(x.status==="Salud") alerts.push({u,level:"recuperacion",text:`${u.name||u.u} faltó el ${x.date} por motivo de salud. Recuerda recuperar la actividad o evaluación de ese día.`});
    });
    const faltas=entries.filter(x=>x.status==="Falta").length;
    const tardanzas=entries.filter(x=>x.status==="Tardanza").length;
-   if(faltas>=3) alerts.push({u,level:"alta",text:`${u.name||u.u} tiene ${faltas} faltas registradas.`});
+   if(faltas>=5&&u.attendanceReconsidered!==true) alerts.push({u,level:"alta",text:`${u.name||u.u} tiene ${faltas} faltas y está DESAPROBADO POR FALTAS.`});
+   else if(faltas>=3) alerts.push({u,level:"alta",text:`${u.name||u.u} tiene ${faltas} faltas registradas.`});
    else if(faltas===2) alerts.push({u,level:"media",text:`${u.name||u.u} tiene 2 faltas registradas. Conviene hacer seguimiento.`});
    if(tardanzas>=3) alerts.push({u,level:"media",text:`${u.name||u.u} tiene ${tardanzas} tardanzas registradas.`});
  });
@@ -2540,6 +2688,7 @@ function attendanceAlertPanel26(){
  const students=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
  const gradeAlerts=[];
  students.forEach(u=>{
+   if(studentIsRetired31(u)) return;
    const p=projectAvg(u.u), pr=processAvg(u.u);
    const low=[];
    if(p!==null && p<=10) low.push("Proyecto 70 %: "+p.toFixed(2)+"/20");
@@ -3376,6 +3525,7 @@ function openRecovery30(user){
 }
 function saveRecovery30(user){
   const id=document.getElementById('ceClass30')?.value, rec=classRecordById(id);
+  if(rec&&blockClosedDate31(rec.date)) return;
   if(!id||!rec)return;
   const att=attendanceStatusForDateUser(rec.date,user);
   if(!attendanceNeedsRecovery(att)){alert('La asistencia ya no requiere recuperación.');return}
@@ -3398,6 +3548,7 @@ function getEvidence30(classId,user){
 }
 function setEvidenceStatus30(user,value){
   const id=document.getElementById('ceClass30')?.value;
+  const rec=classRecordById(id); if(rec&&blockClosedDate31(rec.date)) return;
   if(!id)return;
   if(!Array.isArray(db.classEvidence))db.classEvidence=[];
   let r=getEvidence30(id,user);
@@ -3429,6 +3580,7 @@ function renderClass30(){
   const pending=[];
   const rows=students.map((u,i)=>{
     const ev=classEvalRecord(rec.id,u.u)||{};
+    const retired=studentIsRetired32(u);
     const att=attendanceStatusForDateUser(rec.date,u.u);
     const needs=attendanceNeedsRecovery(att);
     const recovery=getRecovery30(rec.id,u.u);
@@ -3438,7 +3590,9 @@ function renderClass30(){
     if(pendingRecovery) pending.push(u.name||u.u);
 
     let statusCell='';
-    if(needs){
+    if(retired){
+      statusCell=`<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · NO CALIFICABLE</span>`;
+    }else if(needs){
       const motivo=attendanceStatusLabel(att);
       statusCell=`<div style="font-weight:800">${recovered?'🟢 RECUPERACIÓN REALIZADA':'🔴 RECUPERACIÓN PENDIENTE'}</div>
         <div class="muted" style="font-size:.88rem;margin-top:4px">${escClass(motivo)}</div>
@@ -3475,13 +3629,14 @@ function renderClass30(){
     const evidence=getEvidence30(rec.id,u.u);
     const evidenceStatus=evidence?.status||'';
     const hasEvidenceProblem=evidenceStatus==='no_encontrada'||evidenceStatus==='sin_nombre';
-    const displayGrade=needs?(recovered?recovery.grade:''):(hasEvidenceProblem?'':(ev.grade??''));
-    const level=displayGrade===''?'—':classLevel(displayGrade);
+    const displayGrade=retired?'':(needs?(recovered?recovery.grade:''):(hasEvidenceProblem?'':(ev.grade??'')));
+    const level=retired?'—':(displayGrade===''?'—':classLevel(displayGrade));
     return `<tr>
       <td>${i+1}</td>
-      <td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td>${retired?'<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       <td>${statusCell}</td>
-      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${needs?'readonly':''}></td>
+      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${retired||needs?'readonly disabled':''} placeholder="No calificable"></td>
       <td class="ceLevel30" data-user="${escClass(u.u)}">${level}</td>
     </tr>`;
   }).join('');
@@ -3499,16 +3654,20 @@ function renderClass30(){
     html+=`<div class="alert" style="margin-bottom:12px">📋 <b>${unidentified} estudiante(s) asistieron pero tienen el trabajo/evidencia no identificado.</b> El registro no queda en blanco: queda constancia de que el trabajo no pudo ser identificado. No se asigna 0 automáticamente durante el bimestre.</div>`;
   }
   html+=`<div style="overflow:auto"><table>
-    <tr><th>N.º</th><th>Estudiante</th><th>Desempeño / recuperación</th><th>Nota 0–20</th><th>Nivel</th></tr>
-    ${rows||'<tr><td colspan="5">No hay estudiantes.</td></tr>'}
+    <tr><th>N.º</th><th>Estudiante</th><th>Asistencia</th><th>Desempeño / recuperación</th><th>Nota 0–20</th><th>Nivel</th></tr>
+    ${rows||'<tr><td colspan="6">No hay estudiantes.</td></tr>'}
   </table></div>`;
   box.innerHTML=html;
+  if(closedForDate31(rec.date)){
+    box.querySelectorAll('input,select,textarea,button').forEach(e=>{ if(!e.classList.contains('secondary')) e.disabled=true; });
+  }
 
   box.querySelectorAll('.ceStatus30').forEach(e=>{
     e.onchange=()=>autoSaveClassField30(e.dataset.user,e.value,null);
   });
   // Guardar automáticamente la detección individual: asistió + sin evaluación = trabajo no encontrado.
   students.forEach(u=>{
+    if(studentIsRetired32(u)) return;
     const ev=classEvalRecord(rec.id,u.u)||{};
     const att=attendanceStatusForDateUser(rec.date,u.u);
     const existing=getEvidence30(rec.id,u.u);
@@ -3549,6 +3708,9 @@ function renderClass30(){
 
 let _classEvalSaveTimers30={};
 function autoSaveClassField30(user,status,rawGrade,immediate=false){
+  if(blockRetiredGrade32(user)) return;
+  const lockRec=classRecordById(document.getElementById('ceClass30')?.value);
+  if(lockRec&&blockClosedDate31(lockRec.date)) return;
   const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);
   if(!id||!rec||!user)return;
   let r=classEvalRecord(id,user);
@@ -3575,9 +3737,13 @@ function flushClassEvalAutosave30(){
   save();
 }
 function saveClassEval30(){
+  const lockRec=classRecordById(document.getElementById('ceClass30')?.value);
+  if(lockRec&&blockClosedDate31(lockRec.date)) return;
+  const retiredUsers=[...document.querySelectorAll('.ceStatus30,.ceGrade30')].map(e=>e.dataset.user).filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i).filter(studentIsRetired32);
+  if(retiredUsers.length){ alert('⚫ Hay estudiantes RETIRADOS. No se guardarán evaluaciones para ellos.'); }
   ensureClassData();const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);if(!rec){alert('Primero selecciona una sesión de aprendizaje.');return}
   const ss=[...document.querySelectorAll('.ceStatus30')],gs=[...document.querySelectorAll('.ceGrade30')];let n=0;
-  ss.forEach(e=>{const u=e.dataset.user,st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
+  ss.forEach(e=>{const u=e.dataset.user;if(studentIsRetired32(u))return;const st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
     if(!st&&raw===''){if(r)db.classEvaluations=db.classEvaluations.filter(x=>x!==r);return}
     const grade=raw===''?null:Math.max(0,Math.min(20,Number(raw)));
     if(!r)db.classEvaluations.push({id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user:u,status:st,grade,date:rec.date,title:rec.title,gradeClass:rec.grade,section:rec.section});
@@ -4049,17 +4215,27 @@ function openComponentRecord(key,arrName,id){
       📅 ${escClass(rec.date||'—')} · 🎓 ${escClass(scope.grade||'Grado no vinculado')} ${scope.section?`· ${escClass(scope.section)}`:''}
     </p>
     ${!scope.grade?`<div class="alert">No se pudo identificar automáticamente el grado de este registro antiguo.</div>`:''}
+    <div class="alert" style="margin:12px 0">
+      📌 <b>Antes de llamar o calificar:</b> aquí se muestra la asistencia de cada estudiante en la fecha de esta sesión.
+      ⚫ <b>Retirado</b> = no llamar ni calificar. ❌ <b>Falta</b> = no asistió. 📄 <b>Justificada</b>, 🏫 <b>Representación</b> o 🩺 <b>Salud</b> = revisar antes de exigir el trabajo.
+    </div>
     <div style="overflow:auto">
       <table>
-        <tr><th>Estudiante</th><th>Nota 0–20</th><th>Nivel</th></tr>
+        <tr><th>Estudiante</th><th>Asistencia</th><th>Nota 0–20</th><th>Nivel</th></tr>
         ${students.map(u=>{
           const n=valueFor(u);
+          const retired=studentIsRetired32(u);
+          const att=attendanceStatusForDateUser(rec.date,u.u);
+          const attLabel=retired
+            ? '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>'
+            : (att ? `<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>` : '<span class="muted">⚪ Sin registrar</span>');
           return `<tr>
-            <td>${escClass(u.name)}</td>
-            <td><input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px" oninput="autoSaveComponentGrade('${escClass(arrName)}','${escClass(id)}',this)"></td>
-            <td class="cmpLevel" data-user="${escClass(u.u)}">${n===''?'—':classLevel(n)}</td>
+            <td><b>${escClass(u.name)}</b></td>
+            <td>${attLabel}</td>
+            <td>${retired?'<span class="muted">🚫 No calificable</span>':`<input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px" oninput="autoSaveComponentGrade('${escClass(arrName)}','${escClass(id)}',this)">`}</td>
+            <td class="cmpLevel" data-user="${escClass(u.u)}">${retired?'—':(n===''?'—':classLevel(n))}</td>
           </tr>`;
-        }).join('') || `<tr><td colspan="3">No hay estudiantes para este grado y sección.</td></tr>`}
+        }).join('') || `<tr><td colspan="4">No hay estudiantes para este grado y sección.</td></tr>`}
       </table>
     </div>
     <div class="actions" style="margin-top:15px">
@@ -4069,6 +4245,10 @@ function openComponentRecord(key,arrName,id){
 
   modalBody.innerHTML=box;
   modal.classList.remove('hidden');
+  if(closedForDate31(rec.date)){
+    modalBody.querySelectorAll('.cmpGrade').forEach(e=>e.disabled=true);
+    const saveBtn=[...modalBody.querySelectorAll('button')].find(b=>/Guardar/.test(b.textContent||'')); if(saveBtn)saveBtn.disabled=true;
+  }
   modalBody.querySelectorAll('.cmpGrade').forEach(e=>{
     e.oninput=()=>{
       const o=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(e.dataset.user)}"]`);
@@ -4078,6 +4258,9 @@ function openComponentRecord(key,arrName,id){
 }
 
 function autoSaveComponentGrade(arrName,recordId,input){
+  if(blockRetiredGrade32(input?.dataset?.user)) return;
+  const cmpRec=(db[arrName]||[]).find(x=>x.id===recordId);
+  if(cmpRec&&blockClosedDate31(cmpRec.date)) return;
   ensureClassData();
   const user=input?.dataset?.user;
   if(!user)return;
@@ -4104,8 +4287,12 @@ function autoSaveComponentGrade(arrName,recordId,input){
 }
 
 function saveComponentGrades(key,arrName,recordId){
-  ensureClassData();const arr=db[arrName];document.querySelectorAll('.cmpGrade').forEach(e=>{
-    const user=e.dataset.user,val=e.value;
+  ensureClassData();
+  const cmpRec=(db[arrName]||[]).find(x=>x.id===recordId);
+  if(cmpRec&&blockClosedDate31(cmpRec.date)) return;const arr=db[arrName];document.querySelectorAll('.cmpGrade').forEach(e=>{
+    const user=e.dataset.user;
+    if(blockRetiredGrade32(user)) return;
+    const val=e.value;
     let x=arr.find(x=>x.recordId===recordId&&x.user===user);
     if(val===''){if(x)db[arrName]=arr.filter(y=>y!==x);return}
     if(!x){x={id:'score_'+Date.now()+'_'+Math.random(),recordId,user,grade:Number(val)};db[arrName].push(x)}else x.grade=Math.max(0,Math.min(20,Number(val)));
@@ -4339,6 +4526,7 @@ function saveGroupWeeklyRubric30(groupId){
   const portfolio=projectRubricScore(portfolioLevels,pc.length);
   const product=projectRubricScore(productLevels,pr.length);
   members.forEach(st=>{
+    if(studentIsRetired32(st.u))return;
     let r=projectWeeklyRecord(st.u,week);
     if(!r){
       r={id:'pweek_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user:st.u,week};
@@ -4559,6 +4747,7 @@ function renderExpositionStudents30(){
   box.innerHTML=`<table><tr><th>Grupo / estudiante</th>${headers}<th>Nota individual</th></tr>${rows.join('')||'<tr><td colspan="'+(criteria.length+2)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table>
   <p class="muted" style="margin-top:10px">🎯 La nota se calcula por estudiante con sus propios criterios. Los integrantes del mismo grupo pueden obtener notas diferentes.</p>
   <button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
+  if(closedForDate31(document.getElementById('expoDate30')?.value||todayLocal30())) box.querySelectorAll('input,button').forEach(e=>e.disabled=true);
 
   // Calcular la nota individual inmediatamente al escribir cada criterio, sin esperar a guardar.
   box.querySelectorAll('.expoScore30').forEach(inp=>{
@@ -4573,6 +4762,8 @@ function renderExpositionStudents30(){
 }
 function saveExpositionScores(){
   ensureClassData();
+  const expoDate=document.getElementById('expoDate30')?.value||todayLocal30();
+  if(blockClosedDate31(expoDate)) return;
   const week=Number(document.getElementById('expoWeek30')?.value||1),date=document.getElementById('expoDate30')?.value||todayLocal30(); // week = número de sesión.
   const inputs=[...document.querySelectorAll('.expoScore30')];
   let count=0;
@@ -4583,6 +4774,7 @@ function saveExpositionScores(){
     let s=db.expositionRubric.scores.find(x=>x.user===user&&Number(x.week)===week&&x.criterionId===criterionId);
     if(val===''){if(s)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==s);return;}
     if(!s){s={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId};db.expositionRubric.scores.push(s);}
+    if(studentIsRetired32(user)) return;
     const student=(db.users||[]).find(x=>x.u===user);
     s.date=date;s.grade=student?.grade||'';s.section=student?.section||'';s.category=categoryForStudent(student);s.groupId=groupId;s.groupName=g.name;s.score=Math.max(0,Math.min(20,Number(val)));s.savedAt=Date.now();
     count++;
@@ -5590,22 +5782,31 @@ function grades(){
   const sectionOptions=['A','B'].map(sec=>
     `<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
 
+  const activeBimester=(()=>{
+    const bs=getBimesterClose30();
+    if(bs.IV?.closed)return 'IV';
+    if(bs.III?.closed)return 'III';
+    return '';
+  })();
+  const snapshot=activeBimester && db.bimesterFinals?.[activeBimester] ? db.bimesterFinals[activeBimester] : null;
   const rows=students.map(u=>{
-    const d=evaluationDetail(u.u);
+    syncStudentAttendanceStatus31(u);
+    const d=(snapshot&&snapshot[u.u]) ? snapshot[u.u] : evaluationDetail(u.u);
+    const finalLevel=studentDisapprovedByAbsences31(u)?'Desaprobado por faltas':d.level;
     return `<tr>
-      <td><b>${escClass(u.name)}</b></td>
+      <td><b>${escClass(u.name)}</b><br>${studentStatusBadge31(u)}</td>
       <td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td>
       <td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td>
       <td>${d.project===null?'—':d.project.toFixed(2)}</td>
       <td>${d.process===null?'—':d.process.toFixed(2)}</td>
       <td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td>
-      <td>${d.level}</td>
+      <td>${finalLevel}</td>
     </tr>`;
   }).join('');
 
   return `<div class="card">
     <h2>📊 Evaluación integral</h2>
-    <p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>.</p>
+    <p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>. ${activeBimester&&snapshot?`<b>📌 ${activeBimester} Bimestre cerrado:</b> se muestran las notas registradas al cierre.`:''}</p>
 
     <div class="actions">
       <button onclick="go('project')">🚀 Proyecto 70 %</button>
@@ -5668,7 +5869,7 @@ function buildNav(){
   }
   const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['seating','💺','Asientos'],['courses','📚','Cursos'],['creaEmprende','🏆','Crea y Emprende'],['timers','⏱️','Cronómetros']];
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
-  const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
+  const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
   const evalOpen=['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','grades','project'].includes(page);
   const moreOpen=extra.some(a=>a[0]===page);
@@ -5920,6 +6121,7 @@ function autoSaveCY(encodedUsername,rowIndex){
 
 
 function saveCY(encodedUsername,rowIndex){
+  const cyUser0=document.getElementById('cyStudent')?.value||'';
   ensureClassData();
 
   const username=decodeURIComponent(encodedUsername||'');
@@ -6258,9 +6460,9 @@ function updateClassRecord30(id){
 
 function render(){
   if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades','creaEmprende'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,backup,announcements,evalConfig:evaluationConfig,seating}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,submissions,chat,grades,tracking,attendance,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
