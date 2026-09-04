@@ -3287,7 +3287,7 @@ function selectSessionForEval30(sessionId){
   if(!rec){
     rec={
       id:'class_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
-      date:s.date||todayLocal30(),
+      date:sessionDateForGradeSection(s,grade,section)||todayLocal30(),
       title:s.title||'',
       purpose:s.description||'',
       criteria:'',
@@ -3373,7 +3373,7 @@ function registroClase(){
             <option value="">Selecciona la sesión que vas a trabajar</option>
             ${filteredSessions.map(s=>{
               const rr=getSessionClassRecord30(s.id,grade,section);
-              return `<option value="${escClass(s.id)}" ${rr&&String(rr.id)===String(activeId)?'selected':''}>Sesión ${escClass(s.number)}: ${escClass(s.title)}${s.date?' — '+escClass(s.date):''}</option>`;
+              return `<option value="${escClass(s.id)}" ${rr&&String(rr.id)===String(activeId)?'selected':''}>Sesión ${escClass(s.number)}: ${escClass(s.title)}${sessionDateForGradeSection(s,grade,section)?' — '+escClass(sessionDateForGradeSection(s,grade,section)):''}</option>`;
             }).join('')}
           </select>
         </div>
@@ -3384,7 +3384,7 @@ function registroClase(){
             return `<div class="item session-card30" data-search="${escClass((s.title||'').toLowerCase())}" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;${selected?'outline:2px solid #2563eb;':''}">
               <div>
                 <b>📖 Sesión ${escClass(s.number)}: ${escClass(s.title)}</b>
-                <div class="muted">🎓 Grupo: <b>${escClass(sessionGradeLabel(s))}</b> · ${s.date?'📅 '+escClass(s.date):'Sin fecha'}</div>
+                <div class="muted">🎓 Grupo: <b>${escClass(sessionGradeLabel(s))}</b> · ${sessionDateForGradeSection(s,grade,section)?'📅 '+escClass(sessionDateForGradeSection(s,grade,section)):'Sin fecha'}</div>
               </div>
               <button onclick="selectSessionForEval30('${escClass(s.id)}')">${selected?'✅ Evaluando':'📝 Evaluar sesión'}</button>
             </div>`;
@@ -4038,7 +4038,7 @@ function saveComponentRecord(key,arrName){
 
   const r={
     id:'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    date:ses.date||todayLocal30(),
+    date:sessionDateForGradeSection(ses,ses.grade,ses.section)||todayLocal30(),
     title:ses.title||document.getElementById('cmpTitle')?.value.trim()||key,
     grade,
     section,
@@ -6417,6 +6417,51 @@ function sessionGroupForGrade(g){
   if(g==='3.º'||g==='4.º'||g==='5.º') return '3.º-5.º';
   return g;
 }
+function sessionDateForGradeSection(s,grade,section){
+  if(!s)return '';
+  const g=String(grade||'').trim(), sec=String(section||'').trim();
+  const map=s.dateByGradeSection||{};
+  const key=g+'|'+sec;
+  // Si la sesión ya tiene fechas independientes por grado y sección,
+  // SOLO se usa la fecha exacta de esa combinación. No se copia la fecha
+  // de A a B ni la de otro grado.
+  if(Object.keys(map).length>0) return map[key]?String(map[key]):'';
+  // Compatibilidad únicamente con sesiones antiguas que no tenían
+  // fechas independientes por sección.
+  const old=s.dateByGrade||{};
+  if(g && old[g]) return String(old[g]);
+  return String(s.date||'');
+}
+function sessionDateEntries(s){
+  if(!s)return [];
+  const map=s.dateByGradeSection||{};
+  const vals=[];
+  [['3.º','A'],['3.º','B'],['4.º','A'],['4.º','B'],['5.º','A'],['5.º','B']].forEach(([g,sec])=>{
+    const v=map[g+'|'+sec]; if(v) vals.push({label:`${g} ${sec}`,date:String(v)});
+  });
+  if(vals.length)return vals;
+  const old=s.dateByGrade||{};
+  const oldVals=['3.º','4.º','5.º'].filter(g=>old[g]).map(g=>({label:g,date:String(old[g])}));
+  if(oldVals.length)return oldVals;
+  return s.date?[{label:'Fecha general',date:String(s.date)}]:[];
+}
+function sessionDatesLabel(s){
+  const vals=sessionDateEntries(s);
+  return vals.length?vals.map(x=>`${x.label}: ${x.date}`).join(' · '):'Sin fecha';
+}
+function sessionDatesSummary(s){
+  const vals=sessionDateEntries(s);
+  if(!vals.length)return 'Sin fecha';
+  return `${vals.length} registrada${vals.length===1?'':'s'}`;
+}
+function toggleSessionDates(id){
+  const el=document.getElementById('sessionDates_'+id);
+  const btn=document.getElementById('sessionDatesBtn_'+id);
+  if(!el||!btn)return;
+  const hidden=el.style.display==='none';
+  el.style.display=hidden?'block':'none';
+  btn.textContent=hidden?'🔼 Ocultar fechas':'📅 Ver fechas';
+}
 function isFirstSecondSessionGroup(g){
   return ['1.º A','1.º B','2.º A','2.º B'].includes(String(g||''));
 }
@@ -6509,7 +6554,7 @@ function openUnit(id, selectedGroup='1.º A'){
     <h3 style="margin:7px 0">Sesión ${escClass(x.number)}: ${escClass(x.title)}</h3>
     <div class="muted">${escClass(x.description||'')}</div>
     <div style="margin-top:7px"><b>🎓 Grupo:</b> ${escClass(sessionGradeLabel(x))}</div>
-    ${x.date?`<small>📅 Fecha: ${escClass(x.date)}</small>`:''}</div>
+    ${sessionDateEntries(x).length?`<div style="margin-top:8px"><button class="secondary small" id="sessionDatesBtn_${x.id}" onclick="toggleSessionDates(${x.id})">📅 Ver fechas</button><span class="muted" style="margin-left:8px">${escClass(sessionDatesSummary(x))}</span><div id="sessionDates_${x.id}" style="display:none;margin-top:8px" class="muted">${sessionDateEntries(x).map(d=>`<div>📅 <b>${escClass(d.label)}</b>: ${escClass(d.date)}</div>`).join('')}</div></div>`:''}</div>
     <div class="actions" style="align-self:flex-start"><button onclick="viewSession(${x.id})">Ver</button>
     ${me.role==='teacher'?`<button class="secondary" onclick="editSession(${x.id})">✏️ Editar</button><button class="danger" onclick="deleteSession(${x.id})">🗑️ Eliminar</button>`:''}</div>
   </div>`).join('') || `<div class="card"><p class="muted">Todavía no hay sesiones para <b>${sessionTabLabel(selectedGroup)}</b>. Usa “＋ Agregar sesión”.</p></div>`}
@@ -6521,16 +6566,28 @@ function addSession(unitId, group='1.º A'){
   if(group==='1.º-2.º') group='1.º A';
   const firstSecond=isFirstSecondSessionGroup(group);
   const count=nextSessionNumber26(unitId,group);
+  const shared=!firstSecond;
   modalBody.innerHTML=`<h2>＋ Nueva sesión</h2>
-  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(group)}<br><span class="muted">${firstSecond?'Esta sesión quedará registrada únicamente para este grado y sección.':'Esta sesión mantiene la configuración actual para 3.º, 4.º y 5.º.'}</span></div>
+  <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(group)}<br><span class="muted">${firstSecond?'Esta sesión quedará registrada únicamente para este grado y sección.':'La misma sesión puede utilizarse para 3.º, 4.º y 5.º, pero cada grado puede tener una fecha diferente.'}</span></div>
   <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${count}">
   <label>Título de la sesión</label><input id="sesT" placeholder="Ej.: Conocemos el problema de nuestra comunidad">
   <label>Descripción / propósito</label><textarea id="sesD" placeholder="Escribe brevemente qué desarrollarán los estudiantes."></textarea>
   <div class="grid3">
     <div><label>Grupo de grados</label><input id="sesGLabel" value="${sessionTabLabel(group)}" disabled></div>
     ${firstSecond?`<div><label>Sección</label><input id="sesSec" value="${escClass(group.split(' ')[1])}" disabled></div>`:`<div><label>Sección</label><select id="sesSec"><option value="">A y B</option><option>A</option><option>B</option></select></div>`}
-    <div><label>Fecha</label><input id="sesF" type="date"></div>
+    ${shared?`<div><label>Fecha general (opcional)</label><input id="sesF" type="date"><small class="muted">Se usará como respaldo si no colocas fecha por grado.</small></div>`:`<div><label>Fecha</label><input id="sesF" type="date"></div>`}
   </div>
+  ${shared?`<div style="margin-top:12px"><label>📅 Fechas independientes por grado y sección</label>
+    <div class="grid3">
+      <div><label>3.º A</label><input id="sesF3A" type="date"></div>
+      <div><label>3.º B</label><input id="sesF3B" type="date"></div>
+      <div><label>4.º A</label><input id="sesF4A" type="date"></div>
+      <div><label>4.º B</label><input id="sesF4B" type="date"></div>
+      <div><label>5.º A</label><input id="sesF5A" type="date"></div>
+      <div><label>5.º B</label><input id="sesF5B" type="date"></div>
+    </div>
+    <small class="muted">Cada grado y sección puede tener una fecha diferente para la misma sesión.</small>
+  </div>`:''}
   <label>Estado</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option></select>
   <div class="actions" style="margin-top:15px"><button onclick="saveSession(${unitId},'${group}')">Guardar sesión</button><button class="secondary" onclick="openUnit(${unitId},'${group}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
@@ -6548,40 +6605,57 @@ function saveSession(unitId, group='1.º A'){
   if(isFirstSecondSessionGroup(group)){
     const parts=group.split(' '); grade=parts[0]; sec=parts[1];
   }
-  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade,section:sec,date,status});
+  const dateByGrade={}; const dateByGradeSection={};
+  if(String(grade)==='3.º-5.º'){
+    [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)dateByGradeSection[g+'|'+ss]=v;});
+    // Mantener también fecha por grado para compatibilidad con registros antiguos.
+    ['3.º','4.º','5.º'].forEach(g=>{const v=dateByGradeSection[g+'|A']||dateByGradeSection[g+'|B']||'';if(v)dateByGrade[g]=v;});
+  }
+  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade,section:sec,date,status,dateByGrade,dateByGradeSection});
   save();openUnit(unitId,group);
 }
 function editSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
   const oldGroup=(String(x.grade)==='1.º'||String(x.grade)==='2.º') ? `${x.grade} ${x.section||'A'}` : (String(x.grade)==='1.º-2.º'?'1.º A':'3.º-5.º');
   const firstSecond=isFirstSecondSessionGroup(oldGroup);
+  const map=x.dateByGrade||{};
   modalBody.innerHTML=`<h2>✏️ Editar sesión</h2>
   <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(oldGroup)}</div>
   <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${x.number}">
   <label>Título de la sesión</label><input id="sesT" value="${escClass(x.title)}">
   <label>Descripción / propósito</label><textarea id="sesD">${escClass(x.description||'')}</textarea>
   <div class="grid3">
-    <div><label>Grupo de grados</label><select id="sesG" ${firstSecond?'disabled':''}>
-      ${firstSecond?`<option value="${escClass(oldGroup)}">${sessionTabLabel(oldGroup)}</option>`:`<option value="3.º-5.º">3.º, 4.º y 5.º</option>`}
-    </select></div>
+    <div><label>Grupo de grados</label><input id="sesG" value="${escClass(sessionTabLabel(oldGroup))}" disabled></div>
     ${firstSecond?`<div><label>Sección</label><input id="sesSec" value="${escClass(x.section||oldGroup.split(' ')[1])}" disabled></div>`:`<div><label>Sección</label><select id="sesSec"><option value="" ${!x.section?'selected':''}>A y B</option><option ${x.section==='A'?'selected':''}>A</option><option ${x.section==='B'?'selected':''}>B</option></select></div>`}
-    <div><label>Fecha</label><input id="sesF" type="date" value="${escClass(x.date||'')}"></div>
+    ${firstSecond?`<div><label>Fecha</label><input id="sesF" type="date" value="${escClass(x.date||'')}"></div>`:`<div><label>Fecha general (opcional)</label><input id="sesF" type="date" value="${escClass(x.date||'')}"><small class="muted">Respaldo si un grado no tiene fecha propia.</small></div>`}
   </div>
+  ${!firstSecond?`<div style="margin-top:12px"><label>📅 Fechas independientes por grado y sección</label><div class="grid3">
+    <div><label>3.º A</label><input id="sesF3A" type="date" value="${escClass((x.dateByGradeSection||{})['3.º|A']||'')}"></div>
+    <div><label>3.º B</label><input id="sesF3B" type="date" value="${escClass((x.dateByGradeSection||{})['3.º|B']||'')}"></div>
+    <div><label>4.º A</label><input id="sesF4A" type="date" value="${escClass((x.dateByGradeSection||{})['4.º|A']||'')}"></div>
+    <div><label>4.º B</label><input id="sesF4B" type="date" value="${escClass((x.dateByGradeSection||{})['4.º|B']||'')}"></div>
+    <div><label>5.º A</label><input id="sesF5A" type="date" value="${escClass((x.dateByGradeSection||{})['5.º|A']||'')}"></div>
+    <div><label>5.º B</label><input id="sesF5B" type="date" value="${escClass((x.dateByGradeSection||{})['5.º|B']||'')}"></div>
+  </div><small class="muted">Cada grado y sección puede tener una fecha diferente para la misma sesión.</small></div>`:''}
   <label>Estado</label><select id="sesS"><option ${x.status==='Programada'?'selected':''}>Programada</option><option ${x.status==='En desarrollo'?'selected':''}>En desarrollo</option><option ${x.status==='Finalizada'?'selected':''}>Finalizada</option></select>
   <div class="actions" style="margin-top:15px"><button onclick="saveEditedSession(${id})">Guardar cambios</button><button class="danger" onclick="deleteSession(${id})">🗑️ Eliminar sesión</button><button class="secondary" onclick="openUnit(${x.unit},'${oldGroup}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
 function saveEditedSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
-  const title=document.getElementById('sesT').value.trim();
-  const group=document.getElementById('sesG').value;
-  if(!title||!group){alert('Completa título y grupo de grados.');return}
-  x.number=Number(document.getElementById('sesN').value)||1;
-  x.title=title;x.description=document.getElementById('sesD').value.trim();
-  let grade=group, sec=document.getElementById('sesSec').value;
-  if(isFirstSecondSessionGroup(group)){ const parts=group.split(' '); grade=parts[0]; sec=parts[1]; }
-  x.grade=grade;x.section=sec;x.date=document.getElementById('sesF').value;x.status=document.getElementById('sesS').value;
-  save();openUnit(x.unit,isFirstSecondSessionGroup(group)?group:'3.º-5.º');
+  const title=document.getElementById('sesT')?.value.trim();
+  const description=document.getElementById('sesD')?.value.trim()||'';
+  const date=document.getElementById('sesF')?.value||'';
+  const status=document.getElementById('sesS')?.value||'Programada';
+  if(!title){alert('Completa el título de la sesión.');return}
+  x.number=Number(document.getElementById('sesN')?.value)||x.number;
+  x.title=title;x.description=description;x.status=status;x.date=date;
+  if(String(x.grade)==='3.º-5.º'){
+    x.dateByGrade={}; x.dateByGradeSection={};
+    [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)x.dateByGradeSection[g+'|'+ss]=v;});
+    ['3.º','4.º','5.º'].forEach(g=>{const v=x.dateByGradeSection[g+'|A']||x.dateByGradeSection[g+'|B']||'';if(v)x.dateByGrade[g]=v;});
+  }
+  save();openUnit(x.unit,(String(x.grade)==='1.º'||String(x.grade)==='2.º')?`${x.grade} ${x.section||'A'}`:'3.º-5.º');
 }
 function deleteSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id); if(!x)return;
@@ -6601,7 +6675,7 @@ function viewSession(id){
   modalBody.innerHTML=`<h2>📖 Sesión ${x.number}: ${escClass(x.title)}</h2>
   <div class="badge" style="display:inline-block;margin:5px 0">🎓 ${escClass(sessionGradeLabel(x))}</div>
   <p>${escClass(x.description||'Sin descripción.')}</p>
-  <p class="muted">${x.date?'📅 Fecha: '+escClass(x.date):'Sin fecha'} · ${escClass(x.status||'Programada')}</p><hr>
+  <p class="muted">${sessionDatesLabel(x)!=='Sin fecha'?'📅 Fechas: '+escClass(sessionDatesLabel(x)):'Sin fecha'} · ${escClass(x.status||'Programada')}</p><hr>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3>🎬 Materiales</h3>${me.role==='teacher'?`<button onclick="addSessionMaterial(${id})">＋ Agregar material</button>`:''}</div>
   <div class="list" style="margin-top:10px">${mats.map(m=>`<div class="item"><div><span class="badge">${escClass(m.type||'Recurso')}</span><h3 style="margin:6px 0">${escClass(m.title)}</h3><div class="muted">${escClass(m.description||'')}</div></div>${m.url?`<a href="${m.url}" target="_blank" rel="noopener"><button>🔗 Abrir</button></a>`:''}</div>`).join('')||`<p class="muted">Todavía no hay materiales para esta sesión.</p>`}</div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px"><h3>📝 Actividades</h3>${me.role==='teacher'?`<button onclick="addSessionActivity(${id})">＋ Crear actividad</button>`:''}</div>
@@ -6640,7 +6714,7 @@ function syncSessionToClass30(){
   const id=document.getElementById('crSession30')?.value;
   const s=(db.sessions||[]).find(x=>String(x.id)===String(id)); if(!s)return;
   const set=(id,val)=>{const e=document.getElementById(id);if(e)e.value=val||''};
-  set('crDate30',s.date||todayLocal30());set('crGrade30',s.grade||'');set('crSec30',s.section||'');set('crTitle30',s.title||'');set('crPurpose30',s.description||'');
+  set('crDate30',sessionDateForGradeSection(s,window._classGradeFilter30||s.grade,window._classSectionFilter30||s.section)||todayLocal30());set('crGrade30',s.grade||'');set('crSec30',s.section||'');set('crTitle30',s.title||'');set('crPurpose30',s.description||'');
   const acts=(db.activities||[]).filter(a=>String(a.session)===String(s.id));
   const box=document.getElementById('crAct30');
   if(box)box.innerHTML=`<option value="">Ninguna</option>${acts.map(a=>`<option value="${escClass(a.id)}">${escClass(a.title)}</option>`).join('')}`;
@@ -6671,7 +6745,7 @@ function updateClassRecord30(id){
   const r=classRecordById(id);if(!r)return;
   const ses=(db.sessions||[]).find(x=>String(x.id)===String(document.getElementById('crSession30')?.value));
   if(!ses){alert('Selecciona una sesión.');return}
-  r.session=ses.id;r.unit=ses.unit;r.date=ses.date||document.getElementById('crDate30').value;r.title=ses.title;r.purpose=document.getElementById('crPurpose30').value.trim();r.criteria=document.getElementById('crCriteria30').value.trim();r.grade=ses.grade;r.section=ses.section;
+  r.session=ses.id;r.unit=ses.unit;r.date=sessionDateForGradeSection(ses,r.grade,r.section)||document.getElementById('crDate30').value;r.title=ses.title;r.purpose=document.getElementById('crPurpose30').value.trim();r.criteria=document.getElementById('crCriteria30').value.trim();r.grade=ses.grade;r.section=ses.section;
   save();closeModal();render();
 }
 /* ===== FIN SESIONES POR GRADO/SECCIÓN + REGISTRO VINCULADO ===== */
