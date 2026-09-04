@@ -371,7 +371,7 @@ function convertPendingRecoveriesToZero30(bimesterKey){
   (db.classRecords||[]).forEach(rec=>{
     if(!rec?.date)return;
     (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
-      const att=attendanceStatusForDateUser(rec.date,u.u);
+      const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
       if(!attendanceNeedsRecovery(att))return;
       let r=getRecovery30(rec.id,u.u);
       if(r?.grade!=null)return;
@@ -494,6 +494,10 @@ function render(){
    reports:reports,backup:backup,announcements:announcements
  }[page];
  content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
+ if(page==='attendance'){
+   renderAttendanceTable25();
+   renderAttendanceHistory25();
+ }
  if(me?.role==='teacher') teacherReminderScheduler26();
 }
 
@@ -577,6 +581,7 @@ function saveSubmission(id){const f=file.files[0];if(!f){alert("Selecciona un ar
 function submissions(){
  if(me.role==="student"){const mine=db.submissions.filter(s=>s.user===me.u);return `<div class="card"><h3>Mis entregas</h3><table><tr><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Nota</th><th>Retroalimentación</th></tr>${mine.map(s=>{const a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${a?.title||""}</td><td>📎 ${s.file}</td><td><span class="badge ${s.grade!=null?"ok":"warn"}">${s.status}</span></td><td>${s.grade??"—"}</td><td>${s.feedback||"—"}</td></tr>`}).join("")}</table></div>`}
  return `<div class="card"><h3>Trabajos entregados</h3><table><tr><th>Estudiante</th><th>Actividad</th><th>Archivo</th><th>Estado</th><th>Acción</th></tr>${db.submissions.map(s=>{const u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);return `<tr><td>${u?.name||s.user}</td><td>${a?.title||""}</td><td>📎 ${s.file}</td><td>${s.grade!=null?`<span class="badge ok">Revisado</span>`:`<span class="badge warn">Pendiente</span>`}</td><td><button class="small" onclick="review(${s.id})">Revisar</button></td></tr>`}).join("")}</table></div>`;
+ renderAttendanceHistory25();
 }
 function review(id){const s=db.submissions.find(x=>x.id===id),u=db.users.find(x=>x.u===s.user),a=db.activities.find(x=>x.id===s.activity);modalBody.innerHTML=`<h2>Revisar entrega</h2><p><b>${u.name}</b><br>${a.title}<br>📎 ${s.file}</p><label>Nota (0–20)</label><input id="grade" type="number" min="0" max="20" value="${s.grade??""}"><label>Retroalimentación</label><textarea id="feedback">${s.feedback||""}</textarea><div class="actions" style="margin-top:15px"><button onclick="saveReview(${id})">Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;modal.classList.remove("hidden")}
 function saveReview(id){const s=db.submissions.find(x=>x.id===id);s.grade=Number(grade.value);s.feedback=feedback.value;s.status="Revisado";save();closeModal();render()}
@@ -2589,11 +2594,13 @@ function attendance(){
     <button onclick="saveAttendance25()">💾 Guardar asistencia</button>
    </div>
    <div class="grid3" style="margin-top:15px">
-    <div><label>Fecha</label><input type="date" id="attDate25" value="${today}" onchange="renderAttendanceTable25()"></div>
-    <div><label>Grado</label><select id="attGrade25" onchange="renderAttendanceTable25()"><option>Todos</option>${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option>${g}</option>`).join("")}</select></div>
-    <div><label>Sección</label><select id="attSection25" onchange="renderAttendanceTable25()"><option>Todas</option><option>A</option><option>B</option></select></div>
+    <div><label>Fecha</label><input type="date" id="attDate25" value="${today}" onchange="renderAttendanceTable25();renderAttendanceHistory25()"></div>
+    <div><label>Grado</label><select id="attGrade25" onchange="renderAttendanceTable25();renderAttendanceHistory25()"><option>Todos</option>${["1.º","2.º","3.º","4.º","5.º"].map(g=>`<option>${g}</option>`).join("")}</select></div>
+    <div><label>Sección</label><select id="attSection25" onchange="renderAttendanceTable25();renderAttendanceHistory25()"><option>Todas</option><option>A</option><option>B</option></select></div>
    </div>
-   <div class="item" style="margin-top:16px">⚫ <b>Retirado:</b> no genera nuevas faltas. 🟠 <b>4 faltas:</b> a punto de desaprobar. 🔴 <b>5 faltas:</b> desaprobado por faltas.</div><div id="attTable25" style="margin-top:18px"></div>
+   <div class="item" style="margin-top:16px">⚫ <b>Retirado:</b> no genera nuevas faltas. 🟠 <b>4 faltas:</b> a punto de desaprobar. 🔴 <b>5 faltas:</b> desaprobado por faltas.</div>
+   <div id="attHistory25" style="margin-top:18px"></div>
+   <div id="attTable25" style="margin-top:18px"></div>
    ${attendanceAlertPanel26()}
  </div>`;
 }
@@ -2624,6 +2631,55 @@ function renderAttendanceTable25(){
  }).join("")||`<tr><td colspan="3">No hay estudiantes para este filtro.</td></tr>`}
  </table></div>`;
 }
+function renderAttendanceHistory25(){
+ const box=document.getElementById("attHistory25");
+ if(!box)return;
+ const section=document.getElementById("attSection25")?.value||"Todas";
+ const users=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
+ const grades=["1.º","2.º","3.º","4.º","5.º"];
+ const fmt=d=>{const p=String(d).split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d};
+ const statusCounts=(date,grade,sec)=>{
+   const students=users.filter(u=>u.grade===grade&&(sec==="Todas"||u.section===sec));
+   let presente=0,tardanza=0,falta=0,justificada=0,total=0;
+   students.forEach(u=>{
+     const v=(db.attendance||{})[date+"|"+u.u];
+     if(!v)return;
+     total++;
+     if(v==="Presente")presente++;
+     else if(v==="Tardanza")tardanza++;
+     else if(v==="Falta")falta++;
+     else if(v==="Justificada"||v==="Representacion"||v==="Salud")justificada++;
+   });
+   return {presente,tardanza,falta,justificada,total};
+ };
+ const gradeBlocks=grades.map(grade=>{
+   const secs=section==="Todas"?["A","B"]:[section];
+   const rows=[];
+   secs.forEach(sec=>{
+     const studentIds=new Set(users.filter(u=>u.grade===grade&&u.section===sec).map(u=>u.u));
+     const dates=[...new Set(Object.keys(db.attendance||{}).filter(k=>studentIds.has(k.substring(k.indexOf("|")+1))).map(k=>k.split("|")[0]))].sort((a,b)=>b.localeCompare(a));
+     dates.forEach(date=>{
+       const c=statusCounts(date,grade,sec);
+       rows.push(`<tr><td><b>${fmt(date)}</b></td><td><b>${sec}</b></td><td>${c.presente}</td><td>${c.tardanza}</td><td>${c.falta}</td><td>${c.justificada}</td><td>${c.total}</td><td><button class="secondary small" onclick="openAttendanceHistoryDate25('${date}','${grade}','${sec}')">👁️ Ver fecha</button></td></tr>`);
+     });
+   });
+   if(!rows.length) return `<div class="item" style="margin-top:10px"><b>🎓 ${grade}</b><div class="muted" style="margin-top:4px">No hay fechas de asistencia registradas${section==="Todas"?" en A ni B":" en la sección "+section}.</div></div>`;
+   return `<div class="card" style="margin-top:10px;padding:14px"><h3 style="margin:0">🎓 ${grade}</h3><div style="overflow:auto;margin-top:10px"><table><tr><th>Fecha</th><th>Sección</th><th>Presentes</th><th>Tardanzas</th><th>Faltas</th><th>Justificadas</th><th>Registros</th><th>Acción</th></tr>${rows.join("")}</table></div></div>`;
+ }).join("");
+ box.innerHTML=`<div class="card" style="border:2px solid #dbe5f4;background:#f8fbff"><h2 style="margin:0">📅 HISTORIAL DE ASISTENCIA POR GRADO</h2><p class="muted" style="margin:5px 0 0">Aquí aparecen todas las fechas que ya tienen asistencia guardada, separadas por grado. Sección mostrada: <b>${section==="Todas"?"A y B":section}</b>.</p>${gradeBlocks}</div>`;
+}
+function openAttendanceHistoryDate25(date,grade,section){
+ const dateEl=document.getElementById("attDate25");
+ const gradeEl=document.getElementById("attGrade25");
+ const sectionEl=document.getElementById("attSection25");
+ if(dateEl)dateEl.value=date;
+ if(gradeEl)gradeEl.value=grade;
+ if(sectionEl)sectionEl.value=section;
+ renderAttendanceTable25();
+ renderAttendanceHistory25();
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+
 function autoSaveAttendance25(sel){
   const date=document.getElementById("attDate25")?.value;
   if(!date || !sel?.dataset?.user) return;
@@ -2634,6 +2690,7 @@ function autoSaveAttendance25(sel){
   if(sel.value) db.attendance[key]=sel.value; else delete db.attendance[key];
   if(stu)syncStudentAttendanceStatus31(stu);
   save();
+  renderAttendanceHistory25();
 }
 
 function saveAttendance25(){
@@ -2648,6 +2705,7 @@ function saveAttendance25(){
  save();
  alert("Asistencia guardada correctamente.");
  renderAttendanceTable25();
+ renderAttendanceHistory25();
 }
 function attendanceSummary25(username){
  const entries=Object.keys(db.attendance||{}).filter(k=>k.endsWith("|"+username)).map(k=>db.attendance[k]);
@@ -3469,11 +3527,94 @@ function deleteClassRecord30(id){
   db.classEvaluations=(db.classEvaluations||[]).filter(x=>String(x.classId)!==String(id));
   save();closeModal();render();
 }
-function attendanceStatusForDateUser(date,user){
-  return (db.attendance||{})[`${date}|${user}`]||'';
+function classAttendanceDate30(rec){
+  // En Registro de clase la fecha de asistencia debe ser la fecha de la
+  // sesión para ese grado/sección. Esto evita usar una fecha antigua que
+  // haya quedado guardada en un classRecord creado anteriormente.
+  if(!rec)return '';
+  try{
+    if(rec.session){
+      const ses=(db.sessions||[]).find(x=>String(x.id)===String(rec.session));
+      const d=sessionDateForGradeSection(ses,rec.grade,rec.section);
+      if(d)return normalizeAttendanceDate30(d);
+    }
+  }catch(e){}
+  return normalizeAttendanceDate30(rec.date||'');
+}
+function normalizeAttendanceDate30(value){
+  if(value===null||value===undefined)return '';
+  const s=String(value).trim();
+  if(!s)return '';
+  // Acepta YYYY-MM-DD, YYYY-MM-DDTHH:mm... y DD/MM/YYYY.
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  const m=s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  return m?`${m[3]}-${m[2]}-${m[1]}`:s;
+}
+function normalizeAttendanceStatus30(value){
+  const s=String(value??'').trim().toLowerCase();
+  if(s==='presente'||s==='present')return 'Presente';
+  if(s==='tardanza'||s==='tarde')return 'Tardanza';
+  if(s==='falta'||s==='ausente')return 'Falta';
+  if(s==='justificada'||s==='falta justificada')return 'Justificada';
+  if(s==='representacion'||s==='representación'||s==='representando al colegio')return 'Representacion';
+  if(s==='salud'||s==='motivo de salud')return 'Salud';
+  return String(value??'').trim();
+}
+function attendanceStatusForDateUser(date,userOrStudent){
+  const attendance=db.attendance||{};
+  const wantedDate=normalizeAttendanceDate30(date);
+  const student=(userOrStudent&&typeof userOrStudent==='object')?userOrStudent:null;
+  const wantedUser=String(student?.u ?? userOrStudent ?? '').trim();
+  if(!wantedDate||!wantedUser)return '';
+
+  // 1) La clave exacta de Asistencia tiene prioridad cuando existe.
+  const exact=attendance[`${wantedDate}|${wantedUser}`];
+  if(exact!==undefined&&exact!==null&&String(exact).trim()!=='') return normalizeAttendanceStatus30(exact);
+
+  // 2) Compatibilidad con registros antiguos: misma fecha + mismo usuario.
+  const sameUser=[];
+  for(const key of Object.keys(attendance)){
+    const pos=key.indexOf('|');
+    if(pos<1)continue;
+    const keyDate=normalizeAttendanceDate30(key.slice(0,pos));
+    const keyUser=key.slice(pos+1).trim();
+    if(keyDate===wantedDate&&keyUser===wantedUser){
+      const st=normalizeAttendanceStatus30(attendance[key]);
+      if(st)sameUser.push(st);
+    }
+  }
+  if(sameUser.length)return sameUser.includes('Presente')?'Presente':sameUser[0];
+
+  // 3) Si el ID del estudiante cambió, busca el mismo alumno por nombre + grado + sección.
+  // Esto evita que Registro conserve una Falta de un ID antiguo cuando Asistencia
+  // ya fue registrada como Presente con el ID actual.
+  if(student?.name){
+    const norm=v=>String(v??'').trim().toUpperCase().replace(/\s+/g,' ');
+    const wantedName=norm(student.name), wantedGrade=norm(student.grade), wantedSection=norm(student.section);
+    const idsByName=new Set((db.users||[])
+      .filter(x=>norm(x.name)===wantedName && (!wantedGrade||norm(x.grade)===wantedGrade) && (!wantedSection||norm(x.section)===wantedSection))
+      .map(x=>String(x.u||'').trim()).filter(Boolean));
+    idsByName.add(wantedUser);
+    const matches=[];
+    for(const key of Object.keys(attendance)){
+      const pos=key.indexOf('|');
+      if(pos<1)continue;
+      const keyDate=normalizeAttendanceDate30(key.slice(0,pos));
+      const keyUser=key.slice(pos+1).trim();
+      if(keyDate!==wantedDate||!idsByName.has(keyUser))continue;
+      const st=normalizeAttendanceStatus30(attendance[key]);
+      if(st)matches.push(st);
+    }
+    // Si hay más de un registro asociado al mismo alumno, una asistencia
+    // Presente/Tardanza debe prevalecer sobre una Falta antigua.
+    if(matches.includes('Presente'))return 'Presente';
+    if(matches.includes('Tardanza'))return 'Tardanza';
+    if(matches.length)return matches[0];
+  }
+  return '';
 }
 function attendanceNeedsRecovery(status){
-  return ['Falta','Justificada','Representacion','Salud'].includes(status);
+  return ['Falta','Justificada','Representacion','Salud'].includes(normalizeAttendanceStatus30(status));
 }
 function attendanceStatusLabel(status){
   const m={
@@ -3493,7 +3634,7 @@ function openRecovery30(user){
   const id=document.getElementById('ceClass30')?.value, rec=classRecordById(id);
   const u=(db.users||[]).find(x=>x.u===user);
   if(!rec||!u)return;
-  const att=attendanceStatusForDateUser(rec.date,user);
+  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u||user);
   if(!attendanceNeedsRecovery(att)){
     alert('Este estudiante no tiene una inasistencia registrada que requiera recuperación.');
     return;
@@ -3528,7 +3669,7 @@ function saveRecovery30(user){
   const id=document.getElementById('ceClass30')?.value, rec=classRecordById(id);
   if(rec&&blockClosedDate31(rec.date)) return;
   if(!id||!rec)return;
-  const att=attendanceStatusForDateUser(rec.date,user);
+  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u||user);
   if(!attendanceNeedsRecovery(att)){alert('La asistencia ya no requiere recuperación.');return}
   const raw=(document.getElementById('recoveryGrade30')?.value||'').trim();
   if(raw===''){alert('Coloca la nota de recuperación.');return}
@@ -3582,7 +3723,7 @@ function renderClass30(){
   const rows=students.map((u,i)=>{
     const ev=classEvalRecord(rec.id,u.u)||{};
     const retired=studentIsRetired32(u);
-    const att=attendanceStatusForDateUser(rec.date,u.u);
+    const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
     const needs=attendanceNeedsRecovery(att);
     const recovery=getRecovery30(rec.id,u.u);
     const recovered=recovery && recovery.grade!==null && recovery.grade!==undefined && recovery.grade!=='';
@@ -3670,7 +3811,7 @@ function renderClass30(){
   students.forEach(u=>{
     if(studentIsRetired32(u)) return;
     const ev=classEvalRecord(rec.id,u.u)||{};
-    const att=attendanceStatusForDateUser(rec.date,u.u);
+    const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
     const existing=getEvidence30(rec.id,u.u);
     const noEvaluationYet=(ev.status==='' || ev.status==null || ev.status===undefined) &&
                           (ev.grade==='' || ev.grade==null || ev.grade===undefined);
@@ -4226,7 +4367,7 @@ function openComponentRecord(key,arrName,id){
         ${students.map(u=>{
           const n=valueFor(u);
           const retired=studentIsRetired32(u);
-          const att=attendanceStatusForDateUser(rec.date,u.u);
+          const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
           const attLabel=retired
             ? '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>'
             : (att ? `<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>` : '<span class="muted">⚪ Sin registrar</span>');
