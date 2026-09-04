@@ -387,6 +387,70 @@ function convertPendingRecoveriesToZero30(bimesterKey){
   return count;
 }
 
+function convertPendingExpositionTo05_31(bimesterKey){
+  ensureClassData();
+  if(!db.expositionRubric||!Array.isArray(db.expositionRubric.scores)) return 0;
+  if(!Array.isArray(db.expositionRubric.criteria)) return 0;
+  const criteria=db.expositionRubric.criteria;
+  const scores=db.expositionRubric.scores;
+  const students=db.users||[];
+  const groups=db.groups||[];
+  const bs=getBimesterClose30(), b=bs[bimesterKey];
+  if(!b?.start||!b?.end) return 0;
+  let count=0;
+  const batches=new Map();
+  // Solo consideramos exposiciones que realmente tienen al menos una nota
+  // registrada. Una sesión sin ninguna evaluación NO se convierte en 05.
+  scores.forEach(sc=>{
+    if(!sc || sc.score===undefined || sc.score===null || sc.score==='') return;
+    const st=students.find(u=>u.u===sc.user);
+    if(!st || studentIsRetired32(st.u)) return;
+    const date=String(sc.date||'');
+    if(!date || date<b.start || date>b.end) return;
+    const grade=sc.grade||st.grade||'', section=sc.section||st.section||'';
+    const sessionId=sc.sessionId||'';
+    const week=Number(sc.week||0);
+    const groupId=sc.groupId||'';
+    const key=[sessionId,date,grade,section,week,groupId].join('|');
+    if(!batches.has(key)) batches.set(key,{date,grade,section,sessionId,week,groupId});
+  });
+  batches.forEach(batch=>{
+    const group=groups.find(g=>String(g.id)===String(batch.groupId));
+    if(!group || !Array.isArray(group.members) || !group.members.length) return;
+    const session=batch.sessionId ? students.length && (db.sessions||[]).find(s=>String(s.id)===String(batch.sessionId)) : null;
+    group.members.forEach(user=>{
+      const st=students.find(u=>u.u===user);
+      if(!st || studentIsRetired32(st.u)) return;
+      // Solo integrantes que pertenecen al grado/sección de esta exposición.
+      if(batch.grade && st.grade!==batch.grade) return;
+      if(batch.section && st.section!==batch.section) return;
+      criteria.forEach(c=>{
+        const exists=scores.some(x=>x.user===user && x.criterionId===c.id &&
+          ((batch.sessionId && String(x.sessionId||'')===String(batch.sessionId)) ||
+           (!batch.sessionId && Number(x.week||0)===batch.week && String(x.date||'')===String(batch.date))) &&
+          String(x.groupId||'')===String(batch.groupId||''));
+        if(exists) return;
+        scores.push({
+          id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+          user,week:batch.week,criterionId:c.id,score:5,date:batch.date,
+          grade:st.grade||batch.grade||'',section:st.section||batch.section||'',
+          category:categoryForStudent(st),groupId:batch.groupId,groupName:group.name,
+          sessionId:batch.sessionId||'',sessionNumber:session?.number||'',sessionTitle:session?.title||'',
+          automaticClose05:true,bimester:bimesterKey,savedAt:Date.now()
+        });
+        count++;
+      });
+    });
+  });
+  return count;
+}
+function removeAutomaticExposition05_31(bimesterKey){
+  if(!db.expositionRubric||!Array.isArray(db.expositionRubric.scores)) return 0;
+  const before=db.expositionRubric.scores.length;
+  db.expositionRubric.scores=db.expositionRubric.scores.filter(sc=>!(sc&&sc.automaticClose05===true&&sc.bimester===bimesterKey));
+  return before-db.expositionRubric.scores.length;
+}
+
 function saveBimesterFinalSnapshot31(k){
   ensureClassData();
   if(!db.bimesterFinals||typeof db.bimesterFinals!=='object')db.bimesterFinals={};
@@ -426,6 +490,7 @@ function closeBimester30(k){
       const before=(db.classRecoveries||[]).length;
       db.classRecoveries=(db.classRecoveries||[]).filter(r=>!(r && r.automaticClose05===true && r.bimester===k));
       const removed=before-db.classRecoveries.length;
+      const removedExpo=removeAutomaticExposition05_31(k);
       clearBimesterFinalSnapshot31(k);
       b.closed=false;b.converted=0;save();alert(`🔓 ${k} Bimestre reabierto.\n\n${removed} 05 automático(s) generado(s) por este cierre eliminado(s).\nLas notas manuales y de recuperación se conservaron.\n\n📊 La evaluación final vuelve a estar disponible para modificar.`);render();
     }
@@ -434,6 +499,7 @@ function closeBimester30(k){
   if(!b.date){alert('Primero coloca la fecha de cierre.');return;}
   if(!confirm(`¿Cerrar el ${k} Bimestre ahora? Las recuperaciones pendientes se convertirán automáticamente en 05 y la evaluación final quedará registrada.`))return;
   const n=convertPendingRecoveriesToZero30(k);
+  const nExpo=convertPendingExpositionTo05_31(k);
   saveBimesterFinalSnapshot31(k);
   b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
   if(k==='III'){
@@ -447,9 +513,10 @@ function checkBimesterClosures30(show){
     const b=bs[k];
     if(b.enabled&&b.date&&!b.closed&&today>=b.date){
       const n=convertPendingRecoveriesToZero30(k);
+      const nExpo=convertPendingExpositionTo05_31(k);
       b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
       if(k==='III') bs.IV.enabled=true;
-      done.push(`${k} Bimestre: ${n} pendiente(s) → 05`);
+      done.push(`${k} Bimestre: ${n} recuperación(es) + ${nExpo} nota(s) de exposición → 05`);
     }
   });
   if(done.length){save();if(show)alert('🔒 Cierre procesado:\n\n'+done.join('\n'));}
@@ -2680,7 +2747,32 @@ function openAttendanceHistoryDate25(date,grade,section){
  if(sectionEl)sectionEl.value=section;
  renderAttendanceTable25();
  renderAttendanceHistory25();
- window.scrollTo({top:0,behavior:"smooth"});
+ showAttendanceDateModal25(date,grade,section);
+}
+function showAttendanceDateModal25(date,grade,section){
+ const users=(db.users||[]).filter(u=>(u.role==="student"||u.role==="estudiante")&&u.grade===grade&&(section==="Todas"||u.section===section));
+ const fmt=d=>{const p=String(d).split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d};
+ const esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[m]));
+ const rows=users.map((u,i)=>{
+   const retired=studentIsRetired31(u);
+   const val=retired?"Retirado":((db.attendance||{})[date+"|"+u.u]||"Sin registrar");
+   const label=val==="Presente"?"✅ Presente":val==="Tardanza"?"🕐 Tardanza":val==="Falta"?"❌ Falta":val==="Justificada"?"📄 Justificada":val==="Representacion"?"🏫 Representando al colegio":val==="Salud"?"🩺 Motivo de salud":val==="Retirado"?"⚫ Retirado":"— Sin registrar";
+   return `<tr><td>${i+1}</td><td><b>${esc(u.name||u.u)}</b><div class="muted">${esc(u.grade||"—")} · ${esc(u.section||"—")}</div></td><td><span class="badge">${label}</span></td></tr>`;
+ }).join("")||`<tr><td colspan="3">No hay estudiantes para este filtro.</td></tr>`;
+ const old=document.getElementById("attDateModal25"); if(old)old.remove();
+ const modal=document.createElement("div");
+ modal.id="attDateModal25";
+ modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+ modal.innerHTML=`<div style="background:#fff;width:min(1000px,96vw);max-height:90vh;overflow:auto;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px">
+    <div><h2 style="margin:0">📅 Asistencia del ${fmt(date)}</h2><p class="muted" style="margin:4px 0 0">🎓 ${esc(grade)} · Sección ${esc(section)}</p></div>
+    <button class="secondary" onclick="document.getElementById('attDateModal25')?.remove()">✖ Cerrar</button>
+   </div>
+   <div style="overflow:auto"><table><tr><th>#</th><th>Estudiante</th><th>Estado</th></tr>${rows}</table></div>
+   <div style="margin-top:14px;text-align:right"><button onclick="document.getElementById('attDateModal25')?.remove()">Cerrar</button></div>
+ </div>`;
+ modal.addEventListener("click",e=>{if(e.target===modal)modal.remove()});
+ document.body.appendChild(modal);
 }
 
 function autoSaveAttendance25(sel){
@@ -4835,39 +4927,264 @@ function addExpositionCriterion(){ensureClassData();const id='crit_'+Date.now()+
 function removeExpositionCriterion(id){ensureClassData();if(!confirm('¿Eliminar este criterio de la rúbrica?'))return;db.expositionRubric.criteria=db.expositionRubric.criteria.filter(c=>c.id!==id);db.expositionRubric.scores=db.expositionRubric.scores.filter(s=>s.criterionId!==id);save();openExpositionRubricConfig();}
 function saveExpositionRubric(){ensureClassData();[...document.querySelectorAll('.rubricName30')].forEach(i=>{const c=db.expositionRubric.criteria.find(x=>x.id===i.dataset.id);if(c)c.name=i.value.trim()||'Criterio sin nombre'});save();alert('✅ Rúbrica de exposición guardada.');openExpositionEvaluation();}
 
+
+function expositionEvaluationBatches30(){
+  ensureClassData();
+  const scores=(db.expositionRubric&&Array.isArray(db.expositionRubric.scores))?db.expositionRubric.scores:[];
+  const map=new Map();
+  scores.forEach(sc=>{
+    if(!sc||sc.score===undefined||sc.score===null||sc.score==='')return;
+    const st=(db.users||[]).find(u=>u.u===sc.user);
+    if(!st)return;
+    const grade=sc.grade||st.grade||'';
+    const section=sc.section||st.section||'';
+    const groupId=sc.groupId||'';
+    const week=Number(sc.week||0);
+    const key=[sc.sessionId||'',sc.date||'',grade,section,week,groupId].join('|');
+    if(!map.has(key))map.set(key,{key,date:sc.date||'',grade,section,week,groupId,groupName:sc.groupName||'',sessionId:sc.sessionId||'',sessionNumber:sc.sessionNumber||'',sessionTitle:sc.sessionTitle||'',count:0});
+    map.get(key).count++;
+  });
+  return [...map.values()].sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.grade).localeCompare(String(a.grade))||Number(b.week)-Number(a.week));
+}
+function openExpositionHistory30(){
+  ensureClassData();
+  const batches=expositionEvaluationBatches30();
+  modalBody.classList.remove('projectMainModal');modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>🗂️ Exposiciones evaluadas</h2>
+    <p class="muted">Aquí puedes localizar una exposición ya evaluada y corregir <b>la sesión</b> y/o <b>la fecha real en que se evaluó</b>. Las notas de los estudiantes no se modifican.</p>
+    <div class="grid3" style="margin-bottom:15px">
+      <div><label>🎓 Grado</label><select id="expoHistGrade30" onchange="renderExpositionHistory30()"><option value="Todos">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
+      <div><label>🔤 Sección</label><select id="expoHistSection30" onchange="renderExpositionHistory30()"><option value="Todas">Todas</option><option>A</option><option>B</option></select></div>
+      <div><label>📅 Buscar por fecha</label><input id="expoHistDate30" type="date" onchange="renderExpositionHistory30()"></div>
+    </div>
+    <div id="expoHistoryTable30"></div>
+    <div class="actions" style="margin-top:15px"><button class="secondary" onclick="openExpositionEvaluation()">← Volver a evaluar</button></div>`;
+  modal.classList.remove('hidden');renderExpositionHistory30();
+}
+function renderExpositionHistory30(){
+  const box=document.getElementById('expoHistoryTable30');if(!box)return;
+  const grade=document.getElementById('expoHistGrade30')?.value||'Todos',sec=document.getElementById('expoHistSection30')?.value||'Todas',date=document.getElementById('expoHistDate30')?.value||'';
+  const batches=expositionEvaluationBatches30().filter(b=>(grade==='Todos'||b.grade===grade)&&(sec==='Todas'||b.section===sec)&&( !date || b.date===date));
+  box.innerHTML=`<div style="overflow:auto"><table><tr><th>Fecha evaluada</th><th>Grado</th><th>Sección</th><th>Sesión</th><th>Grupo</th><th>Registros</th><th>Acción</th></tr>${batches.map(b=>`<tr><td>${b.date?escClass(b.date):'<span class="badge">⚠️ Sin fecha</span>'}</td><td>${escClass(b.grade||'—')}</td><td>${escClass(b.section||'—')}</td><td>${b.sessionId?`Sesión ${escClass(b.sessionNumber||b.week||'')} — ${escClass(b.sessionTitle||'')}`:'<span class="badge">⚠️ Sin sesión</span>'}</td><td>${escClass(b.groupName||'—')}</td><td>${b.count}</td><td><button onclick="editExpositionBatch30('${escClass(b.key)}')">✏️ Editar</button></td></tr>`).join('')||'<tr><td colspan="7">No hay exposiciones evaluadas para este filtro.</td></tr>'}</table></div>`;
+}
+function sessionMatchesExactGradeSection30(s,grade,section){
+  if(!s||!grade)return false;
+  const g=String(grade||'').trim(), sec=String(section||'').trim();
+  const sg=String(s.grade||'').trim(), ss=String(s.section||'').trim();
+  // En la corrección de una exposición SOLO se muestran sesiones creadas
+  // para el grado y sección de la exposición. No se mezclan sesiones de
+  // otros grados ni sesiones generales 3.º-5.º sin una fecha/entrada exacta.
+  if(sg===g){
+    return !sec || !ss || ss===sec;
+  }
+  const map=s.dateByGradeSection||{};
+  if((sg==='3.º-5.º') && sec && map[g+'|'+sec]) return true;
+  return false;
+}
+function editExpositionBatch30(key){
+  const b=expositionEvaluationBatches30().find(x=>x.key===key);if(!b)return;
+  const sessions=allSessionsForUI().filter(s=>sessionMatchesExactGradeSection30(s,b.grade,b.section||''));
+  modalBody.innerHTML=`<h2>✏️ Corregir exposición evaluada</h2>
+    <div class="card" style="background:#f8fafc"><b>${escClass(b.groupName||'Exposición')}</b><br>${escClass(b.grade||'')} ${escClass(b.section||'')} · ${b.count} criterio(s) registrados</div>
+    <label>📖 Sesión de aprendizaje correspondiente</label>
+    <select id="expoEditSession30"><option value="">Sin sesión seleccionada</option>${sessions.map(s=>`<option value="${escClass(s.id)}" ${String(s.id)===String(b.sessionId)?'selected':''}>Sesión ${escClass(s.number||'')} — ${escClass(s.title||'')} · ${escClass(sessionDateForGradeSection(s,b.grade,b.section)||s.date||'Sin fecha')}</option>`).join('')}</select>
+    <label style="margin-top:12px">📅 Fecha real en que se evaluó</label>
+    <input id="expoEditDate30" type="date" value="${escClass(b.date||'')}">
+    <p class="muted" style="margin-top:8px">Si la exposición no tenía fecha, puedes colocar aquí la fecha real. Si seleccionas una sesión, la sesión queda vinculada, pero la fecha que escribas será la fecha de evaluación.</p>
+    <div class="actions" style="margin-top:15px"><button onclick="saveExpositionBatchEdit30('${escClass(key)}')">💾 Guardar corrección</button><button class="secondary" onclick="openExpositionHistory30()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveExpositionBatchEdit30(key){
+  ensureClassData();
+  const b=expositionEvaluationBatches30().find(x=>x.key===key);if(!b)return;
+  const sessionId=document.getElementById('expoEditSession30')?.value||'';
+  const date=document.getElementById('expoEditDate30')?.value||'';
+  const ses=sessionId?(db.sessions||[]).find(s=>String(s.id)===String(sessionId)):null;
+  if(!date && !ses){alert('Coloca la fecha real o selecciona una sesión.');return;}
+  const finalDate=date||sessionDateForGradeSection(ses,b.grade,b.section)||ses?.date||'';
+  const finalWeek=Number(ses?.number||b.week||0);
+  const scores=(db.expositionRubric&&Array.isArray(db.expositionRubric.scores))?db.expositionRubric.scores:[];
+  const parts=key.split('|'),oldSession=parts[0],oldDate=parts[1],oldGrade=parts[2],oldSection=parts[3],oldWeek=Number(parts[4]||0),oldGroup=parts.slice(5).join('|');
+  let changed=0;
+  scores.forEach(sc=>{
+    const st=(db.users||[]).find(u=>u.u===sc.user);const g=sc.grade||st?.grade||'',sec=sc.section||st?.section||'';
+    const same=(String(sc.sessionId||'')===String(oldSession)&&String(sc.date||'')===String(oldDate)&&g===oldGrade&&sec===oldSection&&Number(sc.week||0)===oldWeek&&String(sc.groupId||'')===oldGroup);
+    if(!same)return;
+    sc.date=finalDate;sc.grade=g;sc.section=sec;
+    if(ses){sc.sessionId=ses.id;sc.sessionNumber=ses.number||'';sc.sessionTitle=ses.title||'';sc.week=finalWeek||sc.week;}
+    changed++;
+  });
+  save();alert(`✅ Exposición corregida. ${changed} registro(s) actualizado(s).`);openExpositionHistory30();
+}
+
 function openExpositionEvaluation(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
   const criteria=db.expositionRubric.criteria||[];
   if(!criteria.length){alert('No hay criterios en la rúbrica de exposición.');openExpositionRubricConfig();return;}
-  modalBody.classList.remove('projectMainModal');
-  const expoSessions=(db.sessions||[]).slice().sort((a,b)=>Number(a.number||0)-Number(b.number||0));
-  const expoSessionNumbers=[...new Set(expoSessions.map(s=>Number(s.number)).filter(n=>Number.isFinite(n)&&n>0))];
-  const expoOptions=expoSessionNumbers.length
-    ? expoSessionNumbers.map(n=>{
-        const s=expoSessions.find(x=>Number(x.number)===n);
-        return `<option value="${n}">Sesión ${n}${s?.title?` — ${escClass(s.title)}`:""}</option>`;
-      }).join("")
-    : [1,2,3,4,5,6].map(n=>`<option value="${n}">Sesión ${n}</option>`).join("");
 
+  modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>🎤 Evaluación de exposición</h2>
-  <p class="muted"><b>La exposición es grupal, pero la evaluación es individual.</b> Cada integrante recibe una nota según su propio desempeño. No se copia automáticamente la misma nota a todo el grupo.</p>
+  <p class="muted"><b>La exposición es grupal, pero la evaluación es individual.</b> La evaluación se realiza únicamente sobre una <b>sesión de aprendizaje ya creada</b>. La fecha se toma automáticamente de esa sesión según el grado y la sección.</p>
   <div class="grid3" style="margin-bottom:15px">
-    <div><label>Sesión</label><select id="expoWeek30" onchange="renderExpositionStudents30()">${expoOptions}</select></div>
-    <div><label>Fecha de evaluación</label><input id="expoDate30" type="date" value="${todayLocal30()}"></div>
-    <div><label>Grado</label><select id="expoGrade30" onchange="renderExpositionStudents30()"><option value="Todos">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
+    <div><label>🎓 Grado</label><select id="expoGrade30" onchange="refreshExpositionSessions30()"><option value="Todos">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
+    <div><label>🔤 Sección</label><select id="expoSection30" onchange="refreshExpositionSessions30()"><option value="Todas">Todas</option><option>A</option><option>B</option></select></div>
+    <div><label>📅 Buscar exposición por fecha</label><select id="expoDate30" onchange="selectExpositionDate30()"><option value="">Selecciona grado y sección</option></select></div>
   </div>
-  <div style="margin-bottom:15px;max-width:260px"><label>Sección</label><select id="expoSection30" onchange="renderExpositionStudents30()"><option value="Todas">Todas</option><option>A</option><option>B</option></select></div>
+  <div style="margin-bottom:15px">
+    <label>📖 Sesión de aprendizaje</label>
+    <select id="expoWeek30" onchange="selectExpositionSession30()"><option value="">Primero selecciona grado y sección</option></select>
+    <p class="muted" style="margin-top:6px">Aquí solo aparecen las sesiones que ya creaste y que corresponden al grado y sección seleccionados. <b>No se puede escribir otra fecha manualmente.</b></p>
+  </div>
+  <div id="expoSessionInfo30" class="item" style="margin-bottom:15px"></div>
   <div id="expoTable30" style="overflow:auto"></div>
-  <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal();go('groups')">👥 Ir a Grupos / Sorteo</button><button onclick="openExpositionRubricConfig()">⚙️ Editar criterios</button><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
-  modalBody.classList.add('wide');modal.classList.remove('hidden');renderExpositionStudents30();
+  <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal();go('groups')">👥 Ir a Grupos / Sorteo</button><button onclick="openExpositionRubricConfig()">⚙️ Editar criterios</button><button onclick="openExpositionHistory30()">🗂️ Exposiciones evaluadas</button><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
+  modalBody.classList.add('wide');modal.classList.remove('hidden');
+  refreshExpositionSessions30();
 }
+
+function expositionSessionsForFilter30(){
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  return allSessionsForUI().filter(s=>{
+    if(grade==='Todos') return true;
+    // Cuando se selecciona una sección, SOLO mostrar sesiones creadas
+    // específicamente para ese grado y sección. Las sesiones compartidas
+    // 3.º-5.º solo entran si tienen una fecha/configuración explícita para
+    // la combinación seleccionada.
+    if(sec!=='Todas') return sessionMatchesExactGradeSection30(s,grade,sec);
+    // Si se pide todo el grado, mostrar sus sesiones exactas y las compartidas
+    // únicamente cuando realmente incluyen ese grado.
+    return sessionAppliesToGrade(s,grade,'');
+  });
+}
+
+function expositionHasScoresForSession30(s){
+  if(!s) return false;
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  const students=(db.users||[]).filter(u=>u.role==='student' && (grade==='Todos'||u.grade===grade) && (sec==='Todas'||u.section===sec));
+  const ids=new Set(students.map(u=>u.u));
+  // Una evaluación de exposición pertenece a UNA sesión exacta.
+  // Nunca se busca por número de semana porque Sesión 1, Sesión 2, etc.
+  // pueden existir en varios grados/secciones.
+  return (db.expositionRubric?.scores||[]).some(x=>
+    ids.has(x.user) && x.sessionId && String(x.sessionId)===String(s.id)
+  );
+}
+
+function expositionSessionDate30(s){
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  if(!s)return '';
+  if(grade!=='Todos' && sec!=='Todas') return sessionDateForGradeSection(s,grade,sec)||'';
+  if(grade!=='Todos'){
+    const entries=sessionDateEntries(s).filter(x=>String(x.label||'').startsWith(grade+' '));
+    if(entries.length)return entries[0].date;
+    return s.date||'';
+  }
+  return s.date||sessionDateEntries(s)[0]?.date||'';
+}
+
+function refreshExpositionSessions30(){
+  const sessionSel=document.getElementById('expoWeek30');
+  const dateSel=document.getElementById('expoDate30');
+  if(!sessionSel||!dateSel)return;
+  const sessions=expositionSessionsForFilter30();
+  const dates=[...new Set(sessions.map(s=>expositionSessionDate30(s)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+  dateSel.innerHTML='<option value="">Todas las fechas</option>'+dates.map(d=>`<option value="${escClass(d)}">${escClass(d)}</option>`).join('');
+  sessionSel.innerHTML='<option value="">Selecciona la sesión de aprendizaje</option>'+sessions.map(s=>{
+    const d=expositionSessionDate30(s);
+    const evaluated=expositionHasScoresForSession30(s);
+    const mark=evaluated?'🎤 EXPOSICIÓN EVALUADA':'⚪ SIN EXPOSICIÓN';
+    return `<option value="${escClass(s.id)}">${evaluated?'🎤':'⚪'} Sesión ${escClass(s.number||'')} — ${escClass(s.title||'')}${d?' · '+escClass(d):' · Sin fecha'} · ${mark}</option>`;
+  }).join('');
+  if(!sessions.length) sessionSel.innerHTML='<option value="">No hay sesiones creadas para este grado y sección</option>';
+  const info=document.getElementById('expoSessionInfo30');
+  if(info) info.innerHTML=sessions.length?`📖 <b>${sessions.length}</b> sesión(es) creada(s). 🎤 = ya tiene exposición evaluada · ⚪ = no tiene evaluación de exposición registrada. Así puedes identificar rápidamente dónde hubo exposición.`:'⚠️ No hay sesiones creadas para este grado y sección.';
+  renderExpositionStudents30();
+}
+
+function selectExpositionDate30(){
+  const d=document.getElementById('expoDate30')?.value||'';
+  const sessions=expositionSessionsForFilter30();
+  const matches=d?sessions.filter(s=>expositionSessionDate30(s)===d):sessions;
+  const sel=document.getElementById('expoWeek30');
+  if(!sel)return;
+  if(matches.length){
+    sel.value=String(matches[0].id);
+    selectExpositionSession30();
+  }else{
+    sel.value='';
+    renderExpositionStudents30();
+  }
+}
+
+function selectExpositionSession30(){
+  const id=document.getElementById('expoWeek30')?.value||'';
+  const s=(db.sessions||[]).find(x=>String(x.id)===String(id));
+  const date=expositionSessionDate30(s);
+  const dateSel=document.getElementById('expoDate30');
+  if(dateSel) dateSel.value=date||'';
+  const info=document.getElementById('expoSessionInfo30');
+  if(info) info.innerHTML=s
+    ? `📖 <b>Sesión ${escClass(s.number||'')}</b> — ${escClass(s.title||'')} · 📅 <b>${escClass(date||'Sin fecha')}</b>`
+    : 'Selecciona una sesión de aprendizaje creada.';
+  renderExpositionStudents30();
+}
+
+function expositionAutoReason30(date,user){
+  const student=(db.users||[]).find(u=>String(u.u)===String(user));
+  const wantedDate=normalizeAttendanceDate30(date);
+  const attendance=db.attendance||{};
+  let st=attendanceStatusForDateUser(wantedDate,student||user);
+
+  // Refuerzo exclusivo para Exposición: si el ID del estudiante cambió o
+  // el registro de asistencia antiguo conserva otro identificador, buscar
+  // por fecha + nombre + grado + sección antes de asumir "No expuso".
+  if(!st && student && wantedDate){
+    const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase().replace(/\s+/g,' ');
+    const wantedName=norm(student.name), wantedGrade=norm(student.grade), wantedSection=norm(student.section);
+    const validIds=new Set((db.users||[])
+      .filter(u=>norm(u.name)===wantedName && norm(u.grade)===wantedGrade && norm(u.section)===wantedSection)
+      .map(u=>String(u.u||'').trim()).filter(Boolean));
+    validIds.add(String(user||'').trim());
+    for(const key of Object.keys(attendance)){
+      const pos=key.indexOf('|');
+      if(pos<1)continue;
+      const kd=normalizeAttendanceDate30(key.slice(0,pos));
+      const ku=key.slice(pos+1).trim();
+      if(kd!==wantedDate || !validIds.has(ku))continue;
+      st=normalizeAttendanceStatus30(attendance[key]);
+      if(st)break;
+    }
+  }
+
+  // Acepta también variantes que puedan existir en registros antiguos de
+  // Asistencia (con o sin tildes y con textos más largos).
+  const raw=String(st||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(raw==='falta'||raw==='ausente'||raw.includes('falta a clases')) return '❌ Faltó a clases';
+  if(raw==='justificada'||raw.includes('falta justificada')) return '📄 Falta justificada';
+  if(raw==='representacion'||raw.includes('represent')||raw.includes('colegio')) return '🏫 Estuvo representando al colegio';
+  if(raw==='salud'||raw.includes('salud')||raw.includes('enfermedad')) return '🩺 No asistió por motivo de salud';
+  if(raw==='tardanza'||raw==='tarde'||raw.includes('tard')) return '🕐 Llegó tarde';
+  if(raw==='presente'||raw==='present') return 'No expuso';
+  return 'No expuso';
+}
+
 function renderExpositionStudents30(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
   const box=document.getElementById('expoTable30');if(!box)return;
-  const criteria=db.expositionRubric.criteria||[],week=Number(document.getElementById('expoWeek30')?.value||1); // week conserva el número de sesión para no romper registros existentes.
+  const criteria=db.expositionRubric.criteria||[];
+  const sessionId=document.getElementById('expoWeek30')?.value||'';
+  const session=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+  const week=Number(session?.number||0);
   const grade=document.getElementById('expoGrade30')?.value||'Todos',sec=document.getElementById('expoSection30')?.value||'Todas';
+  if(!sessionId||!session||!week){
+    box.innerHTML='<div class="item">📖 Selecciona una <b>sesión de aprendizaje creada</b> para mostrar a sus integrantes y evaluar la exposición.</div>';
+    return;
+  }
   const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
   const groups=(db.groups||[]).filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec));
   const headers=criteria.map(c=>`<th>${escClass(c.name)}<br><small>0–20</small></th>`).join('');
@@ -4876,52 +5193,149 @@ function renderExpositionStudents30(){
     const members=(g.members||[]).map(id=>db.users.find(u=>u.u===id)).filter(u=>u && students.some(s=>s.u===u.u));
     if(!members.length)return;
     members.forEach((student,idx)=>{
+      const studentScores=(db.expositionRubric.scores||[]).filter(x=>x.user===student.u&&x.sessionId&&String(x.sessionId)===String(session.id)&&String(x.groupId||'')===String(g.id));
+      const attendance=normalizeAttendanceStatus30(attendanceStatusForDateUser(expositionSessionDate30(session),student));
+      const waiting=attendance==='Salud'||attendance==='Representacion';
+      const savedStatus=studentScores.find(x=>x.expositionStatus)?.expositionStatus||'expuso';
+      // Salud y representación siempre quedan pendientes: no deben mostrarse
+      // como No expuso ni conservar los 05 automáticos de una ejecución anterior.
+      const status=waiting?'esperar':savedStatus;
       const cells=criteria.map(c=>{
-        const s=(db.expositionRubric.scores||[]).find(x=>x.user===student.u&&Number(x.week)===week&&x.criterionId===c.id);
-        return `<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="${s?.score??''}" style="width:75px"></td>`;
+        const sc=studentScores.find(x=>x.criterionId===c.id);
+        const shown=waiting?'':(status==='no_expuso'?'5':(sc?.score??''));
+        return `<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="${shown}" ${status==='no_expuso'||waiting?'readonly':''} style="width:75px"></td>`;
       }).join('');
-      const vals=criteria.map(c=>(db.expositionRubric.scores||[]).find(x=>x.user===student.u&&Number(x.week)===week&&x.criterionId===c.id)?.score).filter(x=>x!==undefined && x!==null && x!=='');
-      const av=avgNums(vals);
-      rows.push(`<tr>
+      const vals=criteria.map(c=>studentScores.find(x=>x.criterionId===c.id)?.score).filter(x=>x!==undefined&&x!==null&&x!=='');
+      const effectiveVals=waiting?[]:(status==='no_expuso'?criteria.map(()=>5):vals);
+      const av=avgNums(effectiveVals);
+      const attendanceLabel=attendance ? (attendance==='Presente'?'✅ Presente':attendance==='Falta'?'❌ Faltó a clases':attendance==='Justificada'?'📄 Falta justificada':attendance==='Representacion'?'🏫 Representación del colegio':attendance==='Salud'?'🩺 Motivo de salud':attendance==='Tardanza'?'🕐 Llegó tarde':('📋 '+attendance)) : '📋 Sin registro de asistencia';
+      const statusText=waiting?(attendance==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio'):(status==='no_expuso'?`❌ No expuso → 05 · ${attendanceLabel}`:`🎤 Expuso · ${attendanceLabel}`);
+      rows.push(`<tr data-no-expuso="${status==='no_expuso'?'1':'0'}" data-waiting="${waiting?'1':'0'}">
         <td><b>${escClass(g.name)}</b><br>${escClass(student.name)}<br><small class="muted">${idx+1} de ${members.length} integrantes · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td>
-        ${cells}
-        <td><b>${av===null?'—':av.toFixed(2)}</b></td>
-      </tr>`);
+        <td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}">${statusText}</span></td>${cells}<td><b>${av===null?'—':av.toFixed(2)}</b></td></tr>`);
     });
   });
-  box.innerHTML=`<table><tr><th>Grupo / estudiante</th>${headers}<th>Nota individual</th></tr>${rows.join('')||'<tr><td colspan="'+(criteria.length+2)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table>
-  <p class="muted" style="margin-top:10px">🎯 La nota se calcula por estudiante con sus propios criterios. Los integrantes del mismo grupo pueden obtener notas diferentes.</p>
-  <button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
-  if(closedForDate31(document.getElementById('expoDate30')?.value||todayLocal30())) box.querySelectorAll('input,button').forEach(e=>e.disabled=true);
-
-  // Calcular la nota individual inmediatamente al escribir cada criterio, sin esperar a guardar.
-  box.querySelectorAll('.expoScore30').forEach(inp=>{
-    inp.addEventListener('input',()=>{
-      const row=inp.closest('tr');
-      if(!row)return;
-      const vals=[...row.querySelectorAll('.expoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(x=>Number.isFinite(x));
-      const cell=row.lastElementChild;
-      if(cell)cell.innerHTML=`<b>${vals.length? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—'}</b>`;
-    });
-  });
+  box.innerHTML=`<table><tr><th>Grupo / estudiante</th><th>Estado</th>${headers}<th>Nota individual</th></tr>${rows.join('')||'<tr><td colspan="'+(criteria.length+3)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table><div id="expoUngrouped30" style="margin-top:14px"></div><p class="muted" style="margin-top:10px">🎯 Sesión ${escClass(session.number||'')} · ${escClass(session.title||'')} · Fecha: <b>${escClass(expositionSessionDate30(session)||'Sin fecha')}</b>. Los estudiantes que no tengan notas pueden rellenarse automáticamente con <b>❌ No expuso → 05</b>; el estado también muestra su <b>asistencia de esa fecha</b>.</p><div class="actions" style="margin-top:10px"><button class="secondary" onclick="fill05RemainingNoExposed30()">❌ Rellenar 05 a quienes no expusieron</button></div><button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
+  const closedDate=expositionSessionDate30(session)||todayLocal30();
+  if(closedForDate31(closedDate)) box.querySelectorAll('input,button').forEach(e=>e.disabled=true);
+  box.querySelectorAll('.expoScore30').forEach(inp=>{inp.addEventListener('input',()=>{const row=inp.closest('tr');if(!row)return;const vals=[...row.querySelectorAll('.expoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(x=>Number.isFinite(x));const cell=row.lastElementChild;if(cell)cell.innerHTML=`<b>${vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—'}</b>`;});});
 }
+
+function fill05RemainingNoExposed30(){
+  const box=document.getElementById('expoTable30');
+  if(!box)return;
+  let count=0, waitingCount=0;
+  const session=(db.sessions||[]).find(x=>String(x.id)===String(document.getElementById('expoWeek30')?.value||''));
+  const date=expositionSessionDate30(session)||todayLocal30();
+  const rows=[...box.querySelectorAll('tr')].filter(r=>r.querySelector('.expoScore30'));
+
+  rows.forEach(row=>{
+    const inputs=[...row.querySelectorAll('.expoScore30')];
+    const user=inputs[0]?.dataset.user||'';
+    const groupId=inputs[0]?.dataset.group||'';
+    if(!user)return;
+    const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,user));
+
+    // SALUD y REPRESENTACIÓN: se espera al estudiante. Si este registro
+    // tenía 05 automáticos de una ejecución anterior, se limpian para que
+    // no quede falsamente como "No expuso".
+    if(att==='Salud' || att==='Representacion'){
+      waitingCount++;
+      inputs.forEach(i=>{i.value='';i.readOnly=true;});
+      row.dataset.noExpuso='0';
+      row.dataset.expoObservation='';
+      row.dataset.waiting='1';
+      const st=row.querySelector('.expoAutoStatus30');
+      if(st)st.textContent=att==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio';
+      const cell=row.lastElementChild;if(cell)cell.innerHTML='<b>—</b>';
+      // Quitar únicamente los registros que estaban marcados como no expuso
+      // para esta sesión/grupo. No se tocan evaluaciones de otras sesiones.
+      db.expositionRubric.scores=(db.expositionRubric.scores||[]).filter(x=>!(String(x.sessionId)===String(session.id)&&String(x.user)===String(user)&&String(x.groupId||'')===String(groupId)&&x.expositionStatus==='no_expuso'));
+      return;
+    }
+
+    // Para los demás: solo se rellenan quienes todavía no tienen ninguna nota.
+    const hasAny=inputs.some(i=>String(i.value||'').trim()!=='');
+    if(hasAny)return;
+    inputs.forEach(i=>{i.value='5';i.readOnly=true;});
+    row.dataset.noExpuso='1';
+    row.dataset.waiting='0';
+    row.dataset.expoObservation=expositionAutoReason30(date,user);
+    const st=row.querySelector('.expoAutoStatus30');
+    if(st)st.textContent='❌ No expuso → 05';
+    const cell=row.lastElementChild;if(cell)cell.innerHTML='<b>5.00</b>';
+    count++;
+  });
+
+  // Toda la relación del grado/sección: también incluye estudiantes sin grupo/sorteo.
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
+  const grouped=new Set((db.groups||[])
+    .filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec))
+    .flatMap(g=>g.members||[]));
+  const ungrouped=students.filter(u=>!grouped.has(u.u));
+  const target=document.getElementById('expoUngrouped30');
+  if(target && ungrouped.length){
+    const criteria=db.expositionRubric.criteria||[];
+    const headers=criteria.map(c=>`<th>${escClass(c.name)}<br><small>0–20</small></th>`).join('');
+    const existingUsers=new Set([...box.querySelectorAll('.expoScore30')].map(i=>i.dataset.user));
+    const fresh=ungrouped.filter(u=>!existingUsers.has(u.u));
+    if(fresh.length){
+      const urows=fresh.map(student=>{
+        const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,student));
+        if(att==='Salud' || att==='Representacion'){
+          waitingCount++;
+          return `<tr data-no-expuso="0" data-waiting="1"><td><b>Sin grupo</b><br>${escClass(student.name)}<br><small class="muted">No pertenece a ningún grupo/sorteo · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td><td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="">${att==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio'}</span></td>${criteria.map(c=>`<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="" readonly style="width:75px"></td>`).join('')}<td><b>—</b></td></tr>`;
+        }
+        const reason=expositionAutoReason30(date,student.u);
+        const attendanceLabel=att ? (att==='Presente'?'✅ Presente':att==='Falta'?'❌ Faltó a clases':att==='Justificada'?'📄 Falta justificada':att==='Representacion'?'🏫 Representación del colegio':att==='Salud'?'🩺 Motivo de salud':att==='Tardanza'?'🕐 Llegó tarde':('📋 '+att)) : '📋 Sin registro de asistencia';
+        const cells=criteria.map(c=>`<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="5" readonly style="width:75px"></td>`).join('');
+        return `<tr data-no-expuso="1" data-waiting="0" data-expo-observation="${escClass(reason)}"><td><b>Sin grupo</b><br>${escClass(student.name)}<br><small class="muted">No pertenece a ningún grupo/sorteo · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td><td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="">❌ No expuso → 05 · ${escClass(attendanceLabel)}</span></td>${cells}<td><b>5.00</b></td></tr>`;
+      }).join('');
+      target.innerHTML=`<div class="item"><b>📋 Estudiantes del grado/sección sin grupo o sin sorteo</b><div class="muted" style="margin-top:4px">Se incluyen en la relación. Salud y representación quedan pendientes; los demás reciben automáticamente 05.</div><table style="margin-top:10px"><tr><th>Estudiante</th><th>Estado</th>${headers}<th>Nota individual</th></tr>${urows}</table></div>`;
+      count+=fresh.filter(u=>{const a=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,u));return a!=='Salud'&&a!=='Representacion';}).length;
+    }
+  }
+
+  if(count===0 && waitingCount===0){alert('No hay estudiantes pendientes de rellenar. Las notas existentes no se modificaron.');return;}
+  save();
+  alert(`❌ ${count} estudiante(s) quedaron como “No expuso” y con 05.${waitingCount?`\n\n⏳ ${waitingCount} estudiante(s) con SALUD o REPRESENTACIÓN quedaron pendientes y NO tienen 05.`:''}`);
+}
+function toggleExpositionStatus30(sel){
+  // Compatibilidad con registros anteriores. El estado de Exposición ahora es automático.
+  return;
+}
+
 function saveExpositionScores(){
   ensureClassData();
-  const expoDate=document.getElementById('expoDate30')?.value||todayLocal30();
-  if(blockClosedDate31(expoDate)) return;
-  const week=Number(document.getElementById('expoWeek30')?.value||1),date=document.getElementById('expoDate30')?.value||todayLocal30(); // week = número de sesión.
+  const sessionId=document.getElementById('expoWeek30')?.value||'';
+  const ses=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+  if(!ses){alert('Selecciona una sesión de aprendizaje creada.');return;}
+  const date=sessionDateForGradeSection(ses,document.getElementById('expoGrade30')?.value||ses.grade,document.getElementById('expoSection30')?.value||ses.section)||ses.date||'';
+  if(!date){alert('La sesión seleccionada no tiene una fecha registrada para ese grado y sección.');return;}
+  if(blockClosedDate31(date)) return;
+  const week=Number(ses.number||0);
+  if(!week){alert('La sesión seleccionada no tiene número de sesión válido.');return;}
   const inputs=[...document.querySelectorAll('.expoScore30')];
   let count=0;
   inputs.forEach(e=>{
     const user=e.dataset.user,groupId=e.dataset.group,criterionId=e.dataset.criterion,val=e.value;
-    const g=(db.groups||[]).find(x=>x.id===groupId);if(!g)return;
-    if(!(g.members||[]).includes(user))return;
-    let s=db.expositionRubric.scores.find(x=>x.user===user&&Number(x.week)===week&&x.criterionId===criterionId);
-    if(val===''){if(s)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==s);return;}
-    if(!s){s={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId};db.expositionRubric.scores.push(s);}
+    const g=groupId ? (db.groups||[]).find(x=>x.id===groupId) : null;
+    if(g && !(g.members||[]).includes(user))return;
+    if(!g && groupId) return;
+    const row=e.closest('tr');
+    const status=row?.dataset.noExpuso==='1'?'no_expuso':'expuso';
+    const reason=status==='no_expuso'?(row?.dataset.expoObservation||'No expuso'):'';
+    const finalVal=status==='no_expuso'?5:val;
+    // Buscar por sesión exacta + estudiante + grupo + criterio.
+    // NO usar solo week, porque eso mezcla la misma Sesión 1, 2, etc. de otros grados/secciones.
+    let sc=db.expositionRubric.scores.find(x=>x.user===user&&x.sessionId&&String(x.sessionId)===String(ses.id)&&String(x.groupId||'')===String(groupId)&&x.criterionId===criterionId);
+    if(finalVal===''){if(sc)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==sc);return;}
+    if(!sc){sc={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId};db.expositionRubric.scores.push(sc);}
     if(studentIsRetired32(user)) return;
     const student=(db.users||[]).find(x=>x.u===user);
-    s.date=date;s.grade=student?.grade||'';s.section=student?.section||'';s.category=categoryForStudent(student);s.groupId=groupId;s.groupName=g.name;s.score=Math.max(0,Math.min(20,Number(val)));s.savedAt=Date.now();
+    sc.date=date;sc.grade=student?.grade||'';sc.section=student?.section||'';sc.category=categoryForStudent(student);sc.groupId=groupId;sc.groupName=g?.name||'Sin grupo';sc.sessionId=ses.id;sc.sessionNumber=ses.number||'';sc.sessionTitle=ses.title||'';sc.score=Math.max(0,Math.min(20,Number(finalVal)));sc.expositionStatus=status;sc.expositionObservation=status==='no_expuso'?(reason||'No expuso') : '';sc.savedAt=Date.now();
     count++;
   });
   save();alert(`✅ Evaluación individual de exposición guardada.\n${count} criterio(s) registrado(s).`);openProjectEvaluation();
