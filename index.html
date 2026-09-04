@@ -2639,7 +2639,10 @@ function renderAttendanceHistory25(){
  const grades=["1.º","2.º","3.º","4.º","5.º"];
  const fmt=d=>{const p=String(d).split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d};
  const statusCounts=(date,grade,sec)=>{
-   const students=users.filter(u=>u.grade===grade&&(sec==="Todas"||u.section===sec));
+   // El resumen debe coincidir con Registro de clase: los estudiantes retirados
+   // se conservan en el historial, pero NO cuentan como registros de asistencia
+   // ni como faltas de la fecha.
+   const students=users.filter(u=>u.grade===grade&&(sec==="Todas"||u.section===sec)&&!studentIsRetired31(u));
    let presente=0,tardanza=0,falta=0,justificada=0,total=0;
    students.forEach(u=>{
      const v=(db.attendance||{})[date+"|"+u.u];
@@ -2656,7 +2659,7 @@ function renderAttendanceHistory25(){
    const secs=section==="Todas"?["A","B"]:[section];
    const rows=[];
    secs.forEach(sec=>{
-     const studentIds=new Set(users.filter(u=>u.grade===grade&&u.section===sec).map(u=>u.u));
+     const studentIds=new Set(users.filter(u=>u.grade===grade&&u.section===sec&&!studentIsRetired31(u)).map(u=>u.u));
      const dates=[...new Set(Object.keys(db.attendance||{}).filter(k=>studentIds.has(k.substring(k.indexOf("|")+1))).map(k=>k.split("|")[0]))].sort((a,b)=>b.localeCompare(a));
      dates.forEach(date=>{
        const c=statusCounts(date,grade,sec);
@@ -2666,7 +2669,7 @@ function renderAttendanceHistory25(){
    if(!rows.length) return `<div class="item" style="margin-top:10px"><b>🎓 ${grade}</b><div class="muted" style="margin-top:4px">No hay fechas de asistencia registradas${section==="Todas"?" en A ni B":" en la sección "+section}.</div></div>`;
    return `<div class="card" style="margin-top:10px;padding:14px"><h3 style="margin:0">🎓 ${grade}</h3><div style="overflow:auto;margin-top:10px"><table><tr><th>Fecha</th><th>Sección</th><th>Presentes</th><th>Tardanzas</th><th>Faltas</th><th>Justificadas</th><th>Registros</th><th>Acción</th></tr>${rows.join("")}</table></div></div>`;
  }).join("");
- box.innerHTML=`<div class="card" style="border:2px solid #dbe5f4;background:#f8fbff"><h2 style="margin:0">📅 HISTORIAL DE ASISTENCIA POR GRADO</h2><p class="muted" style="margin:5px 0 0">Aquí aparecen todas las fechas que ya tienen asistencia guardada, separadas por grado. Sección mostrada: <b>${section==="Todas"?"A y B":section}</b>.</p>${gradeBlocks}</div>`;
+ box.innerHTML=`<div class="card" style="border:2px solid #dbe5f4;background:#f8fbff"><h2 style="margin:0">📅 HISTORIAL DE ASISTENCIA POR GRADO</h2><p class="muted" style="margin:5px 0 0">Aquí aparecen todas las fechas que ya tienen asistencia guardada, separadas por grado. Sección mostrada: <b>${section==="Todas"?"A y B":section}</b>. Los estudiantes retirados se conservan en el historial, pero no cuentan en los totales.</p>${gradeBlocks}</div>`;
 }
 function openAttendanceHistoryDate25(date,grade,section){
  const dateEl=document.getElementById("attDate25");
