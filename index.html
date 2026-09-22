@@ -4723,8 +4723,10 @@ function getCreaProjectGroups30(grade,sec){
   const ng=normalizeGradeCY30(grade), ns=normalizeSectionCY30(sec);
   const students=(db.users||[]).filter(u=>u.role==='student' && normalizeGradeCY30(u.grade)===ng && normalizeSectionCY30(u.section)===ns);
   const studentMap=new Map(students.map(u=>[String(u.u||''),u]));
+  // Para Portafolio y Producto, basta con que el estudiante tenga un
+  // proyecto registrado en Crea y Emprende. NO exigimos 'Participó':
+  // un estudiante puede incorporarse después y registrar recién su proyecto.
   const records=(db.creaEmprende||[]).filter(r=>{
-    if(String(r.status||'').trim().toLowerCase()!=='participó') return false;
     return normalizeGradeCY30(r.grade)===ng && normalizeSectionCY30(r.section)===ns;
   });
   const map=new Map();
@@ -4771,7 +4773,7 @@ function renderProjectWeekly30(){
   if(!grade||!sec){
     box.innerHTML=`<div class="card" style="background:#f8fafc;margin-top:10px">
       <b>Selecciona el grado y la sección.</b><br>
-      <span class="muted">Se mostrarán los proyectos/grupos registrados como <b>Participó</b> en Crea y Emprende.</span>
+      <span class="muted">Se mostrarán los proyectos/grupos que tengan un proyecto registrado en <b>Crea y Emprende</b>, aunque el estudiante haya sido incorporado posteriormente.</span>
     </div>`;
     return;
   }
@@ -4798,10 +4800,10 @@ function renderProjectWeekly30(){
 
   box.innerHTML=`<div class="card" style="background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:12px">
     <b>🏆 Fuente de grupos: Crea y Emprende</b><br>
-    <span class="muted">Cada proyecto registrado allí se considera un grupo de evaluación. Los grupos del módulo “Grupos” no intervienen.</span>
+    <span class="muted">Cada proyecto registrado allí se considera un grupo de evaluación. Se incluyen también estudiantes incorporados después. Los grupos del módulo “Grupos” no intervienen.</span>
   </div><div style="overflow:auto"><table>
     <tr><th>Proyecto / grupo de Crea y Emprende</th><th>Portafolio</th><th>Producto</th><th>Fecha</th><th>Acción</th></tr>
-    ${rows||`<tr><td colspan="5">No hay proyectos/grupos registrados en Crea y Emprende para ${escClass(grade)} ${escClass(sec)} con participación registrada.</td></tr>`}
+    ${rows||`<tr><td colspan="5">No hay proyectos/grupos con proyecto registrado en Crea y Emprende para ${escClass(grade)} ${escClass(sec)}.</td></tr>`}
   </table></div>`;
 }
 
