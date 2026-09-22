@@ -2150,21 +2150,30 @@ async function sendChat22(to){
 
 /* ===== ESTADO DEL ESTUDIANTE Y CONTROL DE FALTAS v3.1 ===== */
 function studentAbsenceCount31(username){return Object.keys(db.attendance||{}).filter(k=>k.endsWith("|"+username)&&db.attendance[k]==="Falta").length;}
-function studentIsRetired31(u){return String(u?.status||'Activo').toLowerCase()==='retirado';}
+function studentIsRetired31(u){return String(u?.status||'Activo').trim().toLowerCase()==='retirado';}
+function studentIsSuspended31(u){return String(u?.status||'Activo').trim().toLowerCase()==='suspension'||String(u?.status||'Activo').trim().toLowerCase()==='suspensión';}
+function studentForcedDisapproved31(u){return studentIsRetired31(u)||studentIsSuspended31(u);}
 function studentDisapprovedByAbsences31(u){return !!(u&&u.role==='student'&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true);}
 function syncStudentAttendanceStatus31(u){if(!u||u.role!=='student')return false;const f=studentAbsenceCount31(u.u);if(f>=5&&!studentIsRetired31(u)&&u.attendanceReconsidered!==true&&!u.attendanceDisapproved){u.attendanceDisapproved=true;return true;}if(f<5&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true){u.attendanceDisapproved=false;return true;}return false;}
 function syncAllStudentAttendanceStatus31(){let c=false;(db.users||[]).forEach(u=>{if(syncStudentAttendanceStatus31(u))c=true;});return c;}
-function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
-function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
+function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsSuspended31(u))return 'Suspensión';if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
+function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Suspensión')return '<span class="badge bad">🟠 Suspendido · Desaprobado</span>';if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado · Desaprobado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
 
 function studentIsRetired32(user){
   const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
   return !!u && String(u.status||'').trim().toLowerCase()==='retirado';
 }
-function blockRetiredGrade32(user){
-  if(!studentIsRetired32(user)) return false;
+function studentIsSuspended32(user){
   const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
-  alert(`⚫ ${u?.name||'Este estudiante'} está RETIRADO. No se pueden registrar ni modificar notas.`);
+  const st=String(u?.status||'').trim().toLowerCase();
+  return st==='suspension'||st==='suspensión';
+}
+function studentForcedDisapproved32(user){return studentIsRetired32(user)||studentIsSuspended32(user);}
+function blockRetiredGrade32(user){
+  if(!studentIsRetired32(user) && !studentIsSuspended32(user)) return false;
+  const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
+  const st=studentIsSuspended32(u)?'SUSPENDIDO':'RETIRADO';
+  alert(`⚠️ ${u?.name||'Este estudiante'} está ${st}. No se pueden registrar ni modificar notas mientras esté en este estado.`);
   return true;
 }
 /* ===== GESTIÓN DE ESTUDIANTES v3.0 — LISTA POR GRADO/SECCIÓN ===== */
@@ -2219,7 +2228,7 @@ function students(){
       <div>
         <label style="font-size:16px">📌 Estado</label>
         <select id="studentStatus23" onchange="renderStudents23()" style="height:48px">
-          <option>Todos</option><option>Activo</option><option>Retirado</option><option>A punto de desaprobar por faltas</option><option>Desaprobado por faltas</option>
+          <option>Todos</option><option>Activo</option><option>Suspensión</option><option>Retirado</option><option>A punto de desaprobar por faltas</option><option>Desaprobado por faltas</option>
         </select>
       </div>
     </div>
@@ -2423,9 +2432,9 @@ function addStudent23(editUser){
     </div>
     <div class="card" style="margin-top:15px;background:#f8fafc">
       <b>📌 Estado del estudiante</b>
-      <p class="muted" style="margin:6px 0">Con 5 faltas el sistema lo marca automáticamente como desaprobado. Si reconsideras el caso, puedes desmarcarlo.</p>
+      <p class="muted" style="margin:6px 0">Suspensión o Retirado hacen que el resultado final sea <b>DESAPROBADO (05)</b> sin borrar las notas. Al volver a Activo, recupera automáticamente su cálculo normal.</p>
       <label>Situación</label>
-      <select id="stStatus31"><option value="Activo" ${!u||!studentIsRetired31(u)?'selected':''}>🟢 Activo</option><option value="Retirado" ${u&&studentIsRetired31(u)?'selected':''}>⚫ Retirado</option></select>
+      <select id="stStatus31"><option value="Activo" ${!u||(!studentIsRetired31(u)&&!studentIsSuspended31(u))?'selected':''}>🟢 Activo</option><option value="Suspensión" ${u&&studentIsSuspended31(u)?'selected':''}>🟠 Suspensión</option><option value="Retirado" ${u&&studentIsRetired31(u)?'selected':''}>⚫ Retirado</option></select>
       <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="stDis31" type="checkbox" ${u&&studentDisapprovedByAbsences31(u)?'checked':''}> 🔴 Desaprobado por 5 faltas</label>
       ${u&&u.attendanceReconsidered===true?'<p style="margin:8px 0 0;color:#166534"><b>✅ Reconsiderado por el docente.</b> Se mantiene desmarcado aunque tenga 5 o más faltas.</p>':''}
     </div>
@@ -3407,6 +3416,8 @@ function processAvg(u){
 }
 function finalGrade(u){
   ensureClassData();
+  const user=(db.users||[]).find(x=>x.u===u)||{};
+  if(studentForcedDisapproved31(user)) return 5;
   const p=projectAvg(u);
   const processOn=db.evaluationConfig.processEnabled!==false && activeProcessComponents().length>0;
   const pr=processOn?processAvg(u):null;
@@ -4634,7 +4645,7 @@ function openProjectWeekly(){
   ensureClassData();
   modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>📅 Seguimiento semanal — Portafolio y Producto</h2>
-  <p class="muted">Selecciona el <b>grado</b> y la <b>sección</b>. El sistema mostrará automáticamente los grupos que ya están conformados.</p>
+  <p class="muted">Los grupos de esta evaluación se toman <b>exclusivamente de Crea y Emprende</b>. No utiliza los grupos del módulo “Grupos”.</p>
   <div class="grid3" style="margin-bottom:15px">
     <div><label>Semana</label><select id="prjWeek" onchange="renderProjectWeekly30()">${[1,2,3,4,5,6].map(w=>`<option value="${w}">Semana ${w}</option>`).join('')}</select></div>
     <div><label>Fecha de evaluación</label><input id="prjWeekDate" type="date" value="${todayLocal30()}"></div>
@@ -4656,6 +4667,38 @@ function openProjectWeekly(){
   modal.classList.remove('hidden');
   renderProjectWeekly30();
 }
+
+/* Grupos exclusivos de Crea y Emprende.
+   Cada proyecto registrado en Crea y Emprende constituye un grupo para
+   la evaluación del portafolio/producto. No se consulta db.groups. */
+function getCreaProjectGroups30(grade,sec){
+  ensureClassData();
+  const stage=window.cyStage||'Etapa institucional';
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.grade===grade&&u.section===sec);
+  const records=(db.creaEmprende||[]).filter(r=>
+    r.grade===grade && r.section===sec && r.stage===stage && r.status==='participó'
+  );
+  const map=new Map();
+  records.forEach(r=>{
+    const username=r.studentKey||r.username||'';
+    const st=students.find(u=>u.u===username || (r.studentId!=null && u.id===r.studentId));
+    if(!st)return;
+    const project=String((r.project||r.detail||'')).trim();
+    if(!project)return;
+    const key=project.toLocaleLowerCase().replace(/\s+/g,' ').trim();
+    if(!map.has(key)){
+      map.set(key,{id:'cygrp_'+btoa(unescape(encodeURIComponent(grade+'|'+sec+'|'+stage+'|'+key))).replace(/[^a-zA-Z0-9_-]/g,''),name:project,grade,section:sec,stage,members:[]});
+    }
+    const g=map.get(key);
+    if(!g.members.some(x=>x.u===st.u))g.members.push(st);
+  });
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+function getCreaProjectGroup30(groupId,grade,sec){
+  return getCreaProjectGroups30(grade,sec).find(g=>g.id===groupId)||null;
+}
+
 function renderProjectWeekly30(){
   ensureClassData();
   const box=document.getElementById('prjWeeklyTable'); if(!box)return;
@@ -4666,14 +4709,14 @@ function renderProjectWeekly30(){
   if(!grade||!sec){
     box.innerHTML=`<div class="card" style="background:#f8fafc;margin-top:10px">
       <b>Selecciona el grado y la sección.</b><br>
-      <span class="muted">Al hacerlo aparecerán únicamente los grupos conformados para ese salón.</span>
+      <span class="muted">Se mostrarán los proyectos/grupos registrados como <b>Participó</b> en Crea y Emprende.</span>
     </div>`;
     return;
   }
 
-  const groups=(db.groups||[]).filter(g=>g.grade===grade&&g.section===sec);
+  const groups=getCreaProjectGroups30(grade,sec);
   const rows=groups.map(g=>{
-    const members=(g.members||[]).map(id=>(db.users||[]).find(u=>u.u===id)).filter(Boolean);
+    const members=g.members||[];
     if(!members.length)return '';
     const first=members[0],cat=categoryForStudent(first);
     const pc=db.projectRubrics[cat+'_portfolio']||[],pr=db.projectRubrics[cat+'_product']||[];
@@ -4686,20 +4729,26 @@ function renderProjectWeekly30(){
       <td>${pv===null?'—':pv.toFixed(2)+' / 20'}</td>
       <td>${rv===null?'—':rv.toFixed(2)+' / 20'}</td>
       <td>${r?.date?escClass(r.date):'—'}</td>
-      <td><button onclick="openGroupWeeklyRubric30('${escClass(g.id)}')">📝 Evaluar</button></td>
+      <td><button onclick="openCreaProjectWeeklyRubric30('${escClass(g.id)}')">📝 Evaluar</button></td>
     </tr>`;
   }).join('');
 
-  box.innerHTML=`<div style="overflow:auto"><table>
-    <tr><th>Grupo / integrantes</th><th>Portafolio</th><th>Producto</th><th>Fecha</th><th>Acción</th></tr>
-    ${rows||`<tr><td colspan="5">No hay grupos conformados en ${escClass(grade)} ${escClass(sec)}.</td></tr>`}
+  box.innerHTML=`<div class="card" style="background:#eff6ff;border:1px solid #bfdbfe;margin-bottom:12px">
+    <b>🏆 Fuente de grupos: Crea y Emprende</b><br>
+    <span class="muted">Cada proyecto registrado allí se considera un grupo de evaluación. Los grupos del módulo “Grupos” no intervienen.</span>
+  </div><div style="overflow:auto"><table>
+    <tr><th>Proyecto / grupo de Crea y Emprende</th><th>Portafolio</th><th>Producto</th><th>Fecha</th><th>Acción</th></tr>
+    ${rows||`<tr><td colspan="5">No hay proyectos/grupos registrados en Crea y Emprende para ${escClass(grade)} ${escClass(sec)} con participación registrada.</td></tr>`}
   </table></div>`;
 }
-function openGroupWeeklyRubric30(groupId){
+
+function openCreaProjectWeeklyRubric30(groupId){
   ensureClassData();
-  const g=(db.groups||[]).find(x=>x.id===groupId); if(!g)return;
-  const members=(g.members||[]).map(id=>(db.users||[]).find(u=>u.u===id)).filter(Boolean);
-  if(!members.length){alert('Este grupo no tiene integrantes.');return;}
+  const grade=document.getElementById('prjWeekGrade')?.value||'';
+  const sec=document.getElementById('prjWeekSection')?.value||'';
+  const g=getCreaProjectGroup30(groupId,grade,sec); if(!g)return;
+  const members=g.members||[];
+  if(!members.length){alert('Este proyecto de Crea y Emprende no tiene integrantes.');return;}
   const week=Number(document.getElementById('prjWeek')?.value||1);
   const date=document.getElementById('prjWeekDate')?.value||todayLocal30();
   const u=members[0],cat=categoryForStudent(u);
@@ -4719,12 +4768,12 @@ function openGroupWeeklyRubric30(groupId){
       </div>
     </div>`;
   }).join('');
-  modalBody.innerHTML=`<h2>👥 Evaluación semanal del grupo</h2>
+  modalBody.innerHTML=`<h2>👥 Evaluación semanal — grupo de Crea y Emprende</h2>
     <div class="card" style="background:#f8fafc">
-      <b>${escClass(g.name)}</b><br>${members.map(x=>escClass(x.name)).join('<br>')}
+      <b>🏆 Proyecto: ${escClass(g.name)}</b><br>${members.map(x=>escClass(x.name)).join('<br>')}
       <br>${escClass(u.grade||'')} ${escClass(u.section||'')} · <b>Categoría ${cat}</b>
       <br>Semana ${week} · Fecha: ${escClass(date)}
-      <br><span class="muted">La misma evaluación se aplicará a todos los integrantes.</span>
+      <br><span class="muted">Este grupo proviene de Crea y Emprende, no del módulo “Grupos”. La misma evaluación se aplicará a todos sus integrantes.</span>
     </div>
     <h3>📁 Portafolio — Categoría ${cat}</h3>
     <p class="muted">Nivel 1 = 5/20 · Nivel 2 = 10/20 · Nivel 3 = 15/20 · Nivel 4 = 20/20. <b>Aún no enseñado</b> no se incluye en el promedio.</p>
@@ -4734,7 +4783,7 @@ function openGroupWeeklyRubric30(groupId){
     ${levelRows(pr,'productLevels')}
     <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe"><b>Puntaje final de Producto: <span id="productFinal30">—</span></b></div>
     <div class="actions" style="margin-top:18px">
-      <button onclick="saveGroupWeeklyRubric30('${escClass(groupId)}')">💾 Guardar evaluación del grupo</button>
+      <button onclick="saveCreaProjectWeeklyRubric30('${escClass(groupId)}')">💾 Guardar evaluación del grupo</button>
       <button class="secondary" onclick="openProjectWeekly()">← Volver</button>
     </div>`;
   modalBody.classList.add('wide');modal.classList.remove('hidden');
@@ -4746,10 +4795,13 @@ function openGroupWeeklyRubric30(groupId){
   }));
   updateWeeklyRubricTotals30();
 }
-function saveGroupWeeklyRubric30(groupId){
+
+function saveCreaProjectWeeklyRubric30(groupId){
   ensureClassData();
-  const g=(db.groups||[]).find(x=>x.id===groupId); if(!g)return;
-  const members=(g.members||[]).map(id=>(db.users||[]).find(u=>u.u===id)).filter(Boolean);
+  const grade=document.getElementById('prjWeekGrade')?.value||'';
+  const sec=document.getElementById('prjWeekSection')?.value||'';
+  const g=getCreaProjectGroup30(groupId,grade,sec); if(!g)return;
+  const members=g.members||[];
   const u=members[0],cat=categoryForStudent(u);
   const pc=db.projectRubrics[cat+'_portfolio']||[],pr=db.projectRubrics[cat+'_product']||[];
   const week=Number(document.getElementById('prjWeek')?.value||1);
@@ -4770,12 +4822,14 @@ function saveGroupWeeklyRubric30(groupId){
       db.projectWeeklyGrades.push(r);
     }
     r.date=date;r.grade=st.grade||'';r.section=st.section||'';r.category=categoryForStudent(st);
-    r.groupId=groupId;r.groupName=g.name;
+    /* El vínculo del grupo de evaluación queda en Crea y Emprende. */
+    r.groupId=groupId;r.groupName=g.name;r.creaEmprendeGroup=true;
+    r.creaProject=g.name;r.creaStage=g.stage||'Etapa institucional';
     r.portfolioLevels=[...portfolioLevels];r.productLevels=[...productLevels];
     r.portfolio=portfolio;r.product=product;r.savedAt=Date.now();
   });
   save();
-  alert(`✅ Evaluación guardada para ${members.length} integrante(s) de ${g.name}.`);
+  alert(`✅ Evaluación guardada para ${members.length} integrante(s) del proyecto ${g.name}.`);
   openProjectWeekly();
 }
 
