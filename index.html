@@ -3829,6 +3829,8 @@ function renderClass30(){
   const rows=students.map((u,i)=>{
     const ev=classEvalRecord(rec.id,u.u)||{};
     const retired=studentIsRetired32(u);
+    const suspended=studentIsSuspended32(u);
+    const forced=retired||suspended;
     const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
     const needs=attendanceNeedsRecovery(att);
     const recovery=getRecovery30(rec.id,u.u);
@@ -3839,7 +3841,9 @@ function renderClass30(){
 
     let statusCell='';
     if(retired){
-      statusCell=`<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · NO CALIFICABLE</span>`;
+      statusCell=`<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>`;
+    }else if(suspended){
+      statusCell=`<span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span><div class="muted" style="font-size:.82rem;margin-top:4px">No participa en esta sesión mientras mantenga el estado de suspensión.</div>`;
     }else if(needs){
       const motivo=attendanceStatusLabel(att);
       statusCell=`<div style="font-weight:800">${recovered?'🟢 RECUPERACIÓN REALIZADA':'🔴 RECUPERACIÓN PENDIENTE'}</div>
@@ -3877,14 +3881,14 @@ function renderClass30(){
     const evidence=getEvidence30(rec.id,u.u);
     const evidenceStatus=evidence?.status||'';
     const hasEvidenceProblem=evidenceStatus==='no_encontrada'||evidenceStatus==='sin_nombre';
-    const displayGrade=retired?'':(needs?(recovered?recovery.grade:''):(hasEvidenceProblem?'':(ev.grade??'')));
-    const level=retired?'—':(displayGrade===''?'—':classLevel(displayGrade));
+    const displayGrade=forced?'05':(needs?(recovered?recovery.grade:''):(hasEvidenceProblem?'':(ev.grade??'')));
+    const level=forced?'C':(displayGrade===''?'—':classLevel(displayGrade));
     return `<tr>
       <td>${i+1}</td>
-      <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
-      <td>${retired?'<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
+      <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>':suspended?'<br><span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td>${forced?'<span class="badge bad">'+(suspended?'🟠 SUSPENDIDO':'⚫ RETIRADO')+'</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       <td>${statusCell}</td>
-      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${retired||needs?'readonly disabled':''} placeholder="No calificable"></td>
+      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||needs?'readonly disabled':''} placeholder="No calificable"></td>
       <td class="ceLevel30" data-user="${escClass(u.u)}">${level}</td>
     </tr>`;
   }).join('');
@@ -3915,7 +3919,7 @@ function renderClass30(){
   });
   // Guardar automáticamente la detección individual: asistió + sin evaluación = trabajo no encontrado.
   students.forEach(u=>{
-    if(studentIsRetired32(u)) return;
+    if(studentForcedDisapproved32(u)) return;
     const ev=classEvalRecord(rec.id,u.u)||{};
     const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
     const existing=getEvidence30(rec.id,u.u);
@@ -3987,11 +3991,11 @@ function flushClassEvalAutosave30(){
 function saveClassEval30(){
   const lockRec=classRecordById(document.getElementById('ceClass30')?.value);
   if(lockRec&&blockClosedDate31(lockRec.date)) return;
-  const retiredUsers=[...document.querySelectorAll('.ceStatus30,.ceGrade30')].map(e=>e.dataset.user).filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i).filter(studentIsRetired32);
-  if(retiredUsers.length){ alert('⚫ Hay estudiantes RETIRADOS. No se guardarán evaluaciones para ellos.'); }
+  const forcedUsers=[...document.querySelectorAll('.ceStatus30,.ceGrade30')].map(e=>e.dataset.user).filter(Boolean).filter((u,i,a)=>a.indexOf(u)===i).filter(studentForcedDisapproved32);
+  if(forcedUsers.length){ alert('⚠️ Hay estudiantes suspendidos o retirados. No se guardarán evaluaciones para ellos; su resultado queda DESAPROBADO.'); }
   ensureClassData();const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);if(!rec){alert('Primero selecciona una sesión de aprendizaje.');return}
   const ss=[...document.querySelectorAll('.ceStatus30')],gs=[...document.querySelectorAll('.ceGrade30')];let n=0;
-  ss.forEach(e=>{const u=e.dataset.user;if(studentIsRetired32(u))return;const st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
+  ss.forEach(e=>{const u=e.dataset.user;if(studentForcedDisapproved32(u))return;const st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
     if(!st&&raw===''){if(r)db.classEvaluations=db.classEvaluations.filter(x=>x!==r);return}
     const grade=raw===''?null:Math.max(0,Math.min(20,Number(raw)));
     if(!r)db.classEvaluations.push({id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user:u,status:st,grade,date:rec.date,title:rec.title,gradeClass:rec.grade,section:rec.section});
