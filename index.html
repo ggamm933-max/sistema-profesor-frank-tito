@@ -2152,6 +2152,26 @@ async function sendChat22(to){
 function studentAbsenceCount31(username){return Object.keys(db.attendance||{}).filter(k=>k.endsWith("|"+username)&&db.attendance[k]==="Falta").length;}
 function studentIsRetired31(u){return String(u?.status||'Activo').trim().toLowerCase()==='retirado';}
 function studentIsSuspended31(u){return String(u?.status||'Activo').trim().toLowerCase()==='suspension'||String(u?.status||'Activo').trim().toLowerCase()==='suspensión';}
+function todayStatusDate31(){
+  try{return typeof todayLocal30==='function'?todayLocal30():new Date().toISOString().slice(0,10);}catch(e){return new Date().toISOString().slice(0,10);}
+}
+function studentStatusForDate31(u,date){
+  if(!u)return 'Activo';
+  const d=String(date||'').slice(0,10);
+  const hist=Array.isArray(u.statusHistory)?u.statusHistory.slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))):[];
+  let status='Activo';
+  hist.forEach(h=>{if(!h?.date||!d||String(h.date).slice(0,10)<=d) status=h.status||status;});
+  if(!hist.length){
+    const current=String(u.status||'Activo').trim();
+    if(current==='Suspensión'||current==='suspensión'||current==='Retirado') return d && d>=String(u.statusSince||todayStatusDate31()).slice(0,10)?current:'Activo';
+    return current||'Activo';
+  }
+  return status||'Activo';
+}
+function studentSuspendedOrRetiredOnDate31(u,date){
+  const st=String(studentStatusForDate31(u,date)).trim().toLowerCase();
+  return st==='suspensión'||st==='suspension'||st==='retirado';
+}
 function studentForcedDisapproved31(u){return studentIsRetired31(u)||studentIsSuspended31(u);}
 function studentDisapprovedByAbsences31(u){return !!(u&&u.role==='student'&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true);}
 function syncStudentAttendanceStatus31(u){if(!u||u.role!=='student')return false;const f=studentAbsenceCount31(u.u);if(f>=5&&!studentIsRetired31(u)&&u.attendanceReconsidered!==true&&!u.attendanceDisapproved){u.attendanceDisapproved=true;return true;}if(f<5&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true){u.attendanceDisapproved=false;return true;}return false;}
@@ -2455,14 +2475,23 @@ function saveStudent23(oldUser){
   if(oldUser){
     const u=db.users.find(x=>x.u===oldUser);
     if(!u){alert('No se encontró al estudiante.');return;}
+    const oldStatus=String(u.status||'Activo').trim();
     u.name=name;u.grade=grade;u.section=section;u.p=pass;u.status=newStatus;
+    if(oldStatus!==newStatus){
+      const d=todayStatusDate31();
+      if(!Array.isArray(u.statusHistory))u.statusHistory=[];
+      u.statusHistory.push({date:d,status:newStatus});
+      u.statusHistory.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+      if(newStatus==='Suspensión'||newStatus==='Retirado')u.statusSince=d;
+      else delete u.statusSince;
+    }
     if(disChecked){u.attendanceDisapproved=true;u.attendanceReconsidered=false;}
     else if(studentAbsenceCount31(u.u)>=5){u.attendanceDisapproved=false;u.attendanceReconsidered=true;}
     else {u.attendanceDisapproved=false;u.attendanceReconsidered=false;}
     if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   }else{
     if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
-    const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false};
+    const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false,statusHistory:[{date:todayStatusDate31(),status:newStatus}]}; if(newStatus==='Suspensión'||newStatus==='Retirado')nu.statusSince=todayStatusDate31();
     db.users.push(nu);if(disChecked)nu.attendanceDisapproved=true;else syncStudentAttendanceStatus31(nu);
   }
   save();closeModal();render();
@@ -2690,9 +2719,14 @@ function renderAttendanceTable25(){
  <tr><th>Estudiante</th><th>Grado / sección</th><th>Estado</th></tr>
  ${arr.map(u=>{
    const key=date+"|"+u.u, val=db.attendance&&db.attendance[key]||"";
-   if(studentIsRetired31(u)){
+   const statusOnDate=studentStatusForDate31(u,date);
+   if(String(statusOnDate).toLowerCase()==='suspensión'||String(statusOnDate).toLowerCase()==='suspension'){
      return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
-       <td><span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span></td></tr>`;
+       <td><span class="badge bad">🟠 Suspendido</span><div class="muted" style="font-size:.82rem;margin-top:4px">No registra asistencia en esta fecha por suspensión.</div></td></tr>`;
+   }
+   if(String(statusOnDate).toLowerCase()==='retirado'){
+     return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
+       <td><span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span><div class="muted" style="font-size:.82rem;margin-top:4px">No registra asistencia en esta fecha por retiro.</div></td></tr>`;
    }
    return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
    <td><select class="attSel25" data-user="${u.u}" style="min-width:150px" onchange="autoSaveAttendance25(this)">
@@ -2718,7 +2752,7 @@ function renderAttendanceHistory25(){
    // El resumen debe coincidir con Registro de clase: los estudiantes retirados
    // se conservan en el historial, pero NO cuentan como registros de asistencia
    // ni como faltas de la fecha.
-   const students=users.filter(u=>u.grade===grade&&(sec==="Todas"||u.section===sec)&&!studentIsRetired31(u));
+   const students=users.filter(u=>u.grade===grade&&(sec==="Todas"||u.section===sec)&&!studentSuspendedOrRetiredOnDate31(u,date));
    let presente=0,tardanza=0,falta=0,justificada=0,total=0;
    students.forEach(u=>{
      const v=(db.attendance||{})[date+"|"+u.u];
@@ -2735,7 +2769,7 @@ function renderAttendanceHistory25(){
    const secs=section==="Todas"?["A","B"]:[section];
    const rows=[];
    secs.forEach(sec=>{
-     const studentIds=new Set(users.filter(u=>u.grade===grade&&u.section===sec&&!studentIsRetired31(u)).map(u=>u.u));
+     const studentIds=new Set(users.filter(u=>u.grade===grade&&u.section===sec).map(u=>u.u));
      const dates=[...new Set(Object.keys(db.attendance||{}).filter(k=>studentIds.has(k.substring(k.indexOf("|")+1))).map(k=>k.split("|")[0]))].sort((a,b)=>b.localeCompare(a));
      dates.forEach(date=>{
        const c=statusCounts(date,grade,sec);
@@ -2763,9 +2797,11 @@ function showAttendanceDateModal25(date,grade,section){
  const fmt=d=>{const p=String(d).split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d};
  const esc=x=>String(x??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[m]));
  const rows=users.map((u,i)=>{
-   const retired=studentIsRetired31(u);
-   const val=retired?"Retirado":((db.attendance||{})[date+"|"+u.u]||"Sin registrar");
-   const label=val==="Presente"?"✅ Presente":val==="Tardanza"?"🕐 Tardanza":val==="Falta"?"❌ Falta":val==="Justificada"?"📄 Justificada":val==="Representacion"?"🏫 Representando al colegio":val==="Salud"?"🩺 Motivo de salud":val==="Retirado"?"⚫ Retirado":"— Sin registrar";
+   const statusOnDate=String(studentStatusForDate31(u,date)).trim().toLowerCase();
+   const suspended=statusOnDate==='suspensión'||statusOnDate==='suspension';
+   const retired=statusOnDate==='retirado';
+   const val=suspended?"Suspensión":retired?"Retirado":((db.attendance||{})[date+"|"+u.u]||"Sin registrar");
+   const label=val==="Presente"?"✅ Presente":val==="Tardanza"?"🕐 Tardanza":val==="Falta"?"❌ Falta":val==="Justificada"?"📄 Justificada":val==="Representacion"?"🏫 Representando al colegio":val==="Salud"?"🩺 Motivo de salud":val==="Suspensión"?"🟠 Suspendido":val==="Retirado"?"⚫ Retirado":"— Sin registrar";
    return `<tr><td>${i+1}</td><td><b>${esc(u.name||u.u)}</b><div class="muted">${esc(u.grade||"—")} · ${esc(u.section||"—")}</div></td><td><span class="badge">${label}</span></td></tr>`;
  }).join("")||`<tr><td colspan="3">No hay estudiantes para este filtro.</td></tr>`;
  const old=document.getElementById("attDateModal25"); if(old)old.remove();
@@ -2788,7 +2824,7 @@ function autoSaveAttendance25(sel){
   const date=document.getElementById("attDate25")?.value;
   if(!date || !sel?.dataset?.user) return;
   const stu=(db.users||[]).find(u=>u.u===sel.dataset.user&&(u.role==='student'||u.role==='estudiante'));
-  if(stu&&studentIsRetired31(stu)) return;
+  if(stu&&studentSuspendedOrRetiredOnDate31(stu,date)) return;
   if(!db.attendance) db.attendance={};
   const key=date+"|"+sel.dataset.user;
   if(sel.value) db.attendance[key]=sel.value; else delete db.attendance[key];
