@@ -6911,8 +6911,12 @@ function creaEmprende(){
         </select>
       </div>
       <div>
-        <label>Etapa / actividad</label>
-        <input id="cyStage" value="${escClass(stage)}" placeholder="Ej.: Etapa institucional">
+        <label>🏆 Etapa alcanzada</label>
+        <select id="cyStage" onchange="setCYStage()">
+          <option value="Etapa institucional" ${stage==='Etapa institucional'?'selected':''}>Etapa institucional</option>
+          <option value="Etapa UGEL" ${stage==='Etapa UGEL'?'selected':''}>Etapa UGEL</option>
+          <option value="Etapa DRE" ${stage==='Etapa DRE'?'selected':''}>Etapa DRE</option>
+        </select>
       </div>
     </div>
 
@@ -6941,8 +6945,13 @@ function creaEmprende(){
       </table>
     </div>
 
+    <div class="alert" style="margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:12px;border-radius:10px">
+      <b>📌 Importante:</b> llegar a una etapa superior no reduce ni reemplaza la participación.
+      Un proyecto que pasa de <b>Etapa institucional → Etapa UGEL → Etapa DRE</b> sigue contando como <b>Participó</b>.
+      La etapa solo indica hasta dónde avanzó el proyecto.
+    </div>
     <p class="muted" style="margin-top:12px">
-      Los registros se guardan por <b>estudiante, grado, sección y etapa</b>. El estudiante se reconoce por su usuario para evitar que se pierda al agregarlo o importarlo.
+      Los registros se guardan por <b>estudiante, grado, sección y etapa</b>. Si el mismo proyecto participa en otra etapa, se registra la nueva etapa sin quitar la participación anterior.
     </p>
   </div>`;
 }
@@ -6950,7 +6959,12 @@ function creaEmprende(){
 function setCYFilter(){
   window.cyGrade=document.getElementById('cyGrade')?.value||'1.º';
   window.cySection=document.getElementById('cySection')?.value||'A';
-  window.cyStage=document.getElementById('cyStage')?.value.trim()||'Etapa institucional';
+  window.cyStage=document.getElementById('cyStage')?.value||'Etapa institucional';
+  render();
+}
+
+function setCYStage(){
+  window.cyStage=document.getElementById('cyStage')?.value||'Etapa institucional';
   render();
 }
 
