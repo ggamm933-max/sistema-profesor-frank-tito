@@ -4598,7 +4598,13 @@ function exam(){return simpleComponentPanel('Examen / Fichas','📋','exam','exa
 function project(){
   if(me.role!=='teacher')return `<div class="card"><h2>🚀 Proyecto</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
-  const students=(db.users||[]).filter(u=>u.role==='student');
+  const gradeFilter=window.projectGradeFilter30||'Todos';
+  const sectionFilter=window.projectSectionFilter30||'Todas';
+  const students=(db.users||[]).filter(u=>u.role==='student' &&
+    (gradeFilter==='Todos'||normalizeStudentGrade23(u.grade||u.grado)===gradeFilter) &&
+    (sectionFilter==='Todas'||normalizeStudentSection23(u.section||u.seccion)===sectionFilter));
+  const gradeOptions=['Todos','1.º','2.º','3.º','4.º','5.º'].map(g=>`<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
+  const sectionOptions=['Todas','A','B'].map(sec=>`<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
   return `<div class="card"><h2>🚀 Proyecto — 70 %</h2>
     <p class="muted">Portafolio, Producto y Exposición se evalúan según el avance semanal. La rúbrica de Exposición la defines tú.</p>
     <div class="actions">
@@ -4606,8 +4612,13 @@ function project(){
       <button class="secondary" onclick="openExpositionEvaluation()">🎤 Evaluar Exposición semanal</button>
       <button class="secondary" onclick="openExpositionRubricConfig()">⚙️ Rúbrica de exposición</button>
     </div>
-    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
-    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${p.product===null?'—':p.product.toFixed(2)}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')}</table></div></div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;align-items:end">
+      <div><label style="margin:0 0 6px">🎓 Grado</label><select id="projectGradeFilter30" onchange="window.projectGradeFilter30=this.value;render()" style="min-width:160px">${gradeOptions}</select></div>
+      <div><label style="margin:0 0 6px">📚 Sección</label><select id="projectSectionFilter30" onchange="window.projectSectionFilter30=this.value;render()" style="min-width:160px">${sectionOptions}</select></div>
+      <button class="secondary" onclick="window.projectGradeFilter30='Todos';window.projectSectionFilter30='Todas';render()">🔄 Ver todos</button>
+    </div>
+    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
+    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td><td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${p.product===null?'—':p.product.toFixed(2)}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')||'<tr><td colspan="9">No hay estudiantes para este filtro.</td></tr>'}</table></div></div>`;
 }
 
 function projectRubricScore(levels,criteriaCount){
