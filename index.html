@@ -3391,6 +3391,7 @@ function ensureClassData(){
   if(!db.expositionRubric||typeof db.expositionRubric!=='object')db.expositionRubric={criteria:[],scores:[]};
   if(!Array.isArray(db.expositionRubric.criteria))db.expositionRubric.criteria=[];
   if(!Array.isArray(db.expositionRubric.scores))db.expositionRubric.scores=[];
+  if(!Array.isArray(db.creaExpositionScores))db.creaExpositionScores=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7};
   if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true}};
   if(typeof db.evaluationConfig.processEnabled!=='boolean')db.evaluationConfig.processEnabled=true;
@@ -4647,9 +4648,8 @@ function projectRecord(u){
   if(!portfolioVals.length) legacy.forEach(x=>{if(x.portfolio!==''&&x.portfolio!=null)portfolioVals.push(Number(x.portfolio));});
   if(!productVals.length) legacy.forEach(x=>{if(x.product!==''&&x.product!=null)productVals.push(Number(x.product));});
 
-  const expositionVals=(db.expositionRubric.scores||[])
-    .filter(x=>x.user===u&&x.week!==undefined&&x.week!==null)
-    .map(x=>Number(x.score)).filter(Number.isFinite);
+  const creaScores=(db.creaExpositionScores||[]).filter(x=>x.user===u&&x.score!==undefined&&x.score!==null&&x.score!=='');
+  const expositionVals=creaScores.map(x=>Number(x.score)).filter(Number.isFinite);
   let exposition=avgNums(expositionVals);
   if(exposition===null){
     const legacyExpo=legacy.map(x=>x.exposition).filter(x=>x!==''&&x!=null).map(Number);
@@ -5150,6 +5150,103 @@ function saveExpositionBatchEdit30(key){
 }
 
 function openExpositionEvaluation(){
+  modalBody.classList.remove('projectMainModal');
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>🎤 Evaluación de exposición</h2>
+    <p class="muted">Primero selecciona el tipo de exposición que vas a evaluar. Cada modalidad tiene un propósito diferente.</p>
+    <div class="grid2" style="gap:16px;margin-top:18px">
+      <div class="card">
+        <h3>🏆 Crea y Emprende</h3>
+        <p class="muted">Para evaluar la presentación de los proyectos del concurso, utilizando la rúbrica correspondiente al concurso.</p>
+        <button onclick="openCreaExpositionEvaluation30()">🏆 Evaluar Crea y Emprende</button>
+      </div>
+      <div class="card">
+        <h3>📚 Exposición de una sesión</h3>
+        <p class="muted">Para evaluar exposiciones realizadas durante las sesiones de aprendizaje, con los criterios que has configurado.</p>
+        <button onclick="openSessionExpositionEvaluation30()">📝 Evaluar sesión</button>
+      </div>
+    </div>
+    <div class="actions" style="margin-top:16px"><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
+  modal.classList.remove('hidden');
+}
+
+
+const CREA_EXPO_CRITERIA30=[
+  {id:'dominio',name:'Dominio del tema'},
+  {id:'analisis',name:'Análisis económico'},
+  {id:'viabilidad',name:'Sustenta la viabilidad'},
+  {id:'mejora',name:'Propuesta de mejora'},
+  {id:'comunicacion',name:'Comunicación y respuesta'}
+];
+function openCreaExpositionEvaluation30(){
+  ensureClassData();
+  modalBody.classList.remove('projectMainModal');
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>🏆 Crea y Emprende — Rúbrica de exposición</h2>
+  <p class="muted">Rúbrica fija del concurso. Cada estudiante recibe una nota individual de 0 a 20 por criterio. Esta evaluación es independiente de la rúbrica de las sesiones.</p>
+  <div class="grid3" style="margin:14px 0">
+    <div><label>🎓 Grado</label><select id="creaExpoGrade30" onchange="refreshCreaExpoGroups30()"><option value="">Seleccionar grado</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
+    <div><label>🔤 Sección</label><select id="creaExpoSection30" onchange="refreshCreaExpoGroups30()"><option value="">Seleccionar sección</option><option>A</option><option>B</option></select></div>
+    <div><label>👥 Proyecto / grupo</label><select id="creaExpoGroup30" onchange="renderCreaExpoTable30()"><option value="">Selecciona grado y sección</option></select></div>
+  </div>
+  <div id="creaExpoTable30" style="overflow:auto"></div>
+  <div class="actions" style="margin-top:15px"><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
+  modal.classList.remove('hidden');
+}
+function refreshCreaExpoGroups30(){
+  const grade=document.getElementById('creaExpoGrade30')?.value||'';
+  const sec=document.getElementById('creaExpoSection30')?.value||'';
+  const sel=document.getElementById('creaExpoGroup30');
+  if(!sel)return;
+  const groups=(grade&&sec)?getCreaProjectGroups30(grade,sec):[];
+  sel.innerHTML='<option value="">Seleccionar proyecto / grupo</option>'+groups.map(g=>`<option value="${escClass(g.id)}">${escClass(g.name)}</option>`).join('');
+  renderCreaExpoTable30();
+}
+function renderCreaExpoTable30(){
+  ensureClassData();
+  const box=document.getElementById('creaExpoTable30');if(!box)return;
+  const grade=document.getElementById('creaExpoGrade30')?.value||'';
+  const sec=document.getElementById('creaExpoSection30')?.value||'';
+  const groupId=document.getElementById('creaExpoGroup30')?.value||'';
+  const group=getCreaProjectGroups30(grade,sec).find(g=>String(g.id)===String(groupId));
+  if(!group){box.innerHTML='<div class="item">Selecciona el grado, la sección y el proyecto para evaluar.</div>';return;}
+  const headers=CREA_EXPO_CRITERIA30.map(c=>`<th>${c.name}<br><small>0–20</small></th>`).join('');
+  const rows=(group.members||[]).map(st=>{
+    const vals=CREA_EXPO_CRITERIA30.map(c=>{
+      const saved=db.creaExpositionScores.find(x=>x.user===st.u&&String(x.groupId)===String(group.id)&&x.criterionId===c.id);
+      return `<td><input class="creaExpoScore30" data-user="${escClass(st.u)}" data-criterion="${c.id}" type="number" min="0" max="20" step="0.01" value="${saved?escClass(saved.score):''}" style="width:75px"></td>`;
+    }).join('');
+    const savedVals=CREA_EXPO_CRITERIA30.map(c=>db.creaExpositionScores.find(x=>x.user===st.u&&String(x.groupId)===String(group.id)&&x.criterionId===c.id)?.score).filter(v=>v!==undefined&&v!==null&&v!=='').map(Number);
+    const avg=savedVals.length?savedVals.reduce((a,b)=>a+b,0)/savedVals.length:null;
+    return `<tr><td><b>${escClass(st.name)}</b></td>${vals}<td class="creaExpoAvg30">${avg===null?'—':avg.toFixed(2)}</td></tr>`;
+  }).join('');
+  box.innerHTML=`<h3>Proyecto: ${escClass(group.name)}</h3><table><tr><th>Estudiante</th>${headers}<th>Nota individual</th></tr>${rows||'<tr><td colspan="7">Este proyecto no tiene integrantes registrados.</td></tr>'}</table><div class="actions" style="margin-top:12px"><button onclick="saveCreaExpoScores30()">💾 Guardar evaluación de Crea y Emprende</button></div>`;
+  box.querySelectorAll('.creaExpoScore30').forEach(inp=>inp.addEventListener('input',()=>{
+    const row=inp.closest('tr');const vals=[...row.querySelectorAll('.creaExpoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(Number.isFinite);
+    row.querySelector('.creaExpoAvg30').textContent=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—';
+  }));
+}
+function saveCreaExpoScores30(){
+  ensureClassData();
+  const grade=document.getElementById('creaExpoGrade30')?.value||'';
+  const sec=document.getElementById('creaExpoSection30')?.value||'';
+  const groupId=document.getElementById('creaExpoGroup30')?.value||'';
+  const group=getCreaProjectGroups30(grade,sec).find(g=>String(g.id)===String(groupId));
+  if(!group){alert('Selecciona un proyecto o grupo.');return;}
+  const inputs=[...document.querySelectorAll('.creaExpoScore30')];
+  for(const e of inputs){if(e.value.trim()!==''&&(!Number.isFinite(Number(e.value))||Number(e.value)<0||Number(e.value)>20)){alert('Cada criterio debe tener una nota entre 0 y 20.');e.focus();return;}}
+  inputs.forEach(e=>{
+    const user=e.dataset.user,criterionId=e.dataset.criterion,val=e.value.trim();
+    let rec=db.creaExpositionScores.find(x=>x.user===user&&String(x.groupId)===String(group.id)&&x.criterionId===criterionId);
+    if(val===''){if(rec)db.creaExpositionScores=db.creaExpositionScores.filter(x=>x!==rec);return;}
+    if(!rec){rec={id:'creaexpo_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,groupId:group.id,criterionId};db.creaExpositionScores.push(rec);}
+    const st=(db.users||[]).find(x=>x.u===user);
+    rec.score=Number(val);rec.grade=st?.grade||grade;rec.section=st?.section||sec;rec.groupName=group.name;rec.date=todayLocal30();rec.savedAt=Date.now();
+  });
+  save();alert('Evaluación de Crea y Emprende guardada.');renderCreaExpoTable30();
+}
+
+function openSessionExpositionEvaluation30(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
   const criteria=db.expositionRubric.criteria||[];
