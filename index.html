@@ -4660,8 +4660,32 @@ function projectRecord(u){
   if(!portfolioVals.length) legacy.forEach(x=>{if(x.portfolio!==''&&x.portfolio!=null)portfolioVals.push(Number(x.portfolio));});
   if(!productVals.length) legacy.forEach(x=>{if(x.product!==''&&x.product!=null)productVals.push(Number(x.product));});
 
-  const creaScores=(db.creaExpositionScores||[]).filter(x=>x.user===u&&x.score!==undefined&&x.score!==null&&x.score!=='');
-  const expositionVals=creaScores.map(x=>Number(x.score)).filter(Number.isFinite);
+  // La exposición oficial de Crea y Emprende tiene 5 criterios de 1 a 4.
+  // Los cinco puntajes de una misma evaluación NO se promedian: se SUMAN,
+  // porque el máximo ya es 20 puntos. Si existieran varias evaluaciones,
+  // se promedia el resultado de cada evaluación completa (cada una /20).
+  // Exposición oficial: solo cuentan los 5 criterios actuales y cada uno debe ser 1–4.
+  // Los registros antiguos de la rúbrica anterior (0–20 por criterio) se ignoran para
+  // no producir resultados imposibles como 85/20. Una evaluación solo cuenta cuando
+  // están completos los 5 criterios oficiales.
+  const currentExpoIds=new Set([
+    'organizacion_equipo','identificacion_problema','propuesta_solucion',
+    'perfil_cliente','innovacion_producto_servicio'
+  ]);
+  const creaScores=(db.creaExpositionScores||[]).filter(x=>
+    x.user===u && currentExpoIds.has(String(x.criterionId||'')) &&
+    x.score!==undefined && x.score!==null && x.score!=='' &&
+    Number.isInteger(Number(x.score)) && Number(x.score)>=1 && Number(x.score)<=4
+  );
+  const expoGroups={};
+  creaScores.forEach(x=>{
+    const key=String(x.groupId||'sin_grupo')+'|'+String(x.date||'');
+    if(!expoGroups[key])expoGroups[key]={};
+    expoGroups[key][String(x.criterionId)]=Number(x.score);
+  });
+  const expositionVals=Object.values(expoGroups)
+    .filter(vals=>currentExpoIds.size===Object.keys(vals).length && [...currentExpoIds].every(id=>Number.isFinite(vals[id])))
+    .map(vals=>Object.values(vals).reduce((a,b)=>a+b,0));
   let exposition=avgNums(expositionVals);
   if(exposition===null){
     const legacyExpo=legacy.map(x=>x.exposition).filter(x=>x!==''&&x!=null).map(Number);
