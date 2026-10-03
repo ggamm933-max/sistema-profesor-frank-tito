@@ -5201,18 +5201,18 @@ function openExpositionEvaluation(){
 
 
 const CREA_EXPO_CRITERIA30=[
-  {id:'dominio',name:'Dominio del tema'},
-  {id:'analisis',name:'Análisis económico'},
-  {id:'viabilidad',name:'Sustenta la viabilidad'},
-  {id:'mejora',name:'Propuesta de mejora'},
-  {id:'comunicacion',name:'Comunicación y respuesta'}
+  {id:'organizacion_equipo',name:'Organización del equipo emprendedor'},
+  {id:'identificacion_problema',name:'Identificación del problema'},
+  {id:'propuesta_solucion',name:'Propuesta de solución al problema'},
+  {id:'perfil_cliente',name:'Perfil del cliente'},
+  {id:'innovacion_producto_servicio',name:'La innovación del producto o servicio'}
 ];
 function openCreaExpositionEvaluation30(){
   ensureClassData();
   modalBody.classList.remove('projectMainModal');
   modalBody.classList.add('wide');
   modalBody.innerHTML=`<h2>🏆 Crea y Emprende — Rúbrica de exposición</h2>
-  <p class="muted">Rúbrica fija del concurso. Cada estudiante recibe una nota individual de 0 a 20 por criterio. Esta evaluación es independiente de la rúbrica de las sesiones.</p>
+  <p class="muted">Rúbrica oficial de Crea y Emprende. El jurado califica cada criterio de 1 a 4 puntos. Son 5 criterios, con un máximo de 20 puntos por estudiante. Esta evaluación es independiente de la rúbrica de las sesiones.</p>
   <div class="grid3" style="margin:14px 0">
     <div><label>🎓 Grado</label><select id="creaExpoGrade30" onchange="refreshCreaExpoGroups30()"><option value="">Seleccionar grado</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
     <div><label>🔤 Sección</label><select id="creaExpoSection30" onchange="refreshCreaExpoGroups30()"><option value="">Seleccionar sección</option><option>A</option><option>B</option></select></div>
@@ -5239,20 +5239,20 @@ function renderCreaExpoTable30(){
   const groupId=document.getElementById('creaExpoGroup30')?.value||'';
   const group=getCreaProjectGroups30(grade,sec).find(g=>String(g.id)===String(groupId));
   if(!group){box.innerHTML='<div class="item">Selecciona el grado, la sección y el proyecto para evaluar.</div>';return;}
-  const headers=CREA_EXPO_CRITERIA30.map(c=>`<th>${c.name}<br><small>0–20</small></th>`).join('');
+  const headers=CREA_EXPO_CRITERIA30.map(c=>`<th>${c.name}<br><small>1–4 puntos</small></th>`).join('');
   const rows=(group.members||[]).map(st=>{
     const vals=CREA_EXPO_CRITERIA30.map(c=>{
       const saved=db.creaExpositionScores.find(x=>x.user===st.u&&String(x.groupId)===String(group.id)&&x.criterionId===c.id);
-      return `<td><input class="creaExpoScore30" data-user="${escClass(st.u)}" data-criterion="${c.id}" type="number" min="0" max="20" step="0.01" value="${saved?escClass(saved.score):''}" style="width:75px"></td>`;
+      return `<td><input class="creaExpoScore30" data-user="${escClass(st.u)}" data-criterion="${c.id}" type="number" min="1" max="4" step="1" value="${saved?escClass(saved.score):''}" style="width:75px"></td>`;
     }).join('');
     const savedVals=CREA_EXPO_CRITERIA30.map(c=>db.creaExpositionScores.find(x=>x.user===st.u&&String(x.groupId)===String(group.id)&&x.criterionId===c.id)?.score).filter(v=>v!==undefined&&v!==null&&v!=='').map(Number);
-    const avg=savedVals.length?savedVals.reduce((a,b)=>a+b,0)/savedVals.length:null;
+    const avg=savedVals.length?savedVals.reduce((a,b)=>a+b,0):null;
     return `<tr><td><b>${escClass(st.name)}</b></td>${vals}<td class="creaExpoAvg30">${avg===null?'—':avg.toFixed(2)}</td></tr>`;
   }).join('');
   box.innerHTML=`<h3>Proyecto: ${escClass(group.name)}</h3><table><tr><th>Estudiante</th>${headers}<th>Nota individual</th></tr>${rows||'<tr><td colspan="7">Este proyecto no tiene integrantes registrados.</td></tr>'}</table><div class="actions" style="margin-top:12px"><button onclick="saveCreaExpoScores30()">💾 Guardar evaluación de Crea y Emprende</button></div>`;
   box.querySelectorAll('.creaExpoScore30').forEach(inp=>inp.addEventListener('input',()=>{
     const row=inp.closest('tr');const vals=[...row.querySelectorAll('.creaExpoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(Number.isFinite);
-    row.querySelector('.creaExpoAvg30').textContent=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—';
+    row.querySelector('.creaExpoAvg30').textContent=vals.length?vals.reduce((a,b)=>a+b,0):'—';
   }));
 }
 function saveCreaExpoScores30(){
@@ -5263,7 +5263,7 @@ function saveCreaExpoScores30(){
   const group=getCreaProjectGroups30(grade,sec).find(g=>String(g.id)===String(groupId));
   if(!group){alert('Selecciona un proyecto o grupo.');return;}
   const inputs=[...document.querySelectorAll('.creaExpoScore30')];
-  for(const e of inputs){if(e.value.trim()!==''&&(!Number.isFinite(Number(e.value))||Number(e.value)<0||Number(e.value)>20)){alert('Cada criterio debe tener una nota entre 0 y 20.');e.focus();return;}}
+  for(const e of inputs){if(e.value.trim()!==''&&(!Number.isFinite(Number(e.value))||!Number.isInteger(Number(e.value))||Number(e.value)<1||Number(e.value)>4)){alert('Cada criterio debe tener un puntaje entero entre 1 y 4.');e.focus();return;}}
   inputs.forEach(e=>{
     const user=e.dataset.user,criterionId=e.dataset.criterion,val=e.value.trim();
     let rec=db.creaExpositionScores.find(x=>x.user===user&&String(x.groupId)===String(group.id)&&x.criterionId===criterionId);
