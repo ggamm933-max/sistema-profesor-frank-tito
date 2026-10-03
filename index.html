@@ -3372,6 +3372,18 @@ function ensureClassData(){
     'Validación con clientes (captación, retención y ampliación de ingresos)',
     'Uso de la IA generativa en publicidad digital'
   ];
+  // Categoría B: el formato completo utilizado por el jurado tiene 12 criterios.
+  // Si una copia anterior guardó solamente los 8 primeros, se incorporan aquí
+  // los criterios 9–12 sin alterar los puntajes ya registrados.
+  if(Array.isArray(db.projectRubrics.B_portfolio) && db.projectRubrics.B_portfolio.length===8){
+    db.projectRubrics.B_portfolio.push(
+      'Impacto social, económico y ambiental del proyecto',
+      'Reflexión y aprendizajes del equipo',
+      'Evidencia visual y autenticidad del proyecto',
+      'Documentación adicional y respaldo del proyecto'
+    );
+    try{save();}catch(e){}
+  }
   if(!Array.isArray(db.projectRubrics.A_product))db.projectRubrics.A_product=[
     'Originalidad y Creatividad',
     'Relación con el problema familiar o barrial',
