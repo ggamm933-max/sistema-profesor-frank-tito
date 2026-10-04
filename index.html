@@ -466,7 +466,7 @@ function saveBimesterFinalSnapshot31(k){
     let level=d.level;
     let automaticProject05=false;
     let automaticProcess05=false;
-    if(!studentIsRetired31(u)){
+    if(!studentIsRetired31(u) && u.creaRecovery!==true){
       // Al cerrar el bimestre, cualquier componente principal sin nota recibe 05.
       if(project===null){ project=5; automaticProject05=true; }
       if(process===null){ process=5; automaticProcess05=true; }
@@ -530,7 +530,7 @@ function buildNav(){
     return;
   }
   const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['seating','💺','Asientos'],['courses','📚','Cursos'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['iaEPT','🤖','IA EPT']];
-  const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
+  const extra=[['submissions','📥','Entregas'],['chat','💬','Mensajes'],['grades','📊','Evaluación final'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['recoveries','📝','Recuperaciones'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos']];
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
   nav.innerHTML=top.map(b).join('')+
@@ -548,7 +548,7 @@ function render(){
    materials:"Materiales",activities:"Actividades",
    submissions:me.role==="teacher"?"Entregas":"Mis entregas",
    chat:"Mensajes",grades:"Evaluaciones",
-   tracking:"Seguimiento",attendance:"Asistencia",incidents:"Incidentes",seating:"Ubicación de asientos",
+   tracking:"Seguimiento",attendance:"Asistencia",recoveries:"Recuperaciones",incidents:"Incidentes",seating:"Ubicación de asientos",
    reports:"Reportes",bimesterClose:"Cierre de bimestres",backup:"Respaldo",announcements:"Avisos"
  };
  pageTitle.textContent=titles[page]||"Aula Virtual";
@@ -557,7 +557,7 @@ function render(){
  const fn={
    home:home,students:students,courses:courses,materials:materials,
    activities:activities,submissions:submissions,chat:chat,grades:grades,
-   tracking:tracking,attendance:attendance,incidents:incidents,seating:seating,
+   tracking:tracking,attendance:attendance,recoveries:recoveries31,incidents:incidents,seating:seating,
    reports:reports,backup:backup,announcements:announcements
  }[page];
  content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
@@ -2149,7 +2149,7 @@ async function sendChat22(to){
 /* ===== FIN MENSAJES ===== */
 
 /* ===== ESTADO DEL ESTUDIANTE Y CONTROL DE FALTAS v3.1 ===== */
-function studentAbsenceCount31(username){return Object.keys(db.attendance||{}).filter(k=>k.endsWith("|"+username)&&db.attendance[k]==="Falta").length;}
+function studentAbsenceCount31(username){return Object.keys(db.attendance||{}).filter(k=>{if(!k.endsWith("|"+username))return false;const st=typeof normalizeAttendanceStatus30==='function'?normalizeAttendanceStatus30(db.attendance[k]):String(db.attendance[k]??'').trim();return st==='Falta';}).length;}
 function studentIsRetired31(u){return String(u?.status||'Activo').trim().toLowerCase()==='retirado';}
 function studentIsSuspended31(u){return String(u?.status||'Activo').trim().toLowerCase()==='suspension'||String(u?.status||'Activo').trim().toLowerCase()==='suspensión';}
 function todayStatusDate31(){
@@ -2176,8 +2176,8 @@ function studentForcedDisapproved31(u){return studentIsRetired31(u)||studentIsSu
 function studentDisapprovedByAbsences31(u){return !!(u&&u.role==='student'&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true);}
 function syncStudentAttendanceStatus31(u){if(!u||u.role!=='student')return false;const f=studentAbsenceCount31(u.u);if(f>=5&&!studentIsRetired31(u)&&u.attendanceReconsidered!==true&&!u.attendanceDisapproved){u.attendanceDisapproved=true;return true;}if(f<5&&u.attendanceDisapproved===true&&u.attendanceReconsidered!==true){u.attendanceDisapproved=false;return true;}return false;}
 function syncAllStudentAttendanceStatus31(){let c=false;(db.users||[]).forEach(u=>{if(syncStudentAttendanceStatus31(u))c=true;});return c;}
-function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsSuspended31(u))return 'Suspensión';if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
-function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Suspensión')return '<span class="badge bad">🟠 Suspendido · Desaprobado</span>';if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado · Desaprobado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
+function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsSuspended31(u))return 'Suspensión';if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(u?.attendanceReconsidered===true&&f>=5)return 'En recuperación';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
+function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Suspensión')return '<span class="badge bad">🟠 Suspendido · Desaprobado</span>';if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado · Desaprobado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='En recuperación')return '<span class="badge warn">📝 En recuperación · máximo B</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
 
 function studentIsRetired32(user){
   const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
@@ -2455,11 +2455,35 @@ function addStudent23(editUser){
       <p class="muted" style="margin:6px 0">Suspensión o Retirado hacen que el resultado final sea <b>DESAPROBADO (05)</b> sin borrar las notas. Al volver a Activo, recupera automáticamente su cálculo normal.</p>
       <label>Situación</label>
       <select id="stStatus31"><option value="Activo" ${!u||(!studentIsRetired31(u)&&!studentIsSuspended31(u))?'selected':''}>🟢 Activo</option><option value="Suspensión" ${u&&studentIsSuspended31(u)?'selected':''}>🟠 Suspensión</option><option value="Retirado" ${u&&studentIsRetired31(u)?'selected':''}>⚫ Retirado</option></select>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px"><input id="stDis31" type="checkbox" ${u&&studentDisapprovedByAbsences31(u)?'checked':''}> 🔴 Desaprobado por 5 faltas</label>
-      ${u&&u.attendanceReconsidered===true?'<p style="margin:8px 0 0;color:#166534"><b>✅ Reconsiderado por el docente.</b> Se mantiene desmarcado aunque tenga 5 o más faltas.</p>':''}
+      ${u&&(studentAbsenceCount31(u)>=5||u.attendanceDisapproved===true||u.attendanceReconsidered===true)?`<div class="card" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa">
+        <b>📌 Situación por asistencia</b>
+        <p class="muted" style="margin:6px 0">Faltas registradas: <b>${studentAbsenceCount31(u.u)}</b>. Cuando corresponde mantener la medida por 5 o más faltas debes elegir <b>una sola</b> alternativa. La reconsideración no asigna una nota: únicamente abre una oportunidad para recuperar trabajos, actividades o evaluaciones pendientes.</p>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="stDis31" type="checkbox" ${studentDisapprovedByAbsences31(u)?'checked':''} onchange="toggleAttendanceDecision31('dis')"> 🔴 Mantener desaprobado por 5 o más faltas</label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="stRec31" type="checkbox" ${u.attendanceReconsidered===true?'checked':''} onchange="toggleAttendanceDecision31('rec')"> 📝 Dar oportunidad de recuperación</label>
+        <div id="recDetails31" style="margin-top:12px;${u.attendanceReconsidered===true?'':'display:none;'}">
+          <label>Motivo / justificación de la oportunidad</label>
+          <textarea id="stRecReason31" rows="2" placeholder="Ej.: Presentó justificación y se autoriza recuperación de trabajos pendientes.">${escClass(u.attendanceReconsiderationReason||'')}</textarea>
+          <label>Observación / evidencia</label>
+          <textarea id="stRecEvidence31" rows="2" placeholder="Indica qué documento, comunicación o evidencia respalda la decisión.">${escClass(u.attendanceReconsiderationEvidence||'')}</textarea>
+        </div>
+      </div>`:''}
+    </div>
+      ${u?`<div class="card" style="margin-top:15px;background:#f0fdf4;border:1px solid #bbf7d0">
+        <b>🏆 Crea y Emprende — recuperación pedagógica</b>
+        <p class="muted" style="margin:6px 0">Para estudiantes que <b>no participaron en la etapa institucional</b> y desarrollarán posteriormente el proyecto en aula.</p>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="stCreaRec31" type="checkbox" ${u.creaRecovery===true?'checked':''}> 📝 Activar recuperación pedagógica de Crea y Emprende</label>
+        <div class="muted" style="font-size:.88rem;margin-top:8px">Se evaluarán <b>Portafolio manual + Exposición</b>. <b>Producto: No aplica.</b> El resultado máximo es <b>B (14)</b>.</div>
+      </div>`:''}
     </div>
     <div class="actions" style="margin-top:15px"><button onclick="saveStudent23('${editUser||''}')">💾 Guardar estudiante</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
   modal.classList.remove('hidden');
+}
+
+function toggleAttendanceDecision31(which){
+  const dis=document.getElementById('stDis31'), rec=document.getElementById('stRec31'), details=document.getElementById('recDetails31');
+  if(!dis||!rec)return;
+  if(which==='dis'){dis.checked=true;rec.checked=false;}else{rec.checked=true;dis.checked=false;}
+  if(details)details.style.display=rec.checked?'block':'none';
 }
 
 function saveStudent23(oldUser){
@@ -2485,13 +2509,31 @@ function saveStudent23(oldUser){
       if(newStatus==='Suspensión'||newStatus==='Retirado')u.statusSince=d;
       else delete u.statusSince;
     }
-    if(disChecked){u.attendanceDisapproved=true;u.attendanceReconsidered=false;}
-    else if(studentAbsenceCount31(u.u)>=5){u.attendanceDisapproved=false;u.attendanceReconsidered=true;}
-    else {u.attendanceDisapproved=false;u.attendanceReconsidered=false;}
+    const absenceCount=studentAbsenceCount31(u.u);
+    const recChecked=document.getElementById('stRec31')?.checked===true;
+  const creaRecoveryChecked=document.getElementById('stCreaRec31')?.checked===true;
+    const attendanceDecisionCase=absenceCount>=5||u.attendanceDisapproved===true||u.attendanceReconsidered===true;
+    if(attendanceDecisionCase){
+      if(disChecked===recChecked){alert('Con 5 o más faltas debes seleccionar una sola opción: mantener la desaprobación o dar oportunidad de recuperación.');return;}
+      if(recChecked){
+        const reason=document.getElementById('stRecReason31')?.value.trim()||'';
+        const evidence=document.getElementById('stRecEvidence31')?.value.trim()||'';
+        if(!reason||!evidence){alert('Para dar la oportunidad de recuperación registra el motivo y la observación/evidencia.');return;}
+        u.attendanceDisapproved=false;u.attendanceReconsidered=true;u.attendanceReconsiderationReason=reason;u.attendanceReconsiderationEvidence=evidence;u.attendanceReconsiderationDate=todayStatusDate31();
+      }else{
+        u.attendanceDisapproved=true;u.attendanceReconsidered=false;
+        delete u.attendanceReconsiderationReason;delete u.attendanceReconsiderationEvidence;delete u.attendanceReconsiderationDate;
+      }
+    }else{
+      u.attendanceDisapproved=false;u.attendanceReconsidered=false;
+      delete u.attendanceReconsiderationReason;delete u.attendanceReconsiderationEvidence;delete u.attendanceReconsiderationDate;
+    }
+    u.creaRecovery=creaRecoveryChecked;
     if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   }else{
     if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
     const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false,statusHistory:[{date:todayStatusDate31(),status:newStatus}]}; if(newStatus==='Suspensión'||newStatus==='Retirado')nu.statusSince=todayStatusDate31();
+    nu.creaRecovery=creaRecoveryChecked;
     db.users.push(nu);if(disChecked)nu.attendanceDisapproved=true;else syncStudentAttendanceStatus31(nu);
   }
   save();closeModal();render();
@@ -3404,6 +3446,7 @@ function ensureClassData(){
   if(!Array.isArray(db.expositionRubric.criteria))db.expositionRubric.criteria=[];
   if(!Array.isArray(db.expositionRubric.scores))db.expositionRubric.scores=[];
   if(!Array.isArray(db.creaExpositionScores))db.creaExpositionScores=[];
+  if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7};
   if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true}};
   if(typeof db.evaluationConfig.processEnabled!=='boolean')db.evaluationConfig.processEnabled=true;
@@ -3432,7 +3475,21 @@ function componentAvg(arr,u){
   const vals=(arr||[]).filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="").map(x=>Number(x.grade));
   return avgNums(vals);
 }
-function classAvg(u){return componentAvg(db.classEvaluations,u)}
+function classAvg(u){
+  ensureClassData();
+  const classRecords=Array.isArray(db.classRecords)?db.classRecords:[];
+  const evals=Array.isArray(db.classEvaluations)?db.classEvaluations:[];
+  const recoveries=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
+  const values=[];const seen=new Set();
+  classRecords.filter(r=>r&&r.id).forEach(r=>{
+    const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}return;}
+    const rr=recoveries.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}}
+  });
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
+  return avgNums(values);
+}
 function activitiesAvg(u){return componentAvg(db.activitiesGrades,u)}
 function participationAvg(u){return componentAvg(db.participations,u)}
 function behaviorAvg(u){return componentAvg(db.behaviorGrades,u)}
@@ -3441,9 +3498,19 @@ function notebookAvg(u){return componentAvg(db.notebookGrades,u)}
 function folderAvg(u){return componentAvg(db.folderGrades,u)}
 function examAvg(u){return componentAvg(db.examGrades,u)}
 function projectAvg(u){
+  const user=(db.users||[]).find(x=>x.u===u)||{};
+  if(user.creaRecovery===true){
+    const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u)||null;
+    if(!rr || rr.portfolio===null || rr.portfolio===undefined || rr.exposition===null || rr.exposition===undefined)return null;
+    // En la recuperación pedagógica el Proyecto 70% se obtiene SOLO con
+    // Portafolio manual (30%) + Exposición (40%), normalizados al 100% del Proyecto.
+    // El resultado máximo de esta modalidad es 14 puntos (B).
+    return Math.max(0,Math.min(14,(Number(rr.portfolio)*30+Number(rr.exposition)*40)/70));
+  }
   const p=projectRecord(u);
   return avgNums([p.portfolio,p.product,p.exposition].filter(x=>x!==null));
 }
+
 function activeProcessComponents(){
   ensureClassData();
   const w=db.evaluationWeights, a=db.evaluationConfig.components||{};
@@ -3467,15 +3534,23 @@ function finalGrade(u){
   ensureClassData();
   const user=(db.users||[]).find(x=>x.u===u)||{};
   if(studentForcedDisapproved31(user)) return 5;
+  const attendanceReconsidered=(studentAbsenceCount31(user.u)>=5&&user.attendanceReconsidered===true);
+  const creaRecovery=user.creaRecovery===true;
+  if(creaRecovery){
+    const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user.u)||null;
+    if(!rr || rr.portfolio===null || rr.portfolio===undefined || rr.exposition===null || rr.exposition===undefined)return null;
+  }
+  const capRecovery=n=>(attendanceReconsidered||creaRecovery)&&Number.isFinite(Number(n))?Math.min(14,Number(n)):n;
   const p=projectAvg(u);
   const processOn=db.evaluationConfig.processEnabled!==false && activeProcessComponents().length>0;
   const pr=processOn?processAvg(u):null;
   if(p===null&&pr===null)return null;
-  if(p!==null && !processOn)return p;
-  if(p===null)return pr;
-  if(pr===null)return p;
-  return p*.70+pr*.30;
+  if(p!==null && !processOn)return capRecovery(p);
+  if(p===null)return capRecovery(pr);
+  if(pr===null)return capRecovery(p);
+  return capRecovery(p*.70+pr*.30);
 }
+
 function evaluationDetail(u){
   const p=projectAvg(u), pr=processAvg(u), f=finalGrade(u);
   return {project:p,process:pr,final:f,level:f===null?'—':classLevel(f)};
@@ -4619,7 +4694,7 @@ function project(){
   const gradeOptions=['Todos','1.º','2.º','3.º','4.º','5.º'].map(g=>`<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
   const sectionOptions=['Todas','A','B'].map(sec=>`<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
   return `<div class="card"><h2>🚀 Proyecto — 70 %</h2>
-    <p class="muted">Portafolio, Producto y Exposición se evalúan según el avance semanal. La rúbrica de Exposición la defines tú.</p>
+    <p class="muted">En la modalidad normal se evalúan Portafolio + Producto + Exposición. Los estudiantes marcados como <b>Recuperación Crea</b> se evalúan por <b>Portafolio manual + Exposición</b>; Producto: no aplica.</p>
     <div class="actions">
       <button onclick="openProjectWeekly()">📝 Evaluar Portafolio y Producto</button>
       <button class="secondary" onclick="openExpositionEvaluation()">🎤 Evaluar Exposición semanal</button>
@@ -4631,15 +4706,15 @@ function project(){
       <button class="secondary" onclick="window.projectGradeFilter30='Todos';window.projectSectionFilter30='Todas';render()">🔄 Ver todos</button>
     </div>
     <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
-    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u);return `<tr><td>${escClass(u.name)}</td><td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td><td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${p.product===null?'—':p.product.toFixed(2)}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')||'<tr><td colspan="9">No hay estudiantes para este filtro.</td></tr>'}</table></div></div>`;
+    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true;return `<tr><td>${escClass(u.name)}</td><td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td><td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${recovery?'No aplica':(p.product===null?'—':p.product.toFixed(2))}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')||'<tr><td colspan="9">No hay estudiantes para este filtro.</td></tr>'}</table></div></div>`;
 }
 
 function projectRubricScore(levels,criteriaCount){
-  const vals=(levels||[]).map(Number).filter(Number.isFinite);
+  const vals=(levels||[]).map(Number).filter(n=>Number.isFinite(n)&&Number.isInteger(n)&&n>=1&&n<=4);
   if(!vals.length)return null;
   // Los criterios marcados "Aún no enseñado" no participan en el promedio.
   // Los criterios evaluados se normalizan de niveles 1–4 a escala 0–20.
-  return (vals.reduce((a,b)=>a+b,0)/(vals.length*4))*20;
+  return Math.max(0,Math.min(20,(vals.reduce((a,b)=>a+b,0)/(vals.length*4))*20));
 }
 function categoryForStudent(u){
   const g=String(u?.grade||'').replace(/\s/g,'');
@@ -4654,6 +4729,14 @@ function projectRecord(u){
 
   const pc=db.projectRubrics[cat+'_portfolio']||[];
   const pr=db.projectRubrics[cat+'_product']||[];
+  if(user.creaRecovery===true){
+    const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u)||null;
+    return {
+      portfolio:rr&&rr.portfolio!==undefined&&rr.portfolio!==null?Number(rr.portfolio):null,
+      product:null,
+      exposition:rr&&rr.exposition!==undefined&&rr.exposition!==null?Number(rr.exposition):null
+    };
+  }
   const portfolioVals=weekly.map(x=>projectRubricScore(x.portfolioLevels,pc.length)).filter(x=>x!==null);
   const productVals=weekly.map(x=>projectRubricScore(x.productLevels,pr.length)).filter(x=>x!==null);
 
@@ -4711,8 +4794,8 @@ function openProjectEvaluation(){
   ensureClassData();
   const students=(db.users||[]).filter(u=>u.role==='student');
   const rows=students.map(u=>{
-    const p=projectRecord(u.u),d=evaluationDetail(u.u);
-    return `<tr><td>${escClass(u.name)}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${p.product===null?'—':p.product.toFixed(2)}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td></tr>`;
+    const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true;
+    return `<tr><td>${escClass(u.name)}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${recovery?'No aplica':(p.product===null?'—':p.product.toFixed(2))}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td></tr>`;
   }).join('');
   modalBody.classList.remove('wide','projectMainModal');
   modalBody.innerHTML=`<h2>🚀 Evaluación del proyecto — 70 %</h2>
@@ -5230,6 +5313,16 @@ const CREA_EXPO_CRITERIA30=[
   {id:'propuesta_solucion',name:'Propuesta de solución al problema'},
   {id:'perfil_cliente',name:'Perfil del cliente'},
   {id:'innovacion_producto_servicio',name:'La innovación del producto o servicio'}
+];
+
+// Rúbrica específica para estudiantes que realizan una recuperación pedagógica
+// de Crea y Emprende. NO reemplaza ni modifica la rúbrica oficial del concurso.
+const CREA_RECOVERY_PORTFOLIO_CRITERIA31=[
+  {id:'resumen_proyecto',name:'Resumen del proyecto: ¿Qué problema resuelve y para quién?'},
+  {id:'solucion',name:'Solución: ¿Cómo alivias el problema?'},
+  {id:'modelo_ventas',name:'Modelo de ventas: ¿Qué es lo que vendes y cuál es tu propuesta de valor?'},
+  {id:'innovacion',name:'Innovación: Describe la técnica, el ingrediente secreto o la magia que esconde tu producto o servicio'},
+  {id:'competencia',name:'III.5. Análisis de la competencia'}
 ];
 function openCreaExpositionEvaluation30(){
   ensureClassData();
@@ -6632,8 +6725,8 @@ function grades(){
   const snapshot=activeBimester && db.bimesterFinals?.[activeBimester] ? db.bimesterFinals[activeBimester] : null;
   const rows=students.map(u=>{
     syncStudentAttendanceStatus31(u);
-    const d=(snapshot&&snapshot[u.u]) ? snapshot[u.u] : evaluationDetail(u.u);
-    const finalLevel=studentDisapprovedByAbsences31(u)?'Desaprobado por faltas':d.level;
+    const d=(snapshot&&snapshot[u.u]&&!u.creaRecovery) ? snapshot[u.u] : evaluationDetail(u.u);
+    const finalLevel=studentDisapprovedByAbsences31(u)?'Desaprobado por faltas':(u.creaRecovery===true && d.level!=='—' ? 'Recuperación · '+d.level : (u.creaRecovery===true && d.level==='—' ? 'Recuperación · Pendiente' : d.level));
     return `<tr>
       <td><b>${escClass(u.name)}</b><br>${studentStatusBadge31(u)}</td>
       <td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td>
@@ -6710,7 +6803,7 @@ function buildNav(){
   }
   const top=[['home','🏠','Inicio'],['students','👥','Estudiantes'],['groups','👥','Grupos'],['seating','💺','Asientos'],['courses','📚','Cursos'],['creaEmprende','🏆','Crea y Emprende'],['timers','⏱️','Cronómetros']];
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
-  const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
+  const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['recoveries','📝','Recuperaciones'],['creaRecovery','🏆','Recuperación Crea'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
   const evalOpen=['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','grades','project','projectWork'].includes(page);
   const moreOpen=extra.some(a=>a[0]===page);
@@ -7604,11 +7697,142 @@ function updateClassRecord30(id){
 }
 /* ===== FIN SESIONES POR GRADO/SECCIÓN + REGISTRO VINCULADO ===== */
 
+function recoveries31(){
+  ensureClassData();
+  const students=(db.users||[]).filter(u=>u.role==='student');
+  const reconsidered=students.filter(u=>u.attendanceReconsidered===true&&studentAbsenceCount31(u.u)>=5);
+  const recoveryRecords=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
+  const classRecords=Array.isArray(db.classRecords)?db.classRecords:[];
+  const rows=reconsidered.map((u,i)=>{
+    const abs=studentAbsenceCount31(u.u);
+    const relevantClasses=classRecords.filter(r=>String(r.grade)===String(u.grade)&&String(r.section)===String(u.section));
+    let pending=0,done=0;
+    relevantClasses.forEach(r=>{
+      const att=attendanceStatusForDateUser(classAttendanceDate30(r),u);if(!attendanceNeedsRecovery(att))return;
+      const rr=recoveryRecords.find(x=>String(x.classId)===String(r.id)&&x.user===u.u);
+      if(rr&&rr.grade!==null&&rr.grade!==undefined&&rr.grade!=='')done++;else pending++;
+    });
+    const current=finalGrade(u.u),level=current===null?'—':classLevel(current);
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div></td><td><b>${abs}</b></td><td>${done}</td><td>${pending}</td><td>${current===null?'—':Number(current).toFixed(2)}</td><td>${level}</td><td><button class="small" onclick="openStudentRecovery31('${escClass(u.u)}')">👁️ Ver recuperación</button></td></tr>`;
+  }).join('');
+  const allPending=[];
+  reconsidered.forEach(u=>classRecords.filter(r=>String(r.grade)===String(u.grade)&&String(r.section)===String(u.section)).forEach(r=>{
+    const att=attendanceStatusForDateUser(classAttendanceDate30(r),u);if(!attendanceNeedsRecovery(att))return;
+    const rr=recoveryRecords.find(x=>String(x.classId)===String(r.id)&&x.user===u.u);
+    if(!rr||rr.grade===null||rr.grade===undefined||rr.grade==='')allPending.push({u,r,att});
+  }));
+  const detailRows=allPending.slice(0,80).map(x=>`<tr><td><b>${escClass(x.u.name||x.u.u)}</b></td><td>${escClass(x.u.grade)} · ${escClass(x.u.section)}</td><td>${escClass(x.r.title||'Sesión')}</td><td>${escClass(attendanceStatusLabel(x.att))}</td><td><button class="secondary small" onclick="goRecoverySession31('${escClass(x.r.id)}')">📝 Ir a sesión</button></td></tr>`).join('');
+  return `<div class="card"><h2>📝 Recuperaciones</h2><p class="muted">Aquí puedes ver a los estudiantes a quienes se les dio una oportunidad de recuperación por tener 5 o más faltas y controlar qué trabajos, actividades o evaluaciones siguen pendientes.</p><div class="alert"><b>Importante:</b> dar la oportunidad de recuperación <b>no asigna una nota automática</b>. Las faltas permanecen registradas. El estudiante debe recuperar y la nota obtenida se incorpora a su evaluación. Para estos casos el resultado final tiene como máximo <b>B (14)</b>.</div><h3>👥 Estudiantes reconsiderados</h3><div style="overflow:auto"><table><tr><th>N.º</th><th>Estudiante</th><th>Faltas</th><th>Recuperadas</th><th>Pendientes</th><th>Resultado actual</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="8">No hay estudiantes con oportunidad de recuperación.</td></tr>'}</table></div><h3 style="margin-top:22px">⏳ Pendientes por recuperar</h3><div style="overflow:auto"><table><tr><th>Estudiante</th><th>Aula</th><th>Sesión / trabajo</th><th>Motivo</th><th></th></tr>${detailRows||'<tr><td colspan="5">✅ No hay recuperaciones pendientes de estudiantes reconsiderados.</td></tr>'}</table></div></div>`;
+}
+function openStudentRecovery31(user){
+  const u=(db.users||[]).find(x=>x.u===user);if(!u)return;
+  const recs=(db.classRecords||[]).filter(r=>String(r.grade)===String(u.grade)&&String(r.section)===String(u.section));
+  const rows=recs.map(r=>{const att=attendanceStatusForDateUser(classAttendanceDate30(r),u);if(!attendanceNeedsRecovery(att))return '';const rr=getRecovery30(r.id,u.u);const done=rr&&rr.grade!==null&&rr.grade!==undefined&&rr.grade!=='';return `<tr><td>${escClass(r.title||'Sesión')}</td><td>${escClass(r.date||'')}</td><td>${escClass(attendanceStatusLabel(att))}</td><td>${done?'<span class="badge ok">🟢 Realizada · '+Number(rr.grade).toFixed(2)+'</span>':'<span class="badge warn">🔴 Pendiente</span>'}</td><td><button class="secondary small" onclick="goRecoverySession31('${escClass(r.id)}')">${done?'✏️ Ver / modificar':'🔄 Registrar recuperación'}</button></td></tr>`}).filter(Boolean).join('');
+  modalBody.innerHTML=`<h2>📝 Recuperación: ${escClass(u.name||u.u)}</h2><p>${studentStatusBadge31(u)} · <b>${studentAbsenceCount31(u.u)} faltas</b></p><div class="card" style="background:#f8fafc"><b>Motivo registrado:</b><div class="muted">${escClass(u.attendanceReconsiderationReason||'—')}</div><b style="display:block;margin-top:8px">Evidencia / observación:</b><div class="muted">${escClass(u.attendanceReconsiderationEvidence||'—')}</div></div><h3 style="margin-top:18px">Trabajos y actividades de recuperación</h3><div style="overflow:auto"><table><tr><th>Sesión</th><th>Fecha</th><th>Motivo</th><th>Estado</th><th></th></tr>${rows||'<tr><td colspan="5">No hay sesiones que requieran recuperación para este estudiante.</td></tr>'}</table></div><div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function goRecoverySession31(classId){const r=classRecordById(classId);if(!r)return;window._classGradeFilter30=r.grade;window._classSectionFilter30=r.section;window._activeClassEval30=r.id;page='registro';buildNav();render();}
+
+function openCreaRecoveryEval31(user){
+  ensureClassData();
+  const st=(db.users||[]).find(x=>x.u===user);
+  if(!st)return;
+  if(st.creaRecovery!==true){alert('Este estudiante no está marcado para Recuperación pedagógica de Crea y Emprende.');return;}
+  const cat=categoryForStudent(st);
+  const pc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[];
+  const expoCriteria=CREA_EXPO_CRITERIA30||[];
+  const existing=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user)||{};
+  // Si existe una evaluación antigua con otra cantidad de criterios, no reutilizar
+  // posiciones para evitar que un puntaje quede asociado a un criterio distinto.
+  let pLevels=[];
+  if(Array.isArray(existing.portfolioLevels)){
+    if(existing.portfolioLevels.length===pc.length){
+      pLevels=existing.portfolioLevels;
+    }else if(existing.portfolioLevels.length===6 && pc.length===5){
+      // Compatibilidad: versión anterior tenía duplicado el criterio de problema.
+      // Conservamos los puntajes válidos de los otros cinco criterios.
+      pLevels=[existing.portfolioLevels[0],existing.portfolioLevels[2],existing.portfolioLevels[3],existing.portfolioLevels[4],existing.portfolioLevels[5]];
+    }
+  }
+  const eLevels=Array.isArray(existing.expositionLevels)&&existing.expositionLevels.length===expoCriteria.length?existing.expositionLevels:[];
+  const prow=pc.map((criterion,i)=>`<div class="item" style="margin:8px 0"><div><b>${i+1}. ${escClass(criterion.name)}</b></div><select class="creaRecPL31" data-i="${i}"><option value="">Seleccionar nivel</option><option value="ND" ${String(pLevels[i]||'')==='ND'?'selected':''}>⏺ No desarrollado / no trabajado en aula — no afecta</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(pLevels[i])===n?'selected':''}>Nivel ${n} — ${n} punto(s)</option>`).join('')}</select></div>`).join('');
+  const erow=expoCriteria.map((c,i)=>`<div class="item" style="margin:8px 0"><div><b>${i+1}. ${escClass(c.name)}</b></div><select class="creaRecEL31" data-i="${i}"><option value="">Seleccionar puntaje</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(eLevels[i])===n?'selected':''}>${n} punto(s)</option>`).join('')}</select></div>`).join('');
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>🏆 Recuperación pedagógica — Crea y Emprende</h2>
+    <div class="card" style="background:#f0fdf4;border:1px solid #bbf7d0"><b>${escClass(st.name||st.u)}</b><br>${escClass(st.grade||'')} · ${escClass(st.section||'')} · <b>Categoría ${escClass(cat)}</b><p class="muted" style="margin:6px 0 0">Proyecto desarrollado posteriormente en aula porque no participó en la etapa institucional.</p></div>
+    <h3>📁 Portafolio manual elaborado en aula</h3><p class="muted"><b>Rúbrica específica de recuperación.</b> Evalúa únicamente lo que realmente desarrollaron contigo. Cuando un criterio no fue trabajado en la recuperación, selecciona <b>“No desarrollado / no trabajado en aula”</b>; ese criterio queda fuera del cálculo y <b>no perjudica al estudiante</b>. Resultado sobre 20.</p>${prow}<div class="card" style="background:#eff6ff"><b>Portafolio: <span id="creaRecP31">—</span> / 20</b><div class="muted" style="margin-top:4px">Los criterios “No desarrollado” no suman puntos ni bajan el resultado. Esta rúbrica es exclusiva de la recuperación y no modifica la rúbrica del concurso.</div></div>
+    <h3 style="margin-top:20px">🎤 Exposición de recuperación</h3><p class="muted">Evalúa la exposición con los 5 criterios de Crea y Emprende. Puedes guardar primero el Portafolio aunque la exposición todavía esté pendiente; la nota del Proyecto aparecerá cuando completes ambas evidencias.</p>${erow}<div class="card" style="background:#eff6ff"><b>Exposición: <span id="creaRecE31">—</span> / 20</b></div>
+    <div class="card" style="margin-top:15px;background:#f8fafc"><b>🛠️ Producto: No aplica</b><div class="muted">Esta modalidad no requiere registrar una nota de producto.</div></div>
+    <div class="card" style="margin-top:15px;background:#fff7ed;border:1px solid #fed7aa"><b>📊 Regla</b><div class="muted">Proyecto de recuperación = Portafolio (30%) + Exposición (40%), normalizado. Máximo 14 puntos (B).</div></div>
+    <div class="actions" style="margin-top:16px"><button onclick="saveCreaRecoveryEval31('${escClass(user)}')">💾 Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+  const update=()=>{
+    const pSelected=[...document.querySelectorAll('.creaRecPL31')].map(x=>String(x.value||''));
+    const pv=pSelected.filter(v=>/^\d+$/.test(v)).map(Number).filter(n=>n>=1&&n<=4);
+    const ev=[...document.querySelectorAll('.creaRecEL31')].map(x=>Number(x.value)).filter(n=>Number.isFinite(n)&&n>=1&&n<=4);
+    const p=pv.length?Math.max(0,Math.min(20,pv.reduce((a,b)=>a+b,0)/(pv.length*4)*20)):null;
+    const e=ev.length===expoCriteria.length&&expoCriteria.length?Math.max(0,Math.min(20,ev.reduce((a,b)=>a+b,0))):null;
+    const pe=document.getElementById('creaRecP31'),ee=document.getElementById('creaRecE31');
+    if(pe)pe.textContent=p===null?'—':p.toFixed(2); if(ee)ee.textContent=e===null?'—':e.toFixed(2);
+  };
+  document.querySelectorAll('.creaRecPL31,.creaRecEL31').forEach(x=>x.addEventListener('change',update));
+  update();
+}
+function saveCreaRecoveryEval31(user){
+  ensureClassData();
+  const st=(db.users||[]).find(x=>x.u===user);if(!st)return;
+  const cat=categoryForStudent(st);
+  const pc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[],expoCriteria=CREA_EXPO_CRITERIA30||[];
+  const p=[...document.querySelectorAll('.creaRecPL31')].map(x=>String(x.value||''));
+  const eRaw=[...document.querySelectorAll('.creaRecEL31')].map(x=>String(x.value||''));
+  const validP=p.every(v=>v==='ND'||/^[1-4]$/.test(v));
+  const evaluatedP=p.filter(v=>/^[1-4]$/.test(v)).map(Number);
+  if(p.length!==pc.length||!validP||evaluatedP.length===0){
+    alert('Completa los criterios del Portafolio con niveles de 1 a 4. Los aspectos que no fueron desarrollados en aula pueden marcarse como “No desarrollado / no trabajado en aula”. Debe existir al menos un criterio evaluado.');
+    return;
+  }
+  // La recuperación puede guardarse por etapas: primero Portafolio y después Exposición.
+  // No se obliga a tener la exposición para poder guardar el trabajo que ya realizó el estudiante.
+  const expoCompleted=eRaw.every(v=>/^[1-4]$/.test(v));
+  const exposition=expoCompleted?Math.max(0,Math.min(20,eRaw.map(Number).reduce((a,b)=>a+b,0))):null;
+  const portfolio=Math.max(0,Math.min(20,evaluatedP.reduce((a,b)=>a+b,0)/(evaluatedP.length*4)*20));
+  let r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user);
+  if(!r){r={id:'crec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user};db.creaRecoveryEvaluations.push(r);}
+  r.category=cat;
+  r.mode='recuperacion_pedagogica';
+  r.portfolioLevels=p;
+  r.portfolio=portfolio;
+  r.portfolioEvaluatedCriteria=evaluatedP.length;
+  r.portfolioNotDevelopedCriteria=p.filter(v=>v==='ND').length;
+  r.expositionLevels=expoCompleted?eRaw.map(Number):[];
+  r.exposition=exposition;
+  r.product=null;
+  r.savedAt=Date.now();
+  r.portfolioSavedAt=Date.now();
+  r.expositionSavedAt=expoCompleted?Date.now():(r.expositionSavedAt||null);
+  save();closeModal();render();
+  alert(expoCompleted
+    ? `✅ Recuperación de Crea y Emprende guardada.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: ${exposition.toFixed(2)} / 20\nProducto: No aplica\n\nLos criterios “No desarrollado” no afectan el puntaje del Portafolio.\nEl Proyecto de recuperación tendrá máximo 14 puntos (B).`
+    : `✅ Portafolio manual de recuperación guardado.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: Pendiente\nProducto: No aplica\n\nPuedes cerrar ahora y registrar la exposición después.\nEl Proyecto de recuperación se calculará recién cuando también completes la exposición, con máximo 14 puntos (B).`);
+}
+function creaRecovery31(){
+  ensureClassData();
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const rows=students.map((u,i)=>{
+    const r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u)||{};
+    const complete=Number.isFinite(Number(r.portfolio))&&Number.isFinite(Number(r.exposition));
+    const project=complete?Math.max(0,Math.min(14,(Number(r.portfolio)*30+Number(r.exposition)*40)/70)):null;
+    const final=finalGrade(u.u);const lv=final===null?'Pendiente':classLevel(final);
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>No aplica</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
+  }).join('');
+  return `<div class="card"><h2>🏆 Recuperación pedagógica — Crea y Emprende</h2><p class="muted">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio manual + Exposición</b>; <b>Producto: No aplica.</b></p><div class="alert"><b>Regla:</b> el Proyecto de recuperación se calcula normalizando Portafolio 30% + Exposición 40%. El máximo es <b>14 puntos (B)</b>.</div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes marcados para esta modalidad.</td></tr>'}</table></div></div>`;
+}
+
 function render(){
-  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
+  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','recoveries','creaRecovery','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',creaRecovery:'🏆 Recuperación Crea',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',recoveries:'Recuperaciones',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,submissions,chat,grades,tracking,attendance,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,creaRecovery:creaRecovery31,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,submissions,chat,grades,tracking,attendance,recoveries:recoveries31,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
