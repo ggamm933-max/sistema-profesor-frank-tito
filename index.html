@@ -457,25 +457,39 @@ function saveBimesterFinalSnapshot31(k){
   const snap={};
   (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
     const d=evaluationDetail(u.u);
-    // Al cerrar el bimestre, si el estudiante activo no tiene nota en Proyecto
-    // o en Proceso, el sistema registra 05 automático en ese componente.
-    // No se coloca 05 a estudiantes retirados.
     let project=d.project;
     let process=d.process;
     let final=d.final;
     let level=d.level;
     let automaticProject05=false;
     let automaticProcess05=false;
+    let automaticProjectComponents=[];
+    let portfolio=null, product=null, exposition=null;
+
     if(!studentIsRetired31(u) && u.creaRecovery!==true){
-      // Al cerrar el bimestre, cualquier componente principal sin nota recibe 05.
-      if(project===null){ project=5; automaticProject05=true; }
-      if(process===null){ process=5; automaticProcess05=true; }
+      // Al cerrar el bimestre, cada evidencia faltante del Proyecto recibe 05.
+      // Así, si falta solo Portafolio pero existen Producto y Exposición,
+      // se calcula (05 + Producto + Exposición) / 3, en lugar de omitir el faltante.
+      const p=projectRecord(u.u);
+      portfolio=(p.portfolio===null||p.portfolio===undefined)?5:Number(p.portfolio);
+      product=(p.product===null||p.product===undefined)?5:Number(p.product);
+      exposition=(p.exposition===null||p.exposition===undefined)?5:Number(p.exposition);
+      if(p.portfolio===null||p.portfolio===undefined){automaticProject05=true;automaticProjectComponents.push('Portafolio');}
+      if(p.product===null||p.product===undefined){automaticProject05=true;automaticProjectComponents.push('Producto');}
+      if(p.exposition===null||p.exposition===undefined){automaticProject05=true;automaticProjectComponents.push('Exposición');}
+      project=avgNums([portfolio,product,exposition]);
+
+      if(process===null){
+        process=5;
+        automaticProcess05=true;
+      }
       if(project!==null && process!==null){
         final=project*.70+process*.30;
         level=classLevel(final);
       }
     }
-    snap[u.u]={project,process,final,level,savedAt:Date.now(),automaticProject05,automaticProcess05};
+    snap[u.u]={project,process,final,level,savedAt:Date.now(),automaticProject05,automaticProjectComponents,automaticProcess05,
+      projectComponents:{portfolio,product,exposition}};
   });
   db.bimesterFinals[k]=snap;
 }
@@ -497,7 +511,11 @@ function closeBimester30(k){
     return;
   }
   if(!b.date){alert('Primero coloca la fecha de cierre.');return;}
-  if(!confirm(`¿Cerrar el ${k} Bimestre ahora? Las recuperaciones pendientes se convertirán automáticamente en 05 y la evaluación final quedará registrada.`))return;
+  if(!confirm(`¿Cerrar el ${k} Bimestre ahora?
+
+Las recuperaciones pendientes se convertirán automáticamente en 05. En el Proyecto, cada evidencia que siga pendiente (Portafolio, Producto o Exposición) recibirá 05 únicamente para el cierre y se calculará el Proyecto con las tres evidencias.
+
+La evaluación final quedará registrada.`))return;
   const n=convertPendingRecoveriesToZero30(k);
   const nExpo=convertPendingExpositionTo05_31(k);
   saveBimesterFinalSnapshot31(k);
@@ -2439,6 +2457,14 @@ function renderStudents23(){
   box.innerHTML=html;
 }
 
+function creaRecoveryPortfolioMode31(st, rec){
+  const uMode=String(st?.creaRecoveryPortfolioMode||'').toLowerCase();
+  if(uMode==='concurso'||uMode==='manual')return uMode;
+  if(rec?.portfolioRubricMode==='concurso'||rec?.portfolioRubricMode==='manual')return rec.portfolioRubricMode;
+  if(rec?.portfolioImportedFromWeekly===true)return 'concurso';
+  return 'manual';
+}
+
 function addStudent23(editUser){
   const u=editUser?(db.users||[]).find(x=>x.u===editUser):null;
   modalBody.innerHTML=`<h2>${u?'✏️ Editar estudiante':'＋ Agregar estudiante'}</h2>
@@ -2472,7 +2498,8 @@ function addStudent23(editUser){
         <b>🏆 Crea y Emprende — recuperación pedagógica</b>
         <p class="muted" style="margin:6px 0">Para estudiantes que <b>no participaron en la etapa institucional</b> y desarrollarán posteriormente el proyecto en aula.</p>
         <label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="stCreaRec31" type="checkbox" ${u.creaRecovery===true?'checked':''}> 📝 Activar recuperación pedagógica de Crea y Emprende</label>
-        <div class="muted" style="font-size:.88rem;margin-top:8px">Se evaluarán <b>Portafolio manual + Exposición</b>. <b>Producto: No aplica.</b> El resultado máximo es <b>B (14)</b>.</div>
+        <div style="margin-top:10px"><label>Tipo de Portafolio para esta recuperación</label><select id="stCreaRecPortfolioMode31"><option value="manual" ${creaRecoveryPortfolioMode31(u,(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u))==='manual'?'selected':''}>📁 Portafolio manual de recuperación (criterios trabajados en aula)</option><option value="concurso" ${creaRecoveryPortfolioMode31(u,(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u))==='concurso'?'selected':''}>🏆 Portafolio con criterios del concurso Crea y Emprende</option></select></div>
+        <div class="muted" style="font-size:.88rem;margin-top:8px">Portafolio + Exposición son obligatorios. <b>Producto: opcional</b>. El resultado máximo es <b>B (14)</b>. El tipo de Portafolio se define según lo que realmente presentó el estudiante.</div>
       </div>`:''}
     </div>
     <div class="actions" style="margin-top:15px"><button onclick="saveStudent23('${editUser||''}')">💾 Guardar estudiante</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
@@ -2528,7 +2555,38 @@ function saveStudent23(oldUser){
       u.attendanceDisapproved=false;u.attendanceReconsidered=false;
       delete u.attendanceReconsiderationReason;delete u.attendanceReconsiderationEvidence;delete u.attendanceReconsiderationDate;
     }
+    const wasCreaRecovery=u.creaRecovery===true;
+    const recoveryExistingBefore=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u)||null;
+    const selectedCreaPortfolioMode=document.getElementById('stCreaRecPortfolioMode31')?.value||creaRecoveryPortfolioMode31(u,recoveryExistingBefore);
+    let transferredPortfolio=null;
+    if(!wasCreaRecovery && creaRecoveryChecked){
+      // Si el estudiante ya tenía una nota de Portafolio en la evaluación normal,
+      // la trasladamos como antecedente a Recuperación Crea para no obligar a repetirla.
+      const normalProject=projectRecord(u.u);
+      if(normalProject && Number.isFinite(Number(normalProject.portfolio))) transferredPortfolio=Number(normalProject.portfolio);
+    }
     u.creaRecovery=creaRecoveryChecked;
+    if(creaRecoveryChecked){u.creaRecoveryPortfolioMode=selectedCreaPortfolioMode==='concurso'?'concurso':'manual';}
+    else delete u.creaRecoveryPortfolioMode;
+    if(creaRecoveryChecked && !wasCreaRecovery && transferredPortfolio!==null){
+      if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
+      const already=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u);
+      if(!already || already.portfolio===undefined || already.portfolio===null){
+        const rr=already||{id:'crec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user:u.u};
+        if(!already)db.creaRecoveryEvaluations.push(rr);
+        rr.category=categoryForStudent(u);
+        rr.mode='recuperacion_pedagogica';
+        rr.portfolio=transferredPortfolio;
+        rr.portfolioLevels=[];
+        rr.portfolioEvaluatedCriteria=0;
+        rr.portfolioNotDevelopedCriteria=0;
+        rr.portfolioImportedFromWeekly=true;
+        rr.portfolioImportedAt=Date.now();
+        rr.portfolioSource='Seguimiento semanal — Portafolio (criterios del concurso)';
+        rr.portfolioRubricMode='concurso';
+        rr.savedAt=Date.now();
+      }
+    }
     if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   }else{
     if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
@@ -3497,18 +3555,56 @@ function uniformAvg(u){return componentAvg(db.uniformGrades,u)}
 function notebookAvg(u){return componentAvg(db.notebookGrades,u)}
 function folderAvg(u){return componentAvg(db.folderGrades,u)}
 function examAvg(u){return componentAvg(db.examGrades,u)}
+function creaInstitutionalRecord31(user){
+  ensureClassData();
+  const st=(user&&typeof user==='object')?user:(db.users||[]).find(x=>x.u===user);
+  if(!st)return null;
+  return (db.creaEmprende||[]).find(r=>
+    String(r.stage||'')==='Etapa institucional' &&
+    (String(r.studentKey||r.username||'')===String(st.u||'') ||
+     (r.studentId!=null && st.id!=null && String(r.studentId)===String(st.id)))
+  )||null;
+}
+function creaInstitutionalParticipant31(user){
+  const r=creaInstitutionalRecord31(user);
+  return !!(r && String(r.status||'').trim().toLowerCase()==='participó');
+}
+function creaInstitutionalProjectStatus31(user){
+  const st=(user&&typeof user==='object')?user:(db.users||[]).find(x=>x.u===user);
+  if(!st)return '';
+  if(st.creaRecovery===true){
+    const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===st.u)||null;
+    if(rr?.portfolio!=null && rr?.exposition!=null)return '📝 Recuperación pedagógica · completa · máximo B';
+    if(rr?.portfolio!=null)return '📝 Recuperación pedagógica · Portafolio listo · Exposición pendiente';
+    return '📝 Recuperación pedagógica · pendiente';
+  }
+  if(!creaInstitutionalParticipant31(st))return '';
+  const p=projectRecord(st.u),missing=[];
+  if(p.portfolio===null)missing.push('Portafolio');
+  if(p.product===null)missing.push('Producto');
+  if(p.exposition===null)missing.push('Exposición');
+  return missing.length
+    ? `🏆 Participó institucional · pendiente: ${missing.join(', ')}`
+    : '🏆 Participó institucional · evidencias completas';
+}
 function projectAvg(u){
   const user=(db.users||[]).find(x=>x.u===u)||{};
   if(user.creaRecovery===true){
     const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u)||null;
     if(!rr || rr.portfolio===null || rr.portfolio===undefined || rr.exposition===null || rr.exposition===undefined)return null;
-    // En la recuperación pedagógica el Proyecto 70% se obtiene SOLO con
-    // Portafolio manual (30%) + Exposición (40%), normalizados al 100% del Proyecto.
-    // El resultado máximo de esta modalidad es 14 puntos (B).
-    return Math.max(0,Math.min(14,(Number(rr.portfolio)*30+Number(rr.exposition)*40)/70));
+    // Recuperación pedagógica: Portafolio + Exposición son obligatorios.
+    // El Producto es opcional: si lo presenta, se incorpora con 30%; si no, se normalizan 30%+40% sobre 70%.
+    const hasProduct=rr.product!==null&&rr.product!==undefined&&Number.isFinite(Number(rr.product));
+    const raw=Number(rr.portfolio)*30+Number(rr.exposition)*40+(hasProduct?Number(rr.product)*30:0);
+    const denom=hasProduct?100:70;
+    return Math.max(0,Math.min(14,raw/denom));
   }
   const p=projectRecord(u);
-  return avgNums([p.portfolio,p.product,p.exposition].filter(x=>x!==null));
+  // Modalidad normal: las tres evidencias del Proyecto deben existir para calcularlo.
+  // No se permite que Producto + Exposición oculten un Portafolio pendiente.
+  const vals=[p.portfolio,p.product,p.exposition];
+  if(vals.length!==3 || vals.some(x=>x===null || x===undefined || !Number.isFinite(Number(x))))return null;
+  return avgNums(vals);
 }
 
 function activeProcessComponents(){
@@ -4686,15 +4782,25 @@ function exam(){return simpleComponentPanel('Examen / Fichas','📋','exam','exa
 function project(){
   if(me.role!=='teacher')return `<div class="card"><h2>🚀 Proyecto</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
-  const gradeFilter=window.projectGradeFilter30||'Todos';
-  const sectionFilter=window.projectSectionFilter30||'Todas';
-  const students=(db.users||[]).filter(u=>u.role==='student' &&
-    (gradeFilter==='Todos'||normalizeStudentGrade23(u.grade||u.grado)===gradeFilter) &&
-    (sectionFilter==='Todas'||normalizeStudentSection23(u.section||u.seccion)===sectionFilter));
+  const gradeFilter=String(window.projectGradeFilter30||'Todos').trim()||'Todos';
+  const sectionFilter=String(window.projectSectionFilter30||'Todas').trim().toUpperCase()||'TODAS';
+  const showAllGrades=gradeFilter==='Todos';
+  const showAllSections=sectionFilter==='TODAS';
+  const students=(db.users||[]).filter(u=>{
+    const role=String(u.role||'').trim().toLowerCase();
+    if(role!=='student' && role!=='estudiante') return false;
+    // Los estudiantes marcados para Recuperación Crea no participan en la
+    // evaluación normal del Proyecto 70 %. Se evalúan únicamente desde
+    // el módulo específico de Recuperación Crea.
+    if(u.creaRecovery===true) return false;
+    const ug=normalizeStudentGrade23(u.grade||u.grado);
+    const us=normalizeStudentSection23(u.section||u.seccion);
+    return (showAllGrades||ug===gradeFilter) && (showAllSections||us===sectionFilter);
+  });
   const gradeOptions=['Todos','1.º','2.º','3.º','4.º','5.º'].map(g=>`<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
   const sectionOptions=['Todas','A','B'].map(sec=>`<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
   return `<div class="card"><h2>🚀 Proyecto — 70 %</h2>
-    <p class="muted">En la modalidad normal se evalúan Portafolio + Producto + Exposición. Los estudiantes marcados como <b>Recuperación Crea</b> se evalúan por <b>Portafolio manual + Exposición</b>; Producto: no aplica.</p>
+    <p class="muted">En la modalidad normal se evalúan Portafolio + Producto + Exposición. Los estudiantes marcados como <b>Recuperación Crea</b> no aparecen en esta evaluación y se evalúan por separado mediante <b>Portafolio manual + Exposición</b>; Producto es opcional.</p>
     <div class="actions">
       <button onclick="openProjectWeekly()">📝 Evaluar Portafolio y Producto</button>
       <button class="secondary" onclick="openExpositionEvaluation()">🎤 Evaluar Exposición semanal</button>
@@ -4705,8 +4811,19 @@ function project(){
       <div><label style="margin:0 0 6px">📚 Sección</label><select id="projectSectionFilter30" onchange="window.projectSectionFilter30=this.value;render()" style="min-width:160px">${sectionOptions}</select></div>
       <button class="secondary" onclick="window.projectGradeFilter30='Todos';window.projectSectionFilter30='Todas';render()">🔄 Ver todos</button>
     </div>
-    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
-    ${students.map(u=>{const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true;return `<tr><td>${escClass(u.name)}</td><td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td><td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${recovery?'No aplica':(p.product===null?'—':p.product.toFixed(2))}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td><td><b>${d.final===null?'—':d.final.toFixed(2)}</b></td><td>${d.level}</td></tr>`}).join('')||'<tr><td colspan="9">No hay estudiantes para este filtro.</td></tr>'}</table></div></div>`;
+    <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Situación Crea</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
+    ${students.map(u=>{
+      const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true,status=creaInstitutionalProjectStatus31(u);
+      const activeBim=(()=>{const bs=getBimesterClose30();if(bs.IV?.closed)return 'IV';if(bs.III?.closed)return 'III';return '';})();
+      const snap=activeBim&&db.bimesterFinals?.[activeBim]?.[u.u];
+      const comps=snap?.projectComponents||{};
+      const pv=snap?.automaticProject05&&comps.portfolio!=null?Number(comps.portfolio):p.portfolio;
+      const pr=snap?.automaticProject05&&comps.product!=null?Number(comps.product):p.product;
+      const ex=snap?.automaticProject05&&comps.exposition!=null?Number(comps.exposition):p.exposition;
+      const projectValue=snap?.project!=null?Number(snap.project):d.project;
+      const finalValue=snap?.final!=null?Number(snap.final):d.final;
+      return `<tr><td>${escClass(u.name)}</td><td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td><td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td><td><small>${escClass(status||'—')}</small></td><td>${pv==null||!Number.isFinite(Number(pv))?'—':Number(pv).toFixed(2)}</td><td>${recovery?'No aplica':(pr==null||!Number.isFinite(Number(pr))?'—':Number(pr).toFixed(2))}</td><td>${ex==null||!Number.isFinite(Number(ex))?'—':Number(ex).toFixed(2)}</td><td><b>${projectValue==null||!Number.isFinite(Number(projectValue))?'—':Number(projectValue).toFixed(2)}</b></td><td><b>${finalValue==null||!Number.isFinite(Number(finalValue))?'—':Number(finalValue).toFixed(2)}</b></td><td>${snap?.level||d.level}</td></tr>`;
+    }).join('')||'<tr><td colspan="10">No hay estudiantes para este filtro.</td></tr>'}</table></div></div>`;
 }
 
 function projectRubricScore(levels,criteriaCount){
@@ -4731,11 +4848,10 @@ function projectRecord(u){
   const pr=db.projectRubrics[cat+'_product']||[];
   if(user.creaRecovery===true){
     const rr=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u)||null;
-    return {
-      portfolio:rr&&rr.portfolio!==undefined&&rr.portfolio!==null?Number(rr.portfolio):null,
-      product:null,
-      exposition:rr&&rr.exposition!==undefined&&rr.exposition!==null?Number(rr.exposition):null
-    };
+    const portfolio=rr&&rr.portfolio!==undefined&&rr.portfolio!==null&&Number.isFinite(Number(rr.portfolio))?Number(rr.portfolio):null;
+    const exposition=rr&&rr.exposition!==undefined&&rr.exposition!==null&&Number.isFinite(Number(rr.exposition))?Number(rr.exposition):null;
+    const product=rr&&rr.product!==undefined&&rr.product!==null&&Number.isFinite(Number(rr.product))?Number(rr.product):null;
+    return {portfolio,product,exposition};
   }
   const portfolioVals=weekly.map(x=>projectRubricScore(x.portfolioLevels,pc.length)).filter(x=>x!==null);
   const productVals=weekly.map(x=>projectRubricScore(x.productLevels,pr.length)).filter(x=>x!==null);
@@ -4795,17 +4911,17 @@ function openProjectEvaluation(){
   const students=(db.users||[]).filter(u=>u.role==='student');
   const rows=students.map(u=>{
     const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true;
-    return `<tr><td>${escClass(u.name)}</td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${recovery?'No aplica':(p.product===null?'—':p.product.toFixed(2))}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td></tr>`;
+    return `<tr><td>${escClass(u.name)}</td><td><small>${escClass(creaInstitutionalProjectStatus31(u)||'—')}</small></td><td>${p.portfolio===null?'—':p.portfolio.toFixed(2)}</td><td>${recovery?'No aplica':(p.product===null?'—':p.product.toFixed(2))}</td><td>${p.exposition===null?'—':p.exposition.toFixed(2)}</td><td><b>${d.project===null?'—':d.project.toFixed(2)}</b></td></tr>`;
   }).join('');
   modalBody.classList.remove('wide','projectMainModal');
   modalBody.innerHTML=`<h2>🚀 Evaluación del proyecto — 70 %</h2>
-  <p class="muted">Portafolio y Producto se revisan <b>cada semana</b>. La Exposición se evalúa <b>una sola vez</b> mediante una rúbrica que tú defines.</p>
+  <p class="muted">Portafolio y Producto se revisan <b>cada semana</b>. La Exposición se evalúa <b>una sola vez</b>. En la modalidad normal, las 3 evidencias deben estar presentes para calcular el Proyecto; una evidencia pendiente no se omite del promedio.</p>
   <div class="grid3" style="margin-top:15px">
     <div class="card"><h3>📅 Seguimiento semanal</h3><p class="muted">Registra el avance de Portafolio y Producto de cada semana.</p><button onclick="openProjectWeekly()">Abrir seguimiento</button></div>
     <div class="card"><h3>🎤 Exposición semanal</h3><p class="muted">Evalúa cada presentación semanal con la rúbrica que tú defines.</p><div class="actions"><button onclick="openExpositionRubricConfig()">⚙️ Criterios</button><button onclick="openExpositionEvaluation()">📝 Evaluar</button></div></div>
     <div class="card"><h3>📊 Resultado</h3><p class="muted">Las evaluaciones semanales se promedian y se combinan con la exposición.</p><span class="badge">Proyecto = promedio de 3 componentes</span></div>
   </div>
-  <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th></tr>${rows||'<tr><td colspan="5">No hay estudiantes.</td></tr>'}</table></div>
+  <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Situación Crea</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th></tr>${rows||'<tr><td colspan="6">No hay estudiantes.</td></tr>'}</table></div>
   <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
   modalBody.classList.add('projectMainModal');
   modal.classList.remove('hidden');
@@ -4815,7 +4931,7 @@ function openProjectWeekly(){
   ensureClassData();
   modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>📅 Seguimiento semanal — Portafolio y Producto</h2>
-  <p class="muted">Los grupos de esta evaluación se toman <b>exclusivamente de Crea y Emprende</b>. No utiliza los grupos del módulo “Grupos”.</p>
+  <p class="muted">Los grupos de esta evaluación se toman <b>exclusivamente de Crea y Emprende</b>. Los estudiantes marcados para <b>Recuperación Crea</b> no aparecen aquí y se evalúan únicamente en su módulo de recuperación. No utiliza los grupos del módulo “Grupos”.</p>
   <div class="grid3" style="margin-bottom:15px">
     <div><label>Semana</label><select id="prjWeek" onchange="renderProjectWeekly30()">${[1,2,3,4,5,6].map(w=>`<option value="${w}">Semana ${w}</option>`).join('')}</select></div>
     <div><label>Fecha de evaluación</label><input id="prjWeekDate" type="date" value="${todayLocal30()}"></div>
@@ -4851,7 +4967,12 @@ function normalizeSectionCY30(v){return String(v||'').trim().toUpperCase();}
 function getCreaProjectGroups30(grade,sec){
   ensureClassData();
   const ng=normalizeGradeCY30(grade), ns=normalizeSectionCY30(sec);
-  const students=(db.users||[]).filter(u=>u.role==='student' && normalizeGradeCY30(u.grade)===ng && normalizeSectionCY30(u.section)===ns);
+  const students=(db.users||[]).filter(u=>
+    u.role==='student' &&
+    u.creaRecovery!==true &&
+    normalizeGradeCY30(u.grade)===ng &&
+    normalizeSectionCY30(u.section)===ns
+  );
   const studentMap=new Map(students.map(u=>[String(u.u||''),u]));
   // Para Portafolio y Producto, basta con que el estudiante tenga un
   // proyecto registrado en Crea y Emprende. NO exigimos 'Participó':
@@ -7733,47 +7854,348 @@ function openStudentRecovery31(user){
 }
 function goRecoverySession31(classId){const r=classRecordById(classId);if(!r)return;window._classGradeFilter30=r.grade;window._classSectionFilter30=r.section;window._activeClassEval30=r.id;page='registro';buildNav();render();}
 
+function changeCreaRecoveryPortfolioMode31(user,mode){
+  ensureClassData();
+  const st=(db.users||[]).find(x=>x.u===user);if(!st)return;
+  const m=String(mode||'').toLowerCase()==='concurso'?'concurso':'manual';
+  st.creaRecoveryPortfolioMode=m;
+  const r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user);
+  if(r)r.portfolioRubricMode=m;
+  save();
+  openCreaRecoveryEval31(user);
+}
+
+function getCreaRecoveryExistingGroups31(grade,sec){
+  ensureClassData();
+  const ng=normalizeGradeCY30(grade), ns=normalizeSectionCY30(sec);
+  const students=(db.users||[]).filter(u=>u.role==='student'&&normalizeGradeCY30(u.grade)===ng&&normalizeSectionCY30(u.section)===ns);
+  const studentMap=new Map(students.map(u=>[String(u.u||''),u]));
+  const records=(db.creaEmprende||[]).filter(r=>normalizeGradeCY30(r.grade)===ng&&normalizeSectionCY30(r.section)===ns);
+  const map=new Map();
+  records.forEach(r=>{
+    const project=String(r.project||r.detail||'').trim();
+    if(!project)return;
+    const key=project.toLocaleLowerCase().replace(/\s+/g,' ').trim();
+    if(!map.has(key)){
+      const safeKey=ng+'|'+ns+'|'+key;
+      map.set(key,{id:'cygrp_'+btoa(unescape(encodeURIComponent(safeKey))).replace(/[^a-zA-Z0-9_-]/g,''),name:project,grade,section:sec,stage:r.stage||'Etapa institucional',source:'Crea y Emprende',members:[]});
+    }
+    const g=map.get(key);
+    const username=String(r.studentKey||r.username||'');
+    let st=studentMap.get(username);
+    if(!st&&r.studentId!=null)st=students.find(u=>String(u.id)===String(r.studentId));
+    if(st&&!g.members.some(x=>x.u===st.u))g.members.push(st);
+  });
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'es'));
+}
+function getCreaRecoveryGroups31(grade,sec){
+  ensureClassData();
+  const out=getCreaRecoveryExistingGroups31(grade,sec);
+  const ng=normalizeGradeCY30(grade),ns=normalizeSectionCY30(sec);
+  const custom=(db.creaRecoveryGroups||[]).filter(g=>normalizeGradeCY30(g.grade)===ng&&normalizeSectionCY30(g.section)===ns).map(g=>({
+    ...g,source:'Grupo de recuperación',members:(g.memberUsers||[]).map(id=>{
+      const user=(db.users||[]).find(u=>u.role==='student'&&String(u.u)===String(id));
+      return user||null;
+    }).filter(Boolean)
+  }));
+  return out.concat(custom).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+}
+function getCreaRecoveryGroupById31(groupId,grade,sec){
+  return getCreaRecoveryGroups31(grade,sec).find(g=>String(g.id)===String(groupId))||null;
+}
+function recoveryExpoCriteria31(groupMode){
+  return (CREA_EXPO_CRITERIA30||[]).map((c,i)=>i===0
+    ? {...c,name:groupMode==='grupal'?'Organización del equipo emprendedor':'Organización del trabajo emprendedor'}
+    : {...c});
+}
+function refreshCreaRecoveryGroupUI31(user){
+  const st=(db.users||[]).find(x=>x.u===user);if(!st)return;
+  const mode=document.getElementById('creaRecMode31')?.value||'individual';
+  const groupBox=document.getElementById('creaRecGroupBox31');
+  const sel=document.getElementById('creaRecGroup31');
+  if(groupBox)groupBox.style.display=mode==='grupal'?'block':'none';
+  if(sel&&mode==='grupal'){
+    const current=sel.value||'';
+    const groups=getCreaRecoveryGroups31(st.grade,st.section);
+    sel.innerHTML='<option value="">Seleccionar grupo</option>'+groups.map(g=>`<option value="${escClass(g.id)}">${escClass(g.name)} · ${g.source==='Grupo de recuperación'?'grupo creado para recuperación':'grupo de Crea y Emprende'}</option>`).join('');
+    if(current&&groups.some(g=>String(g.id)===String(current)))sel.value=current;
+  }
+  const preview=document.getElementById('creaRecGroupPreview31');
+  if(preview){
+    if(mode!=='grupal'){preview.innerHTML='<span class="muted">👤 Trabajo individual: no se asigna grupo.</span>';}
+    else{
+      const g=getCreaRecoveryGroupById31(sel?.value||'',st.grade,st.section);
+      preview.innerHTML=g
+        ? `<b>${escClass(g.name)}</b><br><span class="muted">${g.source==='Grupo de recuperación'?'Grupo creado para recuperación':'Grupo existente en Crea y Emprende'} · ${g.members.length} integrante(s) registrados${g.members.length?'':' · sin integrantes registrados'}</span><div style="margin-top:6px">${g.members.map(x=>escClass(x.name)).join(' · ')||'—'}</div>`
+        : '<span class="muted">Selecciona un grupo existente o crea uno nuevo.</span>';
+    }
+  }
+}
+function openCreaRecoveryGroupManager31(){
+  ensureClassData();
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const custom=(db.creaRecoveryGroups||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>👥 Grupos para Recuperación Crea</h2>
+  <p class="muted">Aquí se administran los <b>grupos de recuperación</b>. Los grupos que ya existen en <b>Crea y Emprende</b> se cargan automáticamente y <b>no se duplican</b>. Un estudiante solo queda en un grupo de recuperación cuando tú lo asignas. Los estudiantes que <b>participaron en la etapa institucional</b> aparecen identificados y <b>no pueden ser seleccionados para recuperación</b>.</p>
+  <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe"><b>🏆 Grupos existentes de Crea y Emprende</b><div class="muted" style="margin-top:6px">Se pueden seleccionar directamente desde la evaluación de cada estudiante. No se crea un grupo nuevo desde Ana ni desde otro estudiante.</div></div>
+  <div class="card" style="margin-top:12px"><h3 style="margin-top:0">➕ Crear grupo nuevo de recuperación</h3>
+    <label>Grado</label><select id="recGrpGrade31">${[1,2,3,4,5].map(n=>`<option value="${n}">${n}°</option>`).join('')}</select>
+    <label style="margin-top:8px">Sección</label><select id="recGrpSection31"><option>A</option><option>B</option></select>
+    <label style="margin-top:8px">Nombre del grupo / proyecto</label><input id="recGrpName31" placeholder="Ej.: Eco Papel Manzana">
+    <label style="margin-top:8px">Integrantes de recuperación (opcional al crear)</label>
+    <div class="muted" style="margin:4px 0 8px">A continuación aparece <b>toda la lista del grado y sección</b>. Marca a quienes formarán parte del grupo. Los estudiantes que <b>participaron en la etapa institucional</b> aparecen bloqueados y no pueden formar parte de Recuperación Crea. También puedes crear el grupo con <b>0 integrantes</b> y agregarlos después.</div>
+    <div id="recGrpMembers31" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px"></div>
+    <div class="actions" style="margin-top:12px"><button type="button" onclick="createCreaRecoveryGroupFromManager31()">➕ Crear grupo</button></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3 style="margin-top:0">📁 Grupos nuevos ya creados</h3><div id="recGrpCustomList31"></div></div>
+  <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+  modal.classList.remove('hidden');
+  const gg=document.getElementById('recGrpGrade31'),ss=document.getElementById('recGrpSection31');
+  const refresh=()=>{
+    const grade=gg?.value||'4',sec=ss?.value||'A';
+    const allStudents=(db.users||[]).filter(u=>u.role==='student'&&normalizeGradeCY30(u.grade)===normalizeGradeCY30(grade)&&normalizeSectionCY30(u.section)===normalizeSectionCY30(sec)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+    const box=document.getElementById('recGrpMembers31');
+    if(!box)return;
+    box.innerHTML=allStudents.length?allStudents.map(u=>{
+      const institutional=creaInstitutionalParticipant31(u);
+      return `<label style="display:flex;align-items:center;gap:7px;opacity:${institutional?'0.62':'1'}"><input class="creaRecManagerMember31" type="checkbox" value="${escClass(u.u)}" ${institutional?'disabled':''}> ${escClass(u.name)}${institutional?' <span class="muted">· ✅ Participó en Crea y Emprende institucional · no disponible para recuperación</span>':(u.creaRecovery===true?' <span class="muted">· Recuperación activa</span>':'')}</label>`;
+    }).join(''):'<span class="muted">No hay estudiantes registrados en ese grado/sección.</span>';
+  };
+  const renderCustom=()=>{
+    const box=document.getElementById('recGrpCustomList31');if(!box)return;
+    box.innerHTML=custom.length?`<div style="overflow:auto"><table><tr><th>Grupo</th><th>Grado</th><th>Sección</th><th>Integrantes</th><th>Acción</th></tr>${custom.map(g=>{
+      const ms=(g.memberUsers||[]).map(id=>(db.users||[]).find(u=>u.role==='student'&&String(u.u)===String(id))).filter(Boolean);
+      return `<tr><td><b>${escClass(g.name)}</b></td><td>${escClass(g.grade)}</td><td>${escClass(g.section)}</td><td>${ms.map(u=>escClass(u.name)).join(' · ')||'<span class="muted">0 integrantes — aún no asignados</span>'}</td><td style="white-space:nowrap"><button class="small" onclick="manageCreaRecoveryGroupMembers31('${escClass(g.id)}')">👥 Agregar / quitar</button> <button class="secondary small" onclick="deleteCreaRecoveryGroup31('${escClass(g.id)}')">🗑️ Eliminar</button></td></tr>`;
+    }).join('')}</table></div>`:'<div class="muted">No hay grupos nuevos de recuperación creados.</div>';
+  };
+  gg?.addEventListener('change',refresh);ss?.addEventListener('change',refresh);refresh();renderCustom();
+}
+function createCreaRecoveryGroupFromManager31(){
+  ensureClassData();
+  const name=document.getElementById('recGrpName31')?.value.trim()||'';
+  const grade=document.getElementById('recGrpGrade31')?.value||'';
+  const section=document.getElementById('recGrpSection31')?.value||'';
+  const members=[...document.querySelectorAll('.creaRecManagerMember31:checked')].map(x=>x.value).filter(Boolean);
+  if(!name){alert('Escribe el nombre del grupo o proyecto.');return;}
+  if(!Array.isArray(db.creaRecoveryGroups))db.creaRecoveryGroups=[];
+  const id='reccgrp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+  const institutionalUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaInstitutionalParticipant31(u)).map(u=>String(u.u)));
+  const uniqueMembers=[...new Set(members)].filter(x=>!institutionalUsers.has(String(x)));
+  db.creaRecoveryGroups.push({id,name,grade,section,memberUsers:uniqueMembers,createdAt:Date.now(),source:'Grupo de recuperación'});
+  // Los estudiantes que se seleccionan para un grupo nuevo quedan habilitados
+  // automáticamente para Recuperación Crea. No se deshabilita a ningún otro
+  // estudiante, porque podría pertenecer a otra modalidad de recuperación.
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
+    if(uniqueMembers.includes(String(u.u)))u.creaRecovery=true;
+  });
+  save();
+  alert(`✅ Grupo de recuperación creado: ${name}\nIntegrantes iniciales: ${members.length}${members.length?'':'\nPuedes agregar estudiantes después desde su evaluación.'}`);
+  openCreaRecoveryGroupManager31();
+}
+function manageCreaRecoveryGroupMembers31(groupId){
+  ensureClassData();
+  const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
+  if(!g)return;
+  const students=(db.users||[]).filter(u=>u.role==='student'&&normalizeGradeCY30(u.grade)===normalizeGradeCY30(g.grade)&&normalizeSectionCY30(u.section)===normalizeSectionCY30(g.section)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const selected=new Set((g.memberUsers||[]).map(String));
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>👥 Integrantes: ${escClass(g.name)}</h2>
+    <p class="muted">Selecciona directamente a los estudiantes de <b>${escClass(g.grade)} ${escClass(g.section)}</b> que formarán parte de este grupo de recuperación. Al guardar, los seleccionados quedarán habilitados para Recuperación Crea.</p>
+    <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe"><b>${students.length} estudiante(s) del aula</b><div class="muted" style="margin-top:5px">Marca o desmarca y luego pulsa “Guardar integrantes”. No necesitas entrar uno por uno a sus evaluaciones.</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:7px;margin-top:12px">${students.map(u=>{const institutional=creaInstitutionalParticipant31(u);return `<label style="display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;opacity:${institutional?'0.62':'1'}"><input class="creaRecGroupMemberEdit31" type="checkbox" value="${escClass(u.u)}" ${selected.has(String(u.u))?'checked':''} ${institutional?'disabled':''}> ${escClass(u.name)}${institutional?' <span class="muted">· ✅ Participó institucional — no disponible para recuperación</span>':''}</label>`;}).join('')||'<span class="muted">No hay estudiantes registrados en este grado/sección.</span>'}</div>
+    <div class="actions" style="margin-top:15px"><button onclick="saveCreaRecoveryGroupMembers31('${escClass(g.id)}')">💾 Guardar integrantes</button><button class="secondary" onclick="openCreaRecoveryGroupManager31()">← Volver</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveCreaRecoveryGroupMembers31(groupId){
+  ensureClassData();
+  const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
+  if(!g)return;
+  const members=[...document.querySelectorAll('.creaRecGroupMemberEdit31:checked')].map(x=>String(x.value)).filter(Boolean);
+  const institutionalUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaInstitutionalParticipant31(u)).map(u=>String(u.u)));
+  g.memberUsers=[...new Set(members)].filter(x=>!institutionalUsers.has(String(x)));
+  const memberSet=new Set(g.memberUsers);
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
+    if(memberSet.has(String(u.u)))u.creaRecovery=true;
+  });
+  save();
+  alert(`✅ Integrantes guardados: ${g.memberUsers.length}.`);
+  openCreaRecoveryGroupManager31();
+}
+
+function deleteCreaRecoveryGroup31(groupId){
+  ensureClassData();
+  const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
+  if(!g)return;
+  if(!confirm(`¿Eliminar el grupo de recuperación «${g.name}»?\nEsto no elimina estudiantes ni grupos de Crea y Emprende.`))return;
+  db.creaRecoveryGroups=(db.creaRecoveryGroups||[]).filter(x=>String(x.id)!==String(groupId));
+  (db.creaRecoveryEvaluations||[]).forEach(r=>{if(String(r.creaRecoveryGroupId)===String(groupId)){r.creaRecoveryGroupId='';r.creaRecoveryGroupName='';r.creaRecoveryMode='individual';}});
+  save();
+  openCreaRecoveryGroupManager31();
+}
+
 function openCreaRecoveryEval31(user){
   ensureClassData();
   const st=(db.users||[]).find(x=>x.u===user);
   if(!st)return;
   if(st.creaRecovery!==true){alert('Este estudiante no está marcado para Recuperación pedagógica de Crea y Emprende.');return;}
   const cat=categoryForStudent(st);
-  const pc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[];
+  const manualPc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[];
+  const contestPc=db.projectRubrics[cat+'_portfolio']||[];
   const expoCriteria=CREA_EXPO_CRITERIA30||[];
-  const existing=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user)||{};
+  let existing=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user)||{};
+  // Compatibilidad para estudiantes ya marcados como recuperación antes de activar
+  // el traslado automático: si tenían una evaluación de Portafolio en el seguimiento semanal,
+  // trasladamos tanto la nota /20 como los niveles 1–4 de cada criterio del concurso.
+  const normalWeekly=(db.projectWeeklyGrades||[]).filter(x=>x.user===user);
+  const normalPc=db.projectRubrics[cat+'_portfolio']||[];
+  // Buscar la evaluación histórica aunque la rúbrica actual tenga más criterios.
+  // Lo importante para trasladar es que el registro original conserve sus niveles 1–4.
+  const weeklyPortfolioRecords=normalWeekly.map(x=>({
+    record:x,
+    score:projectRubricScore(x.portfolioLevels,Array.isArray(x.portfolioLevels)?x.portfolioLevels.length:0)
+  })).filter(x=>x.score!==null && Array.isArray(x.record.portfolioLevels) && x.record.portfolioLevels.some(v=>/^[1-4]$/.test(String(v))));
+  const weeklyPortfolioValues=weeklyPortfolioRecords.map(x=>Number(x.score)).filter(Number.isFinite);
+  let transferVals=weeklyPortfolioValues.slice();
+  if(!transferVals.length){
+    transferVals=(db.projectGrades||[]).filter(x=>x.user===user&&x.portfolio!==''&&x.portfolio!=null).map(x=>Number(x.portfolio)).filter(Number.isFinite);
+  }
+  const transferPortfolio=avgNums(transferVals);
+  const exactSource=weeklyPortfolioRecords.find(x=>Math.abs(Number(x.score)-Number(transferPortfolio))<0.0001);
+  const fallbackSource=weeklyPortfolioRecords.slice().sort((a,b)=>Number(b.record.savedAt||0)-Number(a.record.savedAt||0))[0];
+  const transferSource=exactSource||fallbackSource;
+  const transferLevels=transferSource?transferSource.record.portfolioLevels.map(v=>{
+    const sv=String(v??'').trim();
+    return /^[1-4]$/.test(sv)?Number(sv):sv;
+  }):[];
+  // La rúbrica de categoría B puede haber sido ampliada después de que se evaluó
+  // al estudiante. Conservamos la cantidad de criterios que realmente existía
+  // en la evaluación histórica y no inventamos niveles para criterios nuevos.
+  const transferCriterionCount=transferLevels.length;
+
+  // Caso 1: todavía no existe nota en Recuperación: crear el registro y trasladar nota + criterios.
+  if((existing.portfolio===undefined||existing.portfolio===null||existing.portfolio==='') && existing.portfolioImportedFromWeekly!==true){
+    if(Number.isFinite(Number(transferPortfolio))){
+      if(!existing.user){
+        existing={id:'crec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user};
+        if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
+        db.creaRecoveryEvaluations.push(existing);
+      }
+      existing.category=cat;
+      existing.mode='recuperacion_pedagogica';
+      existing.portfolio=Number(transferPortfolio);
+      existing.portfolioLevels=transferLevels.slice();
+      existing.portfolioImportedCriterionCount=transferCriterionCount;
+      existing.portfolioImportedRubricLength=normalPc.length;
+      existing.portfolioEvaluatedCriteria=transferLevels.filter(v=>/^[1-4]$/.test(String(v))).length;
+      existing.portfolioNotDevelopedCriteria=transferLevels.filter(v=>String(v)==='ND').length;
+      existing.portfolioImportedFromWeekly=true;
+      existing.portfolioImportedAt=Date.now();
+      existing.portfolioSource='Seguimiento semanal — Portafolio (criterios del concurso)';
+      existing.portfolioRubricMode='concurso';
+      existing.savedAt=Date.now();
+      save();
+    }
+  }
+
+  // Caso 2: el traslado ya ocurrió con una versión anterior del sistema que guardaba
+  // solo la nota. Recuperamos ahora los niveles si todavía no estaban almacenados.
+  if(existing.portfolioImportedFromWeekly===true && Number.isFinite(Number(existing.portfolio)) && transferSource){
+    const storedLevels=Array.isArray(existing.portfolioLevels)?existing.portfolioLevels:[];
+    // Recuperar los niveles históricos solo cuando realmente no fueron guardados.
+    // No reemplazar una rúbrica de 12 criterios que el docente ya haya abierto y completado
+    // parcialmente, porque los criterios nuevos deben quedar disponibles para evaluarlos.
+    if(storedLevels.length===0){
+      existing.portfolioLevels=transferLevels.slice();
+      existing.portfolioImportedCriterionCount=transferCriterionCount;
+      existing.portfolioImportedRubricLength=normalPc.length;
+      existing.portfolioEvaluatedCriteria=transferLevels.filter(v=>/^[1-4]$/.test(String(v))).length;
+      existing.portfolioNotDevelopedCriteria=transferLevels.filter(v=>String(v)==='ND').length;
+      existing.portfolioSource='Seguimiento semanal — Portafolio (criterios del concurso)';
+      existing.portfolioRubricMode='concurso';
+      existing.savedAt=Date.now();
+      save();
+    }
+  }
+  const importedPortfolio=existing.portfolioImportedFromWeekly===true && Number.isFinite(Number(existing.portfolio));
+  const importedPortfolioValue=importedPortfolio?Number(existing.portfolio):null;
+  const initialMode=creaRecoveryPortfolioMode31(st,existing);
+  if(!st.creaRecoveryPortfolioMode){st.creaRecoveryPortfolioMode=initialMode;try{save();}catch(e){}}
+  const portfolioMode=creaRecoveryPortfolioMode31(st,existing);
+  const recoveryMode=existing.creaRecoveryMode==='grupal'?'grupal':'individual';
+  const selectedRecoveryGroupId=existing.creaRecoveryGroupId||'';
+  const recoveryGroups=getCreaRecoveryGroups31(st.grade,st.section);
+  const recoveryExpoCriteria=recoveryExpoCriteria31(recoveryMode);
+  const pc=portfolioMode==='concurso'?contestPc:manualPc;
+  const productCriteria=db.projectRubrics[cat+'_product']||[];
+  const productLevels=Array.isArray(existing.productLevels)&&existing.productLevels.length===productCriteria.length?existing.productLevels:[];
+  const productPresented=existing.productPresented===true || (existing.product!==null&&existing.product!==undefined);
   // Si existe una evaluación antigua con otra cantidad de criterios, no reutilizar
   // posiciones para evitar que un puntaje quede asociado a un criterio distinto.
   let pLevels=[];
-  if(Array.isArray(existing.portfolioLevels)){
-    if(existing.portfolioLevels.length===pc.length){
+  if(portfolioMode==='manual' && Array.isArray(existing.portfolioLevels)){
+    if(existing.portfolioLevels.length===manualPc.length){
       pLevels=existing.portfolioLevels;
-    }else if(existing.portfolioLevels.length===6 && pc.length===5){
+    }else if(existing.portfolioLevels.length===6 && manualPc.length===5){
       // Compatibilidad: versión anterior tenía duplicado el criterio de problema.
-      // Conservamos los puntajes válidos de los otros cinco criterios.
       pLevels=[existing.portfolioLevels[0],existing.portfolioLevels[2],existing.portfolioLevels[3],existing.portfolioLevels[4],existing.portfolioLevels[5]];
     }
+  }else if(portfolioMode==='concurso' && Array.isArray(existing.portfolioLevels)){
+    // Mostrar los niveles guardados aunque provengan de una versión anterior
+    // de la rúbrica (por ejemplo, 8 criterios frente a los 12 actuales).
+    pLevels=existing.portfolioLevels.slice(0,contestPc.length);
   }
   const eLevels=Array.isArray(existing.expositionLevels)&&existing.expositionLevels.length===expoCriteria.length?existing.expositionLevels:[];
-  const prow=pc.map((criterion,i)=>`<div class="item" style="margin:8px 0"><div><b>${i+1}. ${escClass(criterion.name)}</b></div><select class="creaRecPL31" data-i="${i}"><option value="">Seleccionar nivel</option><option value="ND" ${String(pLevels[i]||'')==='ND'?'selected':''}>⏺ No desarrollado / no trabajado en aula — no afecta</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(pLevels[i])===n?'selected':''}>Nivel ${n} — ${n} punto(s)</option>`).join('')}</select></div>`).join('');
-  const erow=expoCriteria.map((c,i)=>`<div class="item" style="margin:8px 0"><div><b>${i+1}. ${escClass(c.name)}</b></div><select class="creaRecEL31" data-i="${i}"><option value="">Seleccionar puntaje</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(eLevels[i])===n?'selected':''}>${n} punto(s)</option>`).join('')}</select></div>`).join('');
+  const importedCount=Number(existing.portfolioImportedCriterionCount||0);
+  const importedHistorical=portfolioMode==='concurso' && existing.portfolioImportedFromWeekly===true && importedCount>0 && importedCount<contestPc.length;
+  const prow=pc.map((criterion,i)=>{
+    const isContest=portfolioMode==='concurso';
+    const selected=String(pLevels[i]??'');
+    const historicalExtra=isContest && importedHistorical && i>=importedCount;
+    const criterionName=typeof criterion==='string' ? criterion : (criterion?.name ?? 'Criterio sin nombre');
+    const blankLabel=historicalExtra?'No evaluado / no trabajado': 'Seleccionar nivel';
+    const extraNote=historicalExtra?' <span class="muted">— criterio añadido después; evalúalo solo si fue trabajado</span>':'';
+    return `<div class="item" style="margin:8px 0;${historicalExtra?'background:#fffbeb;border:1px dashed #f59e0b':''}"><div><b>${i+1}. ${escClass(criterionName)}</b>${extraNote}</div><select class="creaRecPL31" data-i="${i}"><option value="">${blankLabel}</option>${isContest?'':[ '<option value="ND" '+(selected==='ND'?'selected':'')+'>⏺ No desarrollado / no trabajado en aula — no afecta</option>' ].join('')}${[1,2,3,4].map(n=>`<option value="${n}" ${Number(pLevels[i])===n?'selected':''}>Nivel ${n} — ${n} punto(s)</option>`).join('')}</select></div>`;
+  }).join('');
+  const erow=recoveryExpoCriteria.map((c,i)=>`<div class="item" style="margin:8px 0"><div><b>${i+1}. ${escClass(c.name)}</b></div><select class="creaRecEL31" data-i="${i}"><option value="">Seleccionar puntaje</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(eLevels[i])===n?'selected':''}>${n} punto(s)</option>`).join('')}</select></div>`).join('');
+  const prodrow=productCriteria.map((c,i)=>`<div class="item creaRecProductBox31" style="margin:8px 0;${productPresented?'':'display:none;'}"><div><b>${i+1}. ${escClass(c)}</b></div><select class="creaRecPR31" data-i="${i}"><option value="">Seleccionar nivel</option>${[1,2,3,4].map(n=>`<option value="${n}" ${Number(productLevels[i])===n?'selected':''}>Nivel ${n} — ${n} punto(s)</option>`).join('')}</select></div>`).join('');
   modalBody.classList.add('wide');
   modalBody.innerHTML=`<h2>🏆 Recuperación pedagógica — Crea y Emprende</h2>
     <div class="card" style="background:#f0fdf4;border:1px solid #bbf7d0"><b>${escClass(st.name||st.u)}</b><br>${escClass(st.grade||'')} · ${escClass(st.section||'')} · <b>Categoría ${escClass(cat)}</b><p class="muted" style="margin:6px 0 0">Proyecto desarrollado posteriormente en aula porque no participó en la etapa institucional.</p></div>
-    <h3>📁 Portafolio manual elaborado en aula</h3><p class="muted"><b>Rúbrica específica de recuperación.</b> Evalúa únicamente lo que realmente desarrollaron contigo. Cuando un criterio no fue trabajado en la recuperación, selecciona <b>“No desarrollado / no trabajado en aula”</b>; ese criterio queda fuera del cálculo y <b>no perjudica al estudiante</b>. Resultado sobre 20.</p>${prow}<div class="card" style="background:#eff6ff"><b>Portafolio: <span id="creaRecP31">—</span> / 20</b><div class="muted" style="margin-top:4px">Los criterios “No desarrollado” no suman puntos ni bajan el resultado. Esta rúbrica es exclusiva de la recuperación y no modifica la rúbrica del concurso.</div></div>
-    <h3 style="margin-top:20px">🎤 Exposición de recuperación</h3><p class="muted">Evalúa la exposición con los 5 criterios de Crea y Emprende. Puedes guardar primero el Portafolio aunque la exposición todavía esté pendiente; la nota del Proyecto aparecerá cuando completes ambas evidencias.</p>${erow}<div class="card" style="background:#eff6ff"><b>Exposición: <span id="creaRecE31">—</span> / 20</b></div>
-    <div class="card" style="margin-top:15px;background:#f8fafc"><b>🛠️ Producto: No aplica</b><div class="muted">Esta modalidad no requiere registrar una nota de producto.</div></div>
-    <div class="card" style="margin-top:15px;background:#fff7ed;border:1px solid #fed7aa"><b>📊 Regla</b><div class="muted">Proyecto de recuperación = Portafolio (30%) + Exposición (40%), normalizado. Máximo 14 puntos (B).</div></div>
+    <h3>📁 Portafolio de recuperación</h3><div class="card" style="background:#f8fafc;border:1px solid #cbd5e1"><label>Tipo de Portafolio</label><select id="creaRecPortfolioMode31" onchange="changeCreaRecoveryPortfolioMode31('${escClass(user)}',this.value)"><option value="manual" ${portfolioMode==='manual'?'selected':''}>📁 Portafolio manual de recuperación — criterios trabajados en aula</option><option value="concurso" ${portfolioMode==='concurso'?'selected':''}>🏆 Portafolio con criterios del concurso Crea y Emprende</option></select></div>
+    <h3 style="margin-top:20px">👥 Modalidad de recuperación</h3><div class="card" style="background:#f8fafc;border:1px solid #cbd5e1"><label>¿Cómo presenta el proyecto?</label><select id="creaRecMode31" onchange="refreshCreaRecoveryGroupUI31('${escClass(user)}')"><option value="individual" ${recoveryMode==='individual'?'selected':''}>👤 Individual — trabaja y expone solo(a)</option><option value="grupal" ${recoveryMode==='grupal'?'selected':''}>👥 Grupal — trabaja y/o expone con un equipo</option></select><div id="creaRecGroupBox31" style="margin-top:10px;${recoveryMode==='grupal'?'':'display:none;'}"><label>Grupo de recuperación</label><select id="creaRecGroup31" onchange="refreshCreaRecoveryGroupUI31('${escClass(user)}')"><option value="">Seleccionar grupo</option>${recoveryGroups.map(g=>`<option value="${escClass(g.id)}" ${String(selectedRecoveryGroupId)===String(g.id)?'selected':''}>${escClass(g.name)} · ${g.source==='Grupo de recuperación'?'grupo creado para recuperación':'grupo existente de Crea y Emprende'}</option>`).join('')}</select><div id="creaRecGroupPreview31" class="muted" style="margin-top:8px"></div><div class="muted" style="margin-top:8px">📌 Los grupos nuevos no se crean desde la ficha de Ana ni desde otro estudiante. Usa <b>“👥 Administrar grupos de recuperación”</b> en la pantalla principal y luego selecciona aquí el grupo.</div></div><div id="creaRecModeHint31" class="muted" style="margin-top:8px">${recoveryMode==='grupal'?'👥 Se utilizará la rúbrica de exposición grupal: “Organización del equipo emprendedor”.':'👤 Se utilizará la rúbrica de exposición individual: “Organización del trabajo emprendedor”.'}</div></div><p class="muted">${portfolioMode==='concurso'?'<b>Rúbrica del concurso.</b> Esta estudiante será evaluada con los criterios oficiales de su categoría, no con la rúbrica manual de recuperación.':'<b>Rúbrica específica de recuperación.</b> Evalúa únicamente lo que realmente desarrollaron contigo. Cuando un criterio no fue trabajado en la recuperación, selecciona <b>“No desarrollado / no trabajado en aula”</b>; ese criterio queda fuera del cálculo y <b>no perjudica al estudiante</b>.'} Resultado sobre 20.</p>${importedPortfolio?`<div class="card" style="background:#ecfdf5;border:1px solid #86efac"><b>📌 Evaluación trasladada del seguimiento semanal: ${importedPortfolioValue.toFixed(2)} / 20</b><div class="muted" style="margin-top:4px">Se trasladaron también los <b>niveles de los criterios del concurso</b> que ya habías registrado. ${importedHistorical?'La evaluación original tenía '+importedCount+' criterios; los criterios añadidos posteriormente aparecen como “No evaluado en la evaluación original” y no cambian la nota histórica.':'La rúbrica aparece marcada abajo con esos niveles; no necesitas volver a evaluarla para conservar la calificación.'} Puedes modificarlos si corresponde.</div></div>`:''}${prow}<div class="card" style="background:#eff6ff"><b>Portafolio: <span id="creaRecP31">—</span> / 20</b><div class="muted" style="margin-top:4px">${portfolioMode==='concurso'?'Se usan únicamente los criterios del concurso de la categoría del estudiante.':'Los criterios “No desarrollado” no suman puntos ni bajan el resultado. Esta rúbrica es exclusiva de la recuperación.'}</div></div>
+    <h3 style="margin-top:20px">🎤 Exposición de recuperación</h3><p class="muted">La Exposición es <b>obligatoria</b>. Puedes guardar primero el Portafolio aunque la exposición todavía esté pendiente; el Proyecto aparecerá cuando tengas Portafolio + Exposición.</p>${erow}<div class="card" style="background:#eff6ff"><b>Exposición: <span id="creaRecE31">—</span> / 20</b></div>
+    <div class="card" style="margin-top:15px;background:#f8fafc"><b>🛠️ Producto (opcional)</b><div class="muted">Si el estudiante logra presentar producto o prototipo, actívalo y evalúalo. Si no lo presenta, no se le coloca 0 y la recuperación puede cerrarse con Portafolio + Exposición.</div><label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input id="creaRecProductPresented31" type="checkbox" ${productPresented?'checked':''} onchange="toggleCreaRecoveryProduct31()"> ✅ Presentó producto / prototipo</label>${prodrow}</div>
+    <div class="card" style="margin-top:15px;background:#fff7ed;border:1px solid #fed7aa"><b>📊 Regla</b><div class="muted">Portafolio + Exposición son obligatorios. Si no hay Producto, Proyecto = Portafolio 30% + Exposición 40%, normalizado sobre 70%. Si hay Producto, se incorpora con 30%. En ambos casos el máximo es <b>14 puntos (B)</b>.</div></div>
     <div class="actions" style="margin-top:16px"><button onclick="saveCreaRecoveryEval31('${escClass(user)}')">💾 Guardar evaluación</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
   modal.classList.remove('hidden');
+  const modeEl=document.getElementById('creaRecMode31');
+  const groupEl=document.getElementById('creaRecGroup31');
+  if(groupEl && selectedRecoveryGroupId)groupEl.value=selectedRecoveryGroupId;
+  if(modeEl){modeEl.addEventListener('change',()=>{
+    const m=modeEl.value==='grupal'?'grupal':'individual';
+    const hint=document.getElementById('creaRecModeHint31');
+    if(hint)hint.innerHTML=m==='grupal'?'👥 Se utilizará la rúbrica de exposición grupal: “Organización del equipo emprendedor”.':'👤 Se utilizará la rúbrica de exposición individual: “Organización del trabajo emprendedor”.';
+    refreshCreaRecoveryGroupUI31(user);
+  });}
+  if(groupEl)groupEl.addEventListener('change',()=>refreshCreaRecoveryGroupUI31(user));
+  refreshCreaRecoveryGroupUI31(user);
   const update=()=>{
     const pSelected=[...document.querySelectorAll('.creaRecPL31')].map(x=>String(x.value||''));
     const pv=pSelected.filter(v=>/^\d+$/.test(v)).map(Number).filter(n=>n>=1&&n<=4);
     const ev=[...document.querySelectorAll('.creaRecEL31')].map(x=>Number(x.value)).filter(n=>Number.isFinite(n)&&n>=1&&n<=4);
-    const p=pv.length?Math.max(0,Math.min(20,pv.reduce((a,b)=>a+b,0)/(pv.length*4)*20)):null;
-    const e=ev.length===expoCriteria.length&&expoCriteria.length?Math.max(0,Math.min(20,ev.reduce((a,b)=>a+b,0))):null;
+    const prSelected=[...document.querySelectorAll('.creaRecPR31')].map(x=>String(x.value||''));
+    const rv=prSelected.filter(v=>/^\d+$/.test(v)).map(Number).filter(n=>n>=1&&n<=4);
+    const p=pv.length?Math.max(0,Math.min(20,pv.reduce((a,b)=>a+b,0)/(pv.length*4)*20)):(importedPortfolio?importedPortfolioValue:null);
+    const e=ev.length===recoveryExpoCriteria.length&&recoveryExpoCriteria.length?Math.max(0,Math.min(20,ev.reduce((a,b)=>a+b,0))):null;
+    const prod=rv.length?Math.max(0,Math.min(20,rv.reduce((a,b)=>a+b,0)/(rv.length*4)*20)):null;
     const pe=document.getElementById('creaRecP31'),ee=document.getElementById('creaRecE31');
     if(pe)pe.textContent=p===null?'—':p.toFixed(2); if(ee)ee.textContent=e===null?'—':e.toFixed(2);
+  };
+  window.toggleCreaRecoveryProduct31=()=>{
+    const on=document.getElementById('creaRecProductPresented31')?.checked===true;
+    document.querySelectorAll('.creaRecProductBox31').forEach(el=>el.style.display=on?'block':'none');
+    update();
   };
   document.querySelectorAll('.creaRecPL31,.creaRecEL31').forEach(x=>x.addEventListener('change',update));
   update();
@@ -7782,38 +8204,108 @@ function saveCreaRecoveryEval31(user){
   ensureClassData();
   const st=(db.users||[]).find(x=>x.u===user);if(!st)return;
   const cat=categoryForStudent(st);
-  const pc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[],expoCriteria=CREA_EXPO_CRITERIA30||[];
+  const manualPc=CREA_RECOVERY_PORTFOLIO_CRITERIA31||[], contestPc=db.projectRubrics[cat+'_portfolio']||[];
+  const existing=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user)||{};
+  const recoveryMode=String(document.getElementById('creaRecMode31')?.value||existing.creaRecoveryMode||'individual')==='grupal'?'grupal':'individual';
+  const recoveryExpoCriteria=recoveryExpoCriteria31(recoveryMode);
+  const portfolioMode=String(document.getElementById('creaRecPortfolioMode31')?.value||creaRecoveryPortfolioMode31(st,existing))==='concurso'?'concurso':'manual';
+  const pc=portfolioMode==='concurso'?contestPc:manualPc;
+  const importedPortfolio=existing.portfolioImportedFromWeekly===true && Number.isFinite(Number(existing.portfolio));
+  const importedPortfolioValue=importedPortfolio?Number(existing.portfolio):null;
   const p=[...document.querySelectorAll('.creaRecPL31')].map(x=>String(x.value||''));
+  const importedCount=Number(existing.portfolioImportedCriterionCount||0);
+  const importedHistorical=(portfolioMode==='concurso' && existing.portfolioImportedFromWeekly===true && importedCount>0 && importedCount<pc.length);
   const eRaw=[...document.querySelectorAll('.creaRecEL31')].map(x=>String(x.value||''));
-  const validP=p.every(v=>v==='ND'||/^[1-4]$/.test(v));
+  const productPresented=document.getElementById('creaRecProductPresented31')?.checked===true;
+  const prRaw=[...document.querySelectorAll('.creaRecPR31')].map(x=>String(x.value||''));
+  const validP=p.every(v=>v===''||v==='ND'||/^[1-4]$/.test(v));
   const evaluatedP=p.filter(v=>/^[1-4]$/.test(v)).map(Number);
-  if(p.length!==pc.length||!validP||evaluatedP.length===0){
-    alert('Completa los criterios del Portafolio con niveles de 1 a 4. Los aspectos que no fueron desarrollados en aula pueden marcarse como “No desarrollado / no trabajado en aula”. Debe existir al menos un criterio evaluado.');
+  const hasPortfolioRubricEntry=p.some(v=>v!=='');
+  let portfolio=null;
+  let portfolioFromRubric=false;
+  if(hasPortfolioRubricEntry){
+    const contestMode=portfolioMode==='concurso';
+    const incomplete=p.length!==pc.length||p.some(v=>v==='')||evaluatedP.length===0;
+    if(contestMode){
+      // En la recuperación con rúbrica del concurso, los criterios históricos se
+      // trasladan con sus niveles y los criterios añadidos quedan habilitados.
+      // El docente puede calificarlos ahora o dejarlos en blanco si no fueron enseñados.
+      // Los criterios en blanco no participan en el promedio.
+      if(importedHistorical){
+        const historicalPart=p.slice(0,importedCount);
+        if(historicalPart.length!==importedCount || historicalPart.some(v=>!/^[1-4]$/.test(v))){
+          alert('Los niveles históricos trasladados no están completos. Revisa los criterios que ya habían sido evaluados.');
+          return;
+        }
+      }else if(p.some(v=>v!=='' && !/^[1-4]$/.test(v))){
+        alert('Cada criterio del concurso debe tener Nivel 1, 2, 3 o 4, o quedar en blanco si todavía no corresponde calificarlo.');
+        return;
+      }
+    }else if(incomplete||!validP){
+      alert('Completa los criterios del Portafolio manual con niveles de 1 a 4. Los aspectos que no fueron desarrollados en aula pueden marcarse como “No desarrollado / no trabajado en aula”. Debe existir al menos un criterio evaluado.');
+      return;
+    }
+    const historicalEvaluated=importedHistorical?evaluatedP.slice(0,importedCount):evaluatedP;
+    const contestEvaluated=portfolioMode==='concurso'?evaluatedP:historicalEvaluated;
+    if(!contestEvaluated.length){
+      alert('Debe existir al menos un criterio evaluado para calcular el Portafolio.');
+      return;
+    }
+    portfolio=Math.max(0,Math.min(20,contestEvaluated.reduce((a,b)=>a+b,0)/(contestEvaluated.length*4)*20));
+    portfolioFromRubric=true;
+  }else if(importedPortfolio && portfolioMode==='concurso'){
+    portfolio=importedPortfolioValue;
+  }else{
+    alert(portfolioMode==='concurso'?'Completa los criterios del concurso o utiliza la nota trasladada de 11–20 ya registrada si aparece indicada arriba.':'Completa los criterios del Portafolio manual de recuperación.');
     return;
   }
   // La recuperación puede guardarse por etapas: primero Portafolio y después Exposición.
   // No se obliga a tener la exposición para poder guardar el trabajo que ya realizó el estudiante.
   const expoCompleted=eRaw.every(v=>/^[1-4]$/.test(v));
   const exposition=expoCompleted?Math.max(0,Math.min(20,eRaw.map(Number).reduce((a,b)=>a+b,0))):null;
-  const portfolio=Math.max(0,Math.min(20,evaluatedP.reduce((a,b)=>a+b,0)/(evaluatedP.length*4)*20));
+  if(productPresented && (prRaw.length!==productCriteria.length || prRaw.some(v=>!/^[1-4]$/.test(v)))){
+    alert('Has indicado que presentó producto/prototipo. Completa todos los criterios del Producto con niveles de 1 a 4, o desmarca “Presentó producto / prototipo” si todavía no lo presenta.');
+    return;
+  }
+  const product=productPresented?Math.max(0,Math.min(20,prRaw.map(Number).reduce((a,b)=>a+b,0)/(productCriteria.length*4)*20)):null;
   let r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===user);
   if(!r){r={id:'crec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user};db.creaRecoveryEvaluations.push(r);}
   r.category=cat;
   r.mode='recuperacion_pedagogica';
-  r.portfolioLevels=p;
+  r.creaRecoveryMode=String(document.getElementById('creaRecMode31')?.value||'individual')==='grupal'?'grupal':'individual';
+  r.creaRecoveryGroupId=r.creaRecoveryMode==='grupal'?(document.getElementById('creaRecGroup31')?.value||''):'';
+  if(r.creaRecoveryMode==='grupal'&&!r.creaRecoveryGroupId){alert('Selecciona un grupo existente de Crea y Emprende o un grupo nuevo de recuperación que hayas creado desde “Administrar grupos de recuperación”.');return;}
+  const chosenRecoveryGroup=r.creaRecoveryMode==='grupal'?getCreaRecoveryGroupById31(r.creaRecoveryGroupId,st.grade,st.section):null;
+  if(r.creaRecoveryMode==='grupal' && chosenRecoveryGroup?.source==='Grupo de recuperación'){
+    const customGroup=(db.creaRecoveryGroups||[]).find(g=>String(g.id)===String(r.creaRecoveryGroupId));
+    if(customGroup){
+      if(!Array.isArray(customGroup.memberUsers))customGroup.memberUsers=[];
+      if(!customGroup.memberUsers.some(id=>String(id)===String(user)))customGroup.memberUsers.push(user);
+    }
+  }
+  r.creaRecoveryGroupName=chosenRecoveryGroup?.name||'';
+  r.portfolioRubricMode=portfolioMode;
+  st.creaRecoveryPortfolioMode=portfolioMode;
+  r.portfolioLevels=portfolioFromRubric?(importedHistorical?p.slice(0,importedCount):p):[];
   r.portfolio=portfolio;
-  r.portfolioEvaluatedCriteria=evaluatedP.length;
-  r.portfolioNotDevelopedCriteria=p.filter(v=>v==='ND').length;
+  if(importedHistorical) r.portfolioImportedCriterionCount=importedCount;
+  r.portfolioEvaluatedCriteria=portfolioFromRubric?evaluatedP.length:0;
+  r.portfolioNotDevelopedCriteria=portfolioFromRubric?p.filter(v=>v==='ND').length:0;
+  r.portfolioImportedFromWeekly=importedHistorical?true:(portfolioFromRubric?false:importedPortfolio);
+  if(portfolioFromRubric) delete r.portfolioImportedAt;
+  if(portfolioFromRubric) r.portfolioSource=portfolioMode==='concurso'?'Criterios oficiales del concurso Crea y Emprende':'Rúbrica específica de recuperación manual';
   r.expositionLevels=expoCompleted?eRaw.map(Number):[];
   r.exposition=exposition;
-  r.product=null;
+  r.productLevels=productPresented?prRaw.map(Number):[];
+  r.product=product;
+  r.productPresented=productPresented;
   r.savedAt=Date.now();
   r.portfolioSavedAt=Date.now();
   r.expositionSavedAt=expoCompleted?Date.now():(r.expositionSavedAt||null);
   save();closeModal();render();
   alert(expoCompleted
-    ? `✅ Recuperación de Crea y Emprende guardada.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: ${exposition.toFixed(2)} / 20\nProducto: No aplica\n\nLos criterios “No desarrollado” no afectan el puntaje del Portafolio.\nEl Proyecto de recuperación tendrá máximo 14 puntos (B).`
-    : `✅ Portafolio manual de recuperación guardado.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: Pendiente\nProducto: No aplica\n\nPuedes cerrar ahora y registrar la exposición después.\nEl Proyecto de recuperación se calculará recién cuando también completes la exposición, con máximo 14 puntos (B).`);
+    ? `✅ Recuperación de Crea y Emprende guardada.\nModalidad: ${recoveryMode==='grupal'?'Grupal · '+(r.creaRecoveryGroupName||'Grupo sin nombre'):'Individual'}\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: ${exposition.toFixed(2)} / 20\nProducto: ${productPresented?product.toFixed(2)+' / 20':'No presentado'}\n\nLos criterios del concurso que quedaron en blanco no participan en el promedio.\nEl Proyecto de recuperación tendrá máximo 14 puntos (B).`
+    : `✅ Portafolio de recuperación guardado.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: Pendiente\nProducto: ${productPresented?product.toFixed(2)+' / 20':'Pendiente / opcional'}\n\nPuedes cerrar ahora y registrar la exposición después.\nLos criterios del concurso que quedaron en blanco no participan en el promedio.\nEl Proyecto de recuperación se calculará recién cuando completes la Exposición; Portafolio + Exposición son el mínimo requerido. Máximo 14 puntos (B).`);
 }
 function creaRecovery31(){
   ensureClassData();
@@ -7821,11 +8313,16 @@ function creaRecovery31(){
   const rows=students.map((u,i)=>{
     const r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u)||{};
     const complete=Number.isFinite(Number(r.portfolio))&&Number.isFinite(Number(r.exposition));
-    const project=complete?Math.max(0,Math.min(14,(Number(r.portfolio)*30+Number(r.exposition)*40)/70)):null;
+    const hasProduct=r.product!==null&&r.product!==undefined&&Number.isFinite(Number(r.product));
+    const project=complete?Math.max(0,Math.min(14,(Number(r.portfolio)*30+Number(r.exposition)*40+(hasProduct?Number(r.product)*30:0))/(hasProduct?100:70))):null;
     const final=finalGrade(u.u);const lv=final===null?'Pendiente':classLevel(final);
-    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>No aplica</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
+    const portfolioMode=creaRecoveryPortfolioMode31(u,r);
+    const portfolioModeLabel=portfolioMode==='concurso'?'🏆 Concurso':'📁 Manual';
+    const recoveryMode=r.creaRecoveryMode==='grupal'?'👥 Grupal':'👤 Individual';
+    const recoveryGroup=r.creaRecoveryMode==='grupal'?(r.creaRecoveryGroupName||'Grupo sin nombre'):'Sin grupo';
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')} · ${portfolioModeLabel}<br>${recoveryMode}${r.creaRecoveryMode==='grupal'?` · ${escClass(recoveryGroup)}`:''}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>${hasProduct?Number(r.product).toFixed(2):'No presentado'}</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
   }).join('');
-  return `<div class="card"><h2>🏆 Recuperación pedagógica — Crea y Emprende</h2><p class="muted">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio manual + Exposición</b>; <b>Producto: No aplica.</b></p><div class="alert"><b>Regla:</b> el Proyecto de recuperación se calcula normalizando Portafolio 30% + Exposición 40%. El máximo es <b>14 puntos (B)</b>.</div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes marcados para esta modalidad.</td></tr>'}</table></div></div>`;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🏆 Recuperación pedagógica — Crea y Emprende</h2><button class="secondary" onclick="openCreaRecoveryGroupManager31()">👥 Administrar grupos de recuperación</button></div><p class="muted" style="margin-top:10px">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio + Exposición son obligatorios</b>; <b>Producto es opcional</b> y solo se incorpora si realmente lo presentan.</p><div class="alert"><b>Regla:</b> Portafolio + Exposición son el mínimo. Sin Producto, Proyecto = Portafolio 30% + Exposición 40% normalizado sobre 70%. Con Producto, se incorpora 30%. El máximo es <b>14 puntos (B)</b>.</div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto /20</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes marcados para esta modalidad.</td></tr>'}</table></div></div>`;
 }
 
 function render(){
