@@ -15,10 +15,10 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #cbd5e1;border-ra
 button{border:0;border-radius:10px;padding:11px 15px;font-weight:700;cursor:pointer;background:var(--primary);color:#fff}
 button.secondary{background:#e2e8f0;color:#172033}button.danger{background:#dc2626}button.small{padding:7px 10px;font-size:12px}
 .demo{margin-top:18px;padding:12px;border-radius:10px;background:#eff6ff;font-size:13px}
-.layout{display:flex;min-height:100vh}.sidebar{width:250px;background:var(--dark);color:#fff;padding:22px;position:fixed;top:0;bottom:0}
-.brand{font-size:19px;font-weight:800;margin-bottom:25px}.brand small{display:block;color:#94a3b8;font-size:12px;margin-top:4px}
-.nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:3px 0}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}.nav-group-title{font-weight:800;color:#94a3b8;font-size:12px;text-transform:uppercase;padding:14px 10px 5px;letter-spacing:.3px}.nav-sub{padding-left:10px}.nav-sub button{font-size:14px}.nav-group-toggle{font-weight:800!important;color:#fff!important;background:#172033!important}.nav-group-toggle:hover{background:#1e293b!important}
-.main{margin-left:250px;width:calc(100% - 250px);padding:28px}.topbar{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}
+.layout{display:flex;min-height:100vh}.sidebar{width:250px;background:var(--dark);color:#fff;padding:14px 10px;position:fixed;top:0;bottom:0;z-index:20;overflow:visible}
+.brand{font-size:17px;font-weight:800;margin:0 8px 12px}.brand small{display:block;color:#94a3b8;font-size:11px;margin-top:3px}
+.nav{position:relative}.nav button{width:100%;text-align:left;background:transparent;color:#cbd5e1;margin:1px 0;padding:7px 9px;border-radius:8px;font-size:12.5px;line-height:1.1}.nav button.active,.nav button:hover{background:#1e293b;color:#fff}.nav-group-title{font-weight:800;color:#94a3b8;font-size:10px;text-transform:uppercase;padding:7px 8px 3px;letter-spacing:.3px}.nav-sub{padding:8px;background:var(--dark);border:1px solid #334155;border-radius:10px;box-shadow:0 12px 28px #0005}.nav-sub button{font-size:12px;padding:6px 7px}.nav-group-toggle{font-weight:800!important;color:#fff!important;background:#172033!important}.nav-group-toggle:hover{background:#1e293b!important}.nav-flyout-wrap{position:relative}.nav-flyout-wrap>.nav-sub{position:absolute;left:calc(100% + 2px);top:0;width:330px;display:none!important;grid-template-columns:1fr 1fr;gap:2px;z-index:100}.nav-flyout-wrap:hover>.nav-sub{display:grid!important}.nav-flyout-wrap:hover>.nav-group-toggle{background:#1e293b!important;color:#fff!important}
+.main{margin-left:250px;width:calc(100% - 250px);padding:28px;min-width:0;overflow-x:auto}.topbar{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}
 .userpill{background:white;border:1px solid var(--line);padding:9px 12px;border-radius:12px}
 
 
@@ -49,11 +49,11 @@ button.secondary{background:#e2e8f0;color:#172033}button.danger{background:#dc26
 .actions{display:flex;gap:8px;flex-wrap:wrap}.section{margin-bottom:24px}
 .chat{height:430px;display:flex;flex-direction:column}.messages{flex:1;overflow:auto;padding:12px;background:#f8fafc;border-radius:12px;margin-bottom:12px}.msg{max-width:75%;padding:10px 13px;border-radius:14px;margin:8px 0;background:#e2e8f0}.msg.me{margin-left:auto;background:#dbeafe}.msg b{display:block;font-size:12px;margin-bottom:3px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:14px}
-.modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:20px;z-index:5}.modal-card{width:min(650px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;padding:24px}
+.modal{position:fixed;inset:0;background:#0007;display:grid;place-items:center;padding:20px;z-index:5}.modal-card{position:relative;width:min(650px,100%);max-height:90vh;overflow:auto;background:white;border-radius:18px;padding:24px}.modal-close{position:sticky;top:-14px;float:right;z-index:100;margin:-10px -8px 0 0;width:38px;height:38px;border:0;border-radius:50%;background:#e2e8f0;color:#0f172a;font-size:25px;line-height:38px;font-weight:800;cursor:pointer;box-shadow:0 2px 7px #0f172a18}.modal-close:hover{background:#cbd5e1}
 @media(max-width:900px){.sidebar{width:70px;padding:12px}.brand span,.brand small,.nav button span{display:none}.main{margin-left:70px;width:calc(100% - 70px);padding:18px}.grid,.grid3{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.grid,.grid3{grid-template-columns:1fr}.topbar{align-items:flex-start;flex-direction:column}.item{flex-direction:column;align-items:flex-start}}
 
-.cyTable th,.cyTable td{vertical-align:top}.cyTable input,.cyTable select{min-width:140px}.cyTable th:first-child{min-width:210px}
+.cyTableWrap{width:100%;overflow:visible;position:relative}.cyTable{min-width:1050px}.cyTable th,.cyTable td{vertical-align:top}.cyTable input,.cyTable select{min-width:140px}.cyTable th:first-child{min-width:210px}.cyTable select:focus,.cyTable input:focus{position:relative;z-index:20}
 .chat-messages-fixed{height:300px;overflow-y:auto;overflow-x:hidden;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc;overscroll-behavior:contain;scroll-behavior:auto;margin-bottom:8px}.modal-card:has(.chat-messages-fixed){overflow:hidden}.modal-card:has(.chat-messages-fixed) #chatText22{display:block;width:100%;box-sizing:border-box;resize:none;min-height:72px;max-height:72px;overflow-y:auto;margin:0 0 8px}.modal-card:has(.chat-messages-fixed) .actions{flex-shrink:0}
 .modal-card.wide{width:min(1100px,100%)}
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
@@ -125,7 +125,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
   </div>
 </div>
 
-<div id="modal" class="modal hidden"><div class="modal-card" id="modalBody"></div></div>
+<div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"><button type="button" class="modal-close" aria-label="Cerrar ventana" title="Cerrar" onclick="closeModal()">×</button><div id="modalBody"></div></div></div>
 
 <script>
 const seed = {
@@ -221,6 +221,18 @@ function startFirebaseSync(){
             if(page === 'attendance'){
               if(typeof renderAttendanceTable25 === 'function') renderAttendanceTable25();
               return;
+            }
+            // En Crea y Emprende no reconstruimos la tabla mientras el docente
+            // está escribiendo en Proyecto/Detalle. La sincronización Firebase
+            // puede devolver nuestro propio guardado y, si se ejecuta render(),
+            // el <input> se reemplaza y se pierde el foco cada pocos caracteres.
+            if(page === 'creaEmprende'){
+              const active=document.activeElement;
+              const editingCY=active && (
+                String(active.id||'').startsWith('cyProject_') ||
+                String(active.id||'').startsWith('cyDetail_')
+              );
+              if(editingCY) return;
             }
             render();
           }
@@ -343,7 +355,7 @@ function renderBimesterClose30(){
   }).join('');
   return `<div class="card"><h2>🔒 Cierre de bimestres</h2>
     <p class="muted">Este sistema fue creado para trabajar desde el <b>III Bimestre</b>. Antes del cierre, las actividades pendientes siguen como recuperación pendiente.</p>
-    <div class="alert">Al cerrar el bimestre, las recuperaciones que sigan pendientes pasan automáticamente a <b>05</b>. Esto aplica a faltas injustificadas, faltas justificadas, representación y salud. Las recuperaciones realizadas conservan su nota.</div>
+    <div class="alert">Al cerrar el bimestre, las recuperaciones que sigan pendientes pasan automáticamente a <b>05</b>. Esto aplica a faltas, faltas justificadas, representación, salud y también a trabajos/evidencias no encontrados o presentados sin nombre. Las recuperaciones realizadas conservan su nota.</div>
     ${rows}
     <div class="actions" style="margin-top:16px"><button onclick="saveBimesterDates30()">💾 Guardar fechas</button><button class="secondary" onclick="checkBimesterClosures30(true)">🔎 Comprobar fechas</button></div>
   </div>`;
@@ -368,18 +380,40 @@ function saveBimesterDates30(){
 function convertPendingRecoveriesToZero30(bimesterKey){
   let count=0;
   if(!Array.isArray(db.classRecoveries))db.classRecoveries=[];
+  const bs=getBimesterClose30(), b=bs[bimesterKey]||{};
   (db.classRecords||[]).forEach(rec=>{
     if(!rec?.date)return;
+    if(b.start && rec.date<b.start)return;
+    if(b.end && rec.date>b.end)return;
+    const sessionEvaluated=(db.classEvaluations||[]).some(x=>String(x.classId)===String(rec.id) && (x.status||x.grade!==null&&x.grade!==undefined&&x.grade!==''));
     (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
       const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
-      if(!attendanceNeedsRecovery(att))return;
+      const needsAttendanceRecovery=attendanceNeedsRecovery(att);
+      const evidence=getEvidence30(rec.id,u.u);
+      const evidenceProblem=!!evidence && ['no_encontrada','sin_nombre'].includes(evidence.status);
+      // Una evidencia automática solo puede convertirse en recuperación si la sesión
+      // realmente tuvo al menos una evaluación. Así una sesión simplemente abierta
+      // pero todavía no evaluada nunca genera un 05 al cierre.
+      const needsWorkRecovery=evidenceProblem && (evidence.automatic!==true || sessionEvaluated) && (att==='Presente'||att==='Tardanza');
+      if(!needsAttendanceRecovery && !needsWorkRecovery)return;
       let r=getRecovery30(rec.id,u.u);
-      if(r?.grade!=null)return;
+      if(r?.grade!==null && r?.grade!==undefined && r?.grade!=='')return;
+      const reasonType=needsWorkRecovery?'no_trabajo':'inasistencia';
+      const baseObs=needsWorkRecovery
+        ? 'No recuperó el trabajo/evidencia no encontrado(a) al cierre del bimestre'
+        : 'No recuperó al cierre del bimestre';
       if(!r){
-        r={id:'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:rec.id,user:u.u,date:rec.date,title:rec.title,method:'not_recovered',observation:'No recuperó al cierre del bimestre',grade:5,automaticClose05:true,bimester:bimesterKey,createdAt:Date.now(),updatedAt:Date.now()};
+        r={id:'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:rec.id,user:u.u,date:rec.date,title:rec.title,method:'not_recovered',observation:baseObs,grade:5,automaticClose05:true,bimester:bimesterKey,reasonType,automaticEvidenceRecovery:needsWorkRecovery,createdAt:Date.now(),updatedAt:Date.now()};
         db.classRecoveries.push(r);
       }else{
-        r.grade=5;r.method='not_recovered';r.observation='No recuperó al cierre del bimestre: 05 automático';r.automaticClose05=true;r.bimester=bimesterKey;r.updatedAt=Date.now();
+        r.grade=5;
+        r.method='not_recovered';
+        r.observation=needsWorkRecovery?baseObs:'No recuperó al cierre del bimestre: 05 automático';
+        r.automaticClose05=true;
+        r.bimester=bimesterKey;
+        r.reasonType=reasonType;
+        r.automaticEvidenceRecovery=needsWorkRecovery;
+        r.updatedAt=Date.now();
       }
       count++;
     });
@@ -553,12 +587,12 @@ function buildNav(){
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
   nav.innerHTML=top.map(b).join('')+
     `<div class="nav-group-title">📊 Evaluación</div>`+
-    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación 30 %</span></button>`+
-    `<div id="evalMenu" class="nav-sub" style="display:block">${process.map(b).join('')}</div>`+
+    `<div class="nav-flyout-wrap"><button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación 30 %</span></button>`+
+    `<div id="evalMenu" class="nav-sub" style="display:block">${process.map(b).join('')}</div></div>`+
     b(['project','🚀','Proyecto 70 %'])+
     extra.map(b).join('');
 }
-function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function toggleEvalMenu(){const x=document.getElementById('evalMenu'),m=document.getElementById('moreMenu');if(!x)return;const closed=x.style.display==='none'||!x.style.display;x.style.display=closed?'grid':'none';if(closed&&m)m.style.display='none';}
 function go(p){page=p;buildNav();if(me?.role==='teacher')checkBimesterClosures30(false);render();teacherReminderScheduler26()}
 function render(){
  const titles={
@@ -872,6 +906,7 @@ function chat(){
 }
 function sendMessage(){const t=chatText.value.trim();if(!t)return;db.messages.push({from:me.u,to:me.role==="teacher"?"2A":"profesor",text:t,date:new Date().toLocaleString("es-PE")});save();render()}
 function closeModal(){modal.classList.add("hidden");window.__openChat22=null}
+window.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))closeModal()});
 const xLocal=db.users.find(u=>u.u==="profesor"&&u.role==="teacher")||seed.users[0];me=xLocal;localStorage.setItem("session","profesor");start();
 
 /* ===== CORRECCIÓN DEFINITIVA ESTUDIANTES v1.3.2 ===== */
@@ -3695,6 +3730,110 @@ function selectSessionForEval30(sessionId){
     }
   },0);
 }
+function openMissingWorkDashboard30(){
+  ensureClassData();
+  const grade=(window._classGradeFilter30||document.getElementById('ceGrade30')?.value||'').trim();
+  const section=(window._classSectionFilter30||document.getElementById('ceSec30')?.value||'').trim();
+  if(!grade||grade==='Todos'||!section||section==='Todas'){
+    alert('Primero selecciona el grado y la sección para revisar los trabajos no encontrados.');
+    return;
+  }
+
+  const students=(db.users||[]).filter(u=>u.role==='student' && String(u.grade||'')===String(grade) && String(u.section||'')===String(section));
+  const sessions=allSessionsForUI().filter(s=>sessionAppliesToGrade(s,grade,section));
+  const studentRows=[];
+  let totalCases=0;
+
+  students.forEach(st=>{
+    const cases=[];
+    sessions.forEach(s=>{
+      const rec=getSessionClassRecord30(s.id,grade,section);
+      if(!rec)return; // Solo revisamos como "trabajo no encontrado" las sesiones que ya tienen registro de clase.
+      const ev=getEvidence30(rec.id,st.u);
+      if(!ev || !['no_encontrada','sin_nombre'].includes(ev.status))return;
+      const att=attendanceStatusForDateUser(classAttendanceDate30(rec),st);
+      cases.push({
+        session:s,
+        record:rec,
+        evidence:ev,
+        attendance:att
+      });
+    });
+    if(cases.length){
+      totalCases+=cases.length;
+      studentRows.push({st,cases});
+    }
+  });
+
+  // Segundo control: si tomaste asistencia pero todavía NO abriste/evaluaste
+  // esa sesión en Registro de clase, no podemos llamar a eso "trabajo no encontrado".
+  // Lo mostramos en un bloque separado para que puedas detectar rápidamente
+  // qué estudiantes asistieron a sesiones que aún están sin evaluar.
+  const notEvaluatedByStudent=[];
+  students.forEach(st=>{
+    const pendingSessions=[];
+    sessions.forEach(s=>{
+      const rec=getSessionClassRecord30(s.id,grade,section);
+      if(rec)return; // Ya existe un registro de clase: se revisa en el bloque de trabajos no encontrados.
+      const date=sessionDateForGradeSection(s,grade,section)||s.date||'';
+      if(!date)return;
+      const att=attendanceStatusForDateUser(date,st);
+      // Solo estudiantes que realmente estuvieron presentes/tuvieron tardanza
+      // pueden tener un trabajo pendiente de identificación en esa sesión.
+      if(att==='Presente'||att==='Tardanza') pendingSessions.push({session:s,date,attendance:att});
+    });
+    if(pendingSessions.length) notEvaluatedByStudent.push({st,pendingSessions});
+  });
+  const totalUnevaluatedSessions=new Set(notEvaluatedByStudent.flatMap(x=>x.pendingSessions.map(y=>String(y.session.id)))).size;
+
+  const fmtCase=x=>{
+    const d=classAttendanceDate30(x.record)||sessionDateForGradeSection(x.session,grade,section)||x.session.date||'';
+    const status=x.evidence.status==='sin_nombre'?'🟠 Trabajo presentado sin nombre':'🟡 No se encontró su trabajo';
+    return `<div style="padding:8px 0;border-top:1px solid #e2e8f0">
+      <b>Sesión ${escClass(x.session.number||'')}:</b> ${escClass(x.session.title||'')}
+      <span class="muted">${d?` · 📅 ${escClass(d)}`:''}</span><br>
+      <span style="font-size:.9rem">${status}${x.attendance?` · ${escClass(attendanceStatusLabel(x.attendance))}`:''}</span>
+    </div>`;
+  };
+
+  modalBody.classList.remove('projectMainModal');
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-24px;background:#fff;padding:0 0 12px;z-index:20;border-bottom:1px solid #e2e8f0">
+      <div><h2 style="margin:0">🔎 Trabajos no encontrados</h2><div class="muted">${escClass(grade)} ${escClass(section)} · revisión consolidada de todas las sesiones registradas</div></div>
+      <button class="secondary" onclick="closeModal()" title="Cerrar">✕ Cerrar</button>
+    </div>
+    <div class="card" style="margin-top:14px;background:#eff6ff;border:1px solid #bfdbfe">
+      <b>📋 ${studentRows.length} estudiante(s)</b> tienen <b>${totalCases}</b> registro(s) de trabajo no encontrado o sin nombre.
+      <div class="muted" style="margin-top:5px">No necesitas revisar sesión por sesión. Aquí se agrupan todos los casos del ${escClass(grade)} ${escClass(section)}.</div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button onclick="openMissingWorkDashboard30()">🔄 Actualizar</button>
+      <button class="secondary" onclick="closeModal()">Cerrar</button>
+    </div>
+    <div style="margin-top:14px">
+      ${studentRows.map((row,i)=>`<div class="item" style="margin-top:10px;display:block">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div><b>${i+1}. ${escClass(row.st.name||row.st.u)}</b><div class="muted">${escClass(row.st.grade||'')} ${escClass(row.st.section||'')} · ${row.cases.length} caso(s)</div></div>
+          <span class="badge warn">⚠️ ${row.cases.length}</span>
+        </div>
+        <div style="margin-top:7px">${row.cases.map(fmtCase).join('')}</div>
+      </div>`).join('') || `<div class="card" style="margin-top:14px;background:#f0fdf4;border:1px solid #bbf7d0"><b>✅ No hay trabajos marcados como no encontrados.</b><div class="muted" style="margin-top:4px">Para ${escClass(grade)} ${escClass(section)} no hay registros pendientes de este tipo.</div></div>`}
+    </div>
+    <div class="card" style="margin-top:18px;background:#fff7ed;border:1px solid #fed7aa">
+      <h3 style="margin-top:0">📚 Asistencia registrada, pero sesión sin evaluar</h3>
+      <div class="muted" style="margin-bottom:8px">Estas situaciones son diferentes de "trabajo no encontrado": tomaste asistencia, el estudiante asistió, pero todavía no existe un <b>Registro de clase</b> para esa sesión. No se marca como trabajo perdido automáticamente.</div>
+      <div style="font-weight:800;margin-bottom:8px">${notEvaluatedByStudent.length} estudiante(s) · ${totalUnevaluatedSessions} sesión(es)</div>
+      ${notEvaluatedByStudent.map((row,i)=>`<div class="item" style="margin-top:8px;display:block;background:#fff">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+          <div><b>${i+1}. ${escClass(row.st.name||row.st.u)}</b><div class="muted">${escClass(row.st.grade||'')} ${escClass(row.st.section||'')} · ${row.pendingSessions.length} sesión(es) sin evaluar</div></div>
+          <span class="badge warn">📚 ${row.pendingSessions.length}</span>
+        </div>
+        <div style="margin-top:7px">${row.pendingSessions.map(x=>`<div style="padding:7px 0;border-top:1px solid #e2e8f0"><b>Sesión ${escClass(x.session.number||'')}:</b> ${escClass(x.session.title||'')} <span class="muted"> · 📅 ${escClass(x.date)} · ${escClass(attendanceStatusLabel(x.attendance))}</span></div>`).join('')}</div>
+      </div>`).join('') || `<div style="padding:10px;border-radius:8px;background:#f0fdf4"><b>✅ No hay asistencias de estudiantes que coincidan con sesiones todavía sin evaluar.</b></div>`}
+    </div>`;
+  modal.classList.remove('hidden');
+}
+
 function registroClase(){
   if(me.role!=='teacher')return `<div class="card"><h2>📝 Registro de clase</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
@@ -3711,8 +3850,8 @@ function registroClase(){
   const section=window._classSectionFilter30||'';
   const activeId=window._activeClassEval30||'';
   const filteredSessions=(grade&&grade!=='Todos')
-    ? sessions.filter(s=>sessionAppliesToGrade(s,grade))
-    : sessions;
+    ? sessions.filter(s=>sessionAppliesToGrade(s,grade,section))
+    : (section&&section!=='Todas' ? sessions.filter(s=>sessionAppliesToGrade(s,grade,section)) : sessions);
   const records=(db.classRecords||[]).filter(r=>r.session && (!grade||grade==='Todos'||r.grade===grade) && (!section||section==='Todas'||r.section===section));
   const activeRec=records.find(r=>String(r.id)===String(activeId))||records[0];
 
@@ -3739,6 +3878,7 @@ function registroClase(){
       <div>
         <label>Buscar sesión</label>
         <input id="ceSessionSearch30" placeholder="Nombre de la sesión" oninput="filterSessionCards30()">
+        <button class="secondary" style="margin-top:8px;width:100%" onclick="openMissingWorkDashboard30()">🔎 Ver trabajos no encontrados</button>
       </div>
     </div>
 
@@ -3757,7 +3897,9 @@ function registroClase(){
             <option value="">Selecciona la sesión que vas a trabajar</option>
             ${filteredSessions.map(s=>{
               const rr=getSessionClassRecord30(s.id,grade,section);
-              return `<option value="${escClass(s.id)}" ${rr&&String(rr.id)===String(activeId)?'selected':''}>Sesión ${escClass(s.number)}: ${escClass(s.title)}${sessionDateForGradeSection(s,grade,section)?' — '+escClass(sessionDateForGradeSection(s,grade,section)):''}</option>`;
+              const st=sessionEvaluationStatus30(s,grade,section);
+              const label=st.status==='evaluada'?'✅ Evaluada':st.status==='en_proceso'?'🟡 En proceso':'⚪ No evaluada';
+              return `<option value="${escClass(s.id)}" ${rr&&String(rr.id)===String(activeId)?'selected':''}>${label} · Sesión ${escClass(s.number)}: ${escClass(s.title)}${sessionDateForGradeSection(s,grade,section)?' — '+escClass(sessionDateForGradeSection(s,grade,section)):''}</option>`;
             }).join('')}
           </select>
         </div>
@@ -3769,8 +3911,9 @@ function registroClase(){
               <div>
                 <b>📖 Sesión ${escClass(s.number)}: ${escClass(s.title)}</b>
                 <div class="muted">🎓 Grupo: <b>${escClass(sessionGradeLabel(s))}</b> · ${sessionDateForGradeSection(s,grade,section)?'📅 '+escClass(sessionDateForGradeSection(s,grade,section)):'Sin fecha'}</div>
+                <div style="margin-top:7px">${sessionEvaluationBadge30(s,grade,section)}</div>
               </div>
-              <button onclick="selectSessionForEval30('${escClass(s.id)}')">${selected?'✅ Evaluando':'📝 Evaluar sesión'}</button>
+              <button onclick="selectSessionForEval30('${escClass(s.id)}')">${selected?'✅ Evaluando':(sessionEvaluationStatus30(s,grade,section).status==='evaluada'?'✏️ Revisar evaluación':'📝 Evaluar sesión')}</button>
             </div>`;
           }).join('')||`<div class="item">No hay sesiones creadas para este grado. Créala desde <b>Cursos → Unidad 3 → Sesiones de aprendizaje</b>.</div>`}
         </div>
@@ -3797,6 +3940,35 @@ function registroClase(){
       `:`<div class="card" style="margin-top:18px;background:#f8fafc"><p class="muted">Selecciona una sesión de aprendizaje para comenzar la evaluación.</p></div>`}
     `}
   </div>`;
+}
+function sessionEvaluationStatus30(session,grade,section){
+  ensureClassData();
+  const classRec=getSessionClassRecord30(session.id,grade,section);
+  const students=(db.users||[]).filter(u=>u.role==='student' && String(u.grade||'')===String(grade||'') && String(u.section||'')===String(section||''));
+  const eligible=students.filter(u=>!studentIsRetired32(u)&&!studentIsSuspended32(u));
+  if(!classRec || !eligible.length){
+    const forced=students.length && students.every(u=>studentIsRetired32(u)||studentIsSuspended32(u));
+    return {status:forced?'evaluada':'no_evaluada',done:forced?students.length:0,total:students.length,pct:forced?100:0};
+  }
+  let done=0;
+  eligible.forEach(u=>{
+    const ev=classEvalRecord(classRec.id,u.u)||{};
+    const hasEval=(ev.status!==null&&ev.status!==undefined&&String(ev.status).trim()!=='') || (ev.grade!==null&&ev.grade!==undefined&&String(ev.grade).trim()!=='');
+    const evidence=getEvidence30(classRec.id,u.u);
+    const hasEvidence=!!(evidence&&evidence.status);
+    const recovery=getRecovery30(classRec.id,u.u);
+    const hasRecovery=!!(recovery&&recovery.grade!==null&&recovery.grade!==undefined&&String(recovery.grade).trim()!=='');
+    if(hasEval||hasEvidence||hasRecovery) done++;
+  });
+  const total=students.length;
+  const allDone=done>=eligible.length;
+  return {status:allDone?'evaluada':(done>0?'en_proceso':'no_evaluada'),done,total,pct:eligible.length?Math.round(done*100/eligible.length):0};
+}
+function sessionEvaluationBadge30(session,grade,section){
+  const x=sessionEvaluationStatus30(session,grade,section);
+  if(x.status==='evaluada') return `<span class="badge ok">✅ Evaluada · ${x.done}/${x.total}</span>`;
+  if(x.status==='en_proceso') return `<span class="badge warn">🟡 En proceso · ${x.done}/${x.total}</span>`;
+  return `<span class="badge" style="background:#e2e8f0;color:#475569">⚪ No evaluada · 0/${x.total}</span>`;
 }
 function filterSessionCards30(){
   const q=(document.getElementById('ceSessionSearch30')?.value||'').toLowerCase().trim();
@@ -3960,16 +4132,18 @@ function openRecovery30(user){
   const id=document.getElementById('ceClass30')?.value, rec=classRecordById(id);
   const u=(db.users||[]).find(x=>x.u===user);
   if(!rec||!u)return;
-  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u||user);
-  if(!attendanceNeedsRecovery(att)){
-    alert('Este estudiante no tiene una inasistencia registrada que requiera recuperación.');
+  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
+  const evidence=getEvidence30(id,user);
+  const evidenceProblem=!!evidence && ['no_encontrada','sin_nombre'].includes(evidence.status);
+  if(!attendanceNeedsRecovery(att) && !evidenceProblem){
+    alert('Este estudiante no tiene una inasistencia ni un trabajo/evidencia pendiente que requiera recuperación.');
     return;
   }
   const existing=(db.classRecoveries||[]).find(x=>x.classId===id&&x.user===user);
   modalBody.innerHTML=`
     <h2>🔄 Recuperación de actividad</h2>
     <p><b>${escClass(u.name||u.u)}</b></p>
-    <p class="muted">📅 ${escClass(rec.date)} · 📖 ${escClass(rec.title)}<br>Asistencia: <b>${escClass(attendanceStatusLabel(att))}</b></p>
+    <p class="muted">📅 ${escClass(rec.date)} · 📖 ${escClass(rec.title)}<br>Asistencia: <b>${escClass(attendanceStatusLabel(att))}</b>${evidenceProblem?'<br>📋 Motivo: <b>'+escClass(evidence.status==='sin_nombre'?'Trabajo presentado sin nombre':'No se encontró su trabajo')+'</b>':''}</p>
     <div style="margin-top:14px">
       <label>Forma de recuperación</label>
       <select id="recoveryMethod30">
@@ -3995,15 +4169,18 @@ function saveRecovery30(user){
   const id=document.getElementById('ceClass30')?.value, rec=classRecordById(id);
   if(rec&&blockClosedDate31(rec.date)) return;
   if(!id||!rec)return;
-  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u||user);
-  if(!attendanceNeedsRecovery(att)){alert('La asistencia ya no requiere recuperación.');return}
+  const student=(db.users||[]).find(x=>x.u===user);
+  const att=attendanceStatusForDateUser(classAttendanceDate30(rec),student||user);
+  const evidence=getEvidence30(id,user);
+  const evidenceProblem=!!evidence && ['no_encontrada','sin_nombre'].includes(evidence.status);
+  if(!attendanceNeedsRecovery(att) && !evidenceProblem){alert('La situación ya no requiere recuperación.');return}
   const raw=(document.getElementById('recoveryGrade30')?.value||'').trim();
   if(raw===''){alert('Coloca la nota de recuperación.');return}
   const grade=Math.max(0,Math.min(20,Number(raw)));
   if(!Number.isFinite(grade)){alert('La nota no es válida.');return}
   if(!db.classRecoveries)db.classRecoveries=[];
   let r=db.classRecoveries.find(x=>x.classId===id&&x.user===user);
-  const data={classId:id,user,grade,method:document.getElementById('recoveryMethod30')?.value||'original',observation:document.getElementById('recoveryObs30')?.value.trim()||'',date:rec.date,title:rec.title,createdAt:r?.createdAt||Date.now(),updatedAt:Date.now()};
+  const data={classId:id,user,grade,method:document.getElementById('recoveryMethod30')?.value||'original',observation:document.getElementById('recoveryObs30')?.value.trim()||'',date:rec.date,title:rec.title,reasonType:evidenceProblem?'no_trabajo':'inasistencia',automaticEvidenceRecovery:false,createdAt:r?.createdAt||Date.now(),updatedAt:Date.now()};
   if(r)Object.assign(r,data);else db.classRecoveries.push({id:'rec_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),...data});
   save();closeModal();renderClass30();
 }
@@ -4021,9 +4198,9 @@ function setEvidenceStatus30(user,value){
   if(!Array.isArray(db.classEvidence))db.classEvidence=[];
   let r=getEvidence30(id,user);
   if(!r){
-    r={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user,status:value,createdAt:Date.now()};
+    r={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user,status:value,automatic:false,createdAt:Date.now()};
     db.classEvidence.push(r);
-  }else{r.status=value;r.updatedAt=Date.now();}
+  }else{r.status=value;r.automatic=false;r.updatedAt=Date.now();}
   save();renderClass30();
 }
 function evidenceBlocksGrade30(status){
@@ -4055,7 +4232,15 @@ function renderClass30(){
     const needs=attendanceNeedsRecovery(att);
     const recovery=getRecovery30(rec.id,u.u);
     const recovered=recovery && recovery.grade!==null && recovery.grade!==undefined && recovery.grade!=='';
-    const pendingRecovery=needs && !recovered;
+    const evidence=getEvidence30(rec.id,u.u);
+    const evidenceStatus=evidence?.status||'';
+    const noEvaluationYet=(ev.status==='' || ev.status==null || ev.status===undefined) &&
+                          (ev.grade==='' || ev.grade==null || ev.grade===undefined);
+    const sessionEvaluated=(db.classEvaluations||[]).some(x=>String(x.classId)===String(rec.id) && (x.status||x.grade!==null&&x.grade!==undefined&&x.grade!==''));
+    const autoNoTrabajo = !needs && !evidenceStatus && noEvaluationYet && !!att && sessionEvaluated;
+    const hasEvidenceProblem=evidenceStatus==='no_encontrada'||evidenceStatus==='sin_nombre'||autoNoTrabajo;
+    const recoveryNeeded=needs||hasEvidenceProblem;
+    const pendingRecovery=recoveryNeeded && !recovered;
 
     if(pendingRecovery) pending.push(u.name||u.u);
 
@@ -4064,51 +4249,33 @@ function renderClass30(){
       statusCell=`<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>`;
     }else if(suspended){
       statusCell=`<span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span><div class="muted" style="font-size:.82rem;margin-top:4px">No participa en esta sesión mientras mantenga el estado de suspensión.</div>`;
-    }else if(needs){
-      const motivo=attendanceStatusLabel(att);
+    }else if(recoveryNeeded){
+      const motivo=needs ? attendanceStatusLabel(att) : (evidenceStatus==='sin_nombre'?'🟠 Trabajo presentado sin nombre':'🟡 No se encontró su trabajo');
       statusCell=`<div style="font-weight:800">${recovered?'🟢 RECUPERACIÓN REALIZADA':'🔴 RECUPERACIÓN PENDIENTE'}</div>
         <div class="muted" style="font-size:.88rem;margin-top:4px">${escClass(motivo)}</div>
         <button class="secondary" style="margin-top:7px" onclick="openRecovery30('${escClass(u.u)}')">
           ${recovered?'✏️ Modificar recuperación':'🔄 Registrar recuperación'}
-        </button>`;
-    }else{
-      const evidence=getEvidence30(rec.id,u.u);
-      const evidenceStatus=evidence?.status||'';
-      const noEvaluationYet=(ev.status==='' || ev.status==null || ev.status===undefined) &&
-                            (ev.grade==='' || ev.grade==null || ev.grade===undefined);
-      const autoNoTrabajo = !needs && !evidenceStatus && noEvaluationYet && !!att;
-      const hasEvidenceProblem=evidenceStatus==='no_encontrada'||evidenceStatus==='sin_nombre'||autoNoTrabajo;
-
-      if(hasEvidenceProblem){
-        statusCell=`<div style="font-weight:800">🟡 ASISTIÓ — NO SE ENCONTRÓ SU TRABAJO</div>
-          <div class="muted" style="font-size:.85rem;margin-top:4px">
-            ${evidenceStatus==='sin_nombre'?'Presentó el trabajo sin nombre.':(evidenceStatus==='no_encontrada'?'No se encontró su trabajo o evidencia.':'Asistió a esta sesión y todavía no tiene desempeño ni nota registrada; se marca automáticamente como trabajo no encontrado.')}
-          </div>
-          <select class="ceEvidence30" data-user="${escClass(u.u)}" style="margin-top:7px">
+        </button>${hasEvidenceProblem?`<div style="margin-top:7px"><select class="ceEvidence30" data-user="${escClass(u.u)}">
             <option value="no_encontrada" ${evidenceStatus==='no_encontrada'||autoNoTrabajo?'selected':''}>🟡 No se encontró su trabajo</option>
-            <option value="sin_nombre" ${evidenceStatus==='sin_nombre'?'selected':''}>🟡 Trabajo presentado sin nombre</option>
+            <option value="sin_nombre" ${evidenceStatus==='sin_nombre'?'selected':''}>🟠 Trabajo presentado sin nombre</option>
             <option value="encontrada">✅ Trabajo encontrado</option>
-          </select>`;
-      }else{
-        statusCell=`<select class="ceStatus30" data-user="${escClass(u.u)}">
+          </select></div>`:''}`;
+    }else{
+      statusCell=`<select class="ceStatus30" data-user="${escClass(u.u)}">
           <option value="" ${!ev.status?'selected':''}>—</option>
           <option value="HIZO" ${ev.status==='HIZO'?'selected':''}>✅ HIZO</option>
           <option value="A MEDIAS" ${ev.status==='A MEDIAS'?'selected':''}>⚠️ A MEDIAS</option>
           <option value="NO HIZO" ${ev.status==='NO HIZO'?'selected':''}>❌ NO HIZO</option>
         </select>`;
-      }
     }
-    const evidence=getEvidence30(rec.id,u.u);
-    const evidenceStatus=evidence?.status||'';
-    const hasEvidenceProblem=evidenceStatus==='no_encontrada'||evidenceStatus==='sin_nombre';
-    const displayGrade=forced?'05':(needs?(recovered?recovery.grade:''):(hasEvidenceProblem?'':(ev.grade??'')));
+    const displayGrade=forced?'05':(recoveryNeeded?(recovered?recovery.grade:''):(ev.grade??''));
     const level=forced?'C':(displayGrade===''?'—':classLevel(displayGrade));
     return `<tr>
       <td>${i+1}</td>
       <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>':suspended?'<br><span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
       <td>${forced?'<span class="badge bad">'+(suspended?'🟠 SUSPENDIDO':'⚫ RETIRADO')+'</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       <td>${statusCell}</td>
-      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||needs?'readonly disabled':''} placeholder="No calificable"></td>
+      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||recoveryNeeded?'readonly disabled':''} placeholder="No calificable"></td>
       <td class="ceLevel30" data-user="${escClass(u.u)}">${level}</td>
     </tr>`;
   }).join('');
@@ -4145,7 +4312,8 @@ function renderClass30(){
     const existing=getEvidence30(rec.id,u.u);
     const noEvaluationYet=(ev.status==='' || ev.status==null || ev.status===undefined) &&
                           (ev.grade==='' || ev.grade==null || ev.grade===undefined);
-    if(att && !attendanceNeedsRecovery(att) && !existing && noEvaluationYet){
+    const sessionEvaluated=(db.classEvaluations||[]).some(x=>String(x.classId)===String(rec.id) && (x.status||x.grade!==null&&x.grade!==undefined&&x.grade!==''));
+    if(att && !attendanceNeedsRecovery(att) && !existing && noEvaluationYet && sessionEvaluated){
       if(!Array.isArray(db.classEvidence))db.classEvidence=[];
       db.classEvidence.push({
         id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
@@ -4162,9 +4330,13 @@ function renderClass30(){
       if(!Array.isArray(db.classEvidence))db.classEvidence=[];
       let r=getEvidence30(id,e.dataset.user);
       if(!r){
-        r={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:id,user:e.dataset.user,status:e.value,createdAt:Date.now()};
+        r={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),classId:id,user:e.dataset.user,status:e.value,automatic:false,createdAt:Date.now()};
         db.classEvidence.push(r);
-      }else{r.status=e.value;r.updatedAt=Date.now();}
+      }else{r.status=e.value;r.automatic=false;r.updatedAt=Date.now();}
+      if(e.value==='encontrada'){
+        const pendingRec=(db.classRecoveries||[]).find(x=>x.classId===id&&x.user===e.dataset.user&&x.automaticEvidenceRecovery===true&&(!x.grade&&x.grade!==0));
+        if(pendingRec){db.classRecoveries=db.classRecoveries.filter(x=>x!==pendingRec);}
+      }
       save();renderClass30();
     };
   });
@@ -4886,7 +5058,11 @@ function projectRecord(u){
     .filter(vals=>currentExpoIds.size===Object.keys(vals).length && [...currentExpoIds].every(id=>Number.isFinite(vals[id])))
     .map(vals=>Object.values(vals).reduce((a,b)=>a+b,0));
   let exposition=avgNums(expositionVals);
-  if(exposition===null){
+  // Si ya existe una evaluación en la rúbrica oficial actual de Crea y Emprende,
+  // no debemos rescatar una nota antigua de 05/20 desde projectGrades solo porque
+  // la evaluación nueva todavía esté incompleta. Mientras falten criterios, la
+  // Exposición queda pendiente; una vez completos los 5 criterios, se usa su nota.
+  if(exposition===null && creaScores.length===0){
     const legacyExpo=legacy.map(x=>x.exposition).filter(x=>x!==''&&x!=null).map(Number);
     exposition=avgNums(legacyExpo);
   }
@@ -6926,17 +7102,16 @@ function buildNav(){
   const process=[['registro','✅','Registro de clase'],['activitiesGrades','💻','Actividades evaluadas'],['participations','🙋','Participación'],['behavior','🧑‍🏫','Conducta'],['uniform','👕','Uniforme'],['notebook','📓','Cuaderno'],['folder','📁','Folder'],['exam','📋','Examen / Fichas']];
   const extra=[['aiEPT','🤖','IA EPT'],['materials','🎬','Materiales'],['activities','📝','Actividades'],['submissions','📥','Entregas'],['chat','💬','Mensajes'],['tracking','📈','Seguimiento'],['attendance','🗓️','Asistencia'],['recoveries','📝','Recuperaciones'],['creaRecovery','🏆','Recuperación Crea'],['incidents','📝','Incidentes'],['reports','📑','Reportes'],['bimesterClose','🔒','Cierre de bimestres'],['backup','💾','Respaldo'],['announcements','📢','Avisos'],['grades','📊','Evaluación final']];
   const b=a=>`<button class="${page===a[0]?'active':''}" onclick="go('${a[0]}')">${a[1]} <span>${a[2]}</span></button>`;
-  const evalOpen=['registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','grades','project','projectWork'].includes(page);
-  const moreOpen=extra.some(a=>a[0]===page);
   nav.innerHTML=top.map(b).join('')+
     `<div class="nav-group-title">📊 EVALUACIÓN</div>`+
-    `<button class="nav-group-toggle" onclick="toggleEvalMenu()">📊 <span>Evaluación</span></button>`+
-    `<div id="evalMenu" class="nav-sub" style="display:${evalOpen?'block':'none'}">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['projectWork','🛠️','Trabajo de proyecto'])}${b(['registro','✅','Registro de clase'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}</div>`+
-    `<button class="nav-group-toggle" onclick="toggleMoreMenu()">☰ <span>Más opciones</span></button>`+
-    `<div id="moreMenu" class="nav-sub" style="display:${moreOpen?'block':'none'}">${extra.filter(a=>!['grades'].includes(a[0])).map(b).join('')}</div>`;
+    `<div class="nav-flyout-wrap"><button class="nav-group-toggle" type="button">📊 <span>Evaluación</span></button>`+
+    `<div id="evalMenu" class="nav-sub">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['projectWork','🛠️','Trabajo de proyecto'])}${b(['registro','✅','Registro de clase'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}</div></div>`+
+    `<div class="nav-flyout-wrap"><button class="nav-group-toggle" type="button">☰ <span>Más opciones</span></button>`+
+    `<div id="moreMenu" class="nav-sub">${extra.filter(a=>!['grades'].includes(a[0])).map(b).join('')}</div></div>`;
 }
-function toggleEvalMenu(){const x=document.getElementById('evalMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
-function toggleMoreMenu(){const x=document.getElementById('moreMenu');if(x)x.style.display=x.style.display==='none'?'block':'none';}
+function syncNavFlyoutLayout(){ /* La navegación se muestra por hover; no mueve el contenido. */ }
+function toggleEvalMenu(){ /* El menú se abre al pasar el mouse. */ }
+function toggleMoreMenu(){ /* El menú se abre al pasar el mouse. */ }
 
 /* ===== IA EPT LOCAL: SOLO DOCENTE, SIN API EXTERNA ===== */
 function iaEPT(){
@@ -7290,8 +7465,8 @@ function creaEmprende(){
       <span class="badge warn">❌ No participaron: ${noParticipados}</span>
     </div>
 
-    <div style="overflow:auto;margin-top:18px">
-      <table>
+    <div class="cyTableWrap" style="margin-top:18px">
+      <table class="cyTable">
         <tr>
           <th>Estudiante</th>
           <th>Participación</th>
@@ -7537,15 +7712,32 @@ function sessionAppliesToGrade(s,g,section){
   const sg=String(s.grade||'').trim();
   const sec=String(s.section||'').trim();
   const target=String(g||'').trim();
+  const targetSec=String(section||'').trim();
+
+  // 1.º y 2.º: mostrar únicamente las sesiones creadas para ese grado/sección.
+  // Las sesiones antiguas "1.º-2.º" siguen siendo compartidas y se muestran
+  // en ambos grados porque no tienen una sección propia.
   if(target==='1.º'||target==='2.º'){
-    if(sg===target) return !section || !sec || sec===section;
-    if(sg==='1.º-2.º') return true; // sesiones antiguas
+    if(sg===target) return !targetSec || !sec || sec===targetSec;
+    if(sg==='1.º-2.º') return true;
     return false;
   }
+
+  // 3.º, 4.º y 5.º: las sesiones compartidas "3.º-5.º" pueden tener
+  // una fecha independiente para cada grado/sección. Si existe ese mapa,
+  // solo se muestra cuando existe fecha para la combinación elegida.
+  // Si la sesión es antigua y no tiene mapa, sigue siendo compartida.
   if(['3.º','4.º','5.º'].includes(target)){
-    return sg==='3.º-5.º' || sg===target;
+    if(sg===target) return !targetSec || !sec || sec===targetSec;
+    if(sg==='3.º-5.º'){
+      const map=s.dateByGradeSection||{};
+      if(Object.keys(map).length>0) return !!map[target+'|'+targetSec];
+      return true;
+    }
+    return false;
   }
-  return sg===target;
+
+  return sg===target && (!targetSec || !sec || sec===targetSec);
 }
 function sessionGradeLabel(x){
   const g=String(x.grade||'').trim();
