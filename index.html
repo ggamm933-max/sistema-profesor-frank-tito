@@ -59,6 +59,18 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
 .projectMainModal .grid3 .card{border:1px solid var(--line)}
 @media(max-width:900px){.modal-card.wide{width:100%}}
+
+.creaMemberBox30{background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px}
+.creaMemberHelp30{margin:0 0 10px;font-size:13px}
+.creaMemberGrid30{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+.creaMemberItem30{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding:7px 10px;border:1px solid #dbeafe;border-radius:10px;background:#fff;cursor:pointer;transition:.15s}
+.creaMemberItem30:hover{border-color:#93c5fd;background:#f8fbff}
+.creaMemberItem30.isExcluded{border-color:#fecaca;background:#fff7f7}
+.creaMemberItem30 input{width:17px;height:17px;margin:0;cursor:pointer;accent-color:#2563eb}
+.creaMemberName30{font-weight:750;font-size:13px;line-height:1.2;min-width:0;overflow-wrap:anywhere}
+.creaMemberStatus30{font-size:11px;font-weight:700;white-space:nowrap;color:#15803d}
+.creaMemberItem30.isExcluded .creaMemberStatus30{color:#b91c1c}
+@media(max-width:700px){.creaMemberGrid30{grid-template-columns:1fr}}
 </style>
 
 <!-- Firebase: sincronización entre PC, celular y otros dispositivos -->
@@ -5634,7 +5646,7 @@ function categoryForStudent(u){
 }
 function projectRecord(u){
   ensureClassData();
-  const weekly=(db.projectWeeklyGrades||[]).filter(x=>x.user===u);
+  const weekly=(db.projectWeeklyGrades||[]).filter(x=>x.user===u && x.excludedFromGroupEvaluation!==true);
   const legacy=(db.projectGrades||[]).filter(x=>x.user===u);
   const user=(db.users||[]).find(x=>x.u===u)||{};
   const cat=categoryForStudent(user);
@@ -5834,7 +5846,7 @@ function renderProjectWeekly30(){
     if(!members.length)return '';
     const first=members[0],cat=categoryForStudent(first);
     const pc=db.projectRubrics[cat+'_portfolio']||[],pr=db.projectRubrics[cat+'_product']||[];
-    const records=members.map(u=>projectWeeklyRecord(u.u,week)).filter(Boolean);
+    const records=members.map(u=>projectWeeklyRecord(u.u,week)).filter(r=>r && r.excludedFromGroupEvaluation!==true);
     const r=records[0]||null;
     const pv=r?projectRubricScore(r.portfolioLevels,pc.length):null;
     const rv=r?projectRubricScore(r.productLevels,pr.length):null;
@@ -5857,6 +5869,7 @@ function renderProjectWeekly30(){
   </table></div>`;
 }
 
+
 function openCreaProjectWeeklyRubric30(groupId){
   ensureClassData();
   const grade=document.getElementById('prjWeekGrade')?.value||'';
@@ -5868,7 +5881,12 @@ function openCreaProjectWeeklyRubric30(groupId){
   const date=document.getElementById('prjWeekDate')?.value||todayLocal30();
   const u=members[0],cat=categoryForStudent(u);
   const pc=db.projectRubrics[cat+'_portfolio']||[],pr=db.projectRubrics[cat+'_product']||[];
-  const r=members.map(x=>projectWeeklyRecord(x.u,week)).find(Boolean)||{};
+  // La rúbrica sigue siendo grupal. Para casos excepcionales, cada integrante
+  // puede quedar excluido de ESTA evaluación sin afectar sus otras evaluaciones.
+  // Se toma la rúbrica de cualquier integrante que no esté excluido.
+  const r=members.map(x=>projectWeeklyRecord(x.u,week)).find(x=>x && x.excludedFromGroupEvaluation!==true)
+    || members.map(x=>projectWeeklyRecord(x.u,week)).find(Boolean)
+    || {};
   const levelRows=(arr,key)=>arr.map((name,i)=>{
     const old=Number(r[key]?.[i]);
     return `<div class="card" style="margin:8px 0;padding:12px;background:#fff">
@@ -5883,12 +5901,27 @@ function openCreaProjectWeeklyRubric30(groupId){
       </div>
     </div>`;
   }).join('');
+  const memberRows=members.map(st=>{
+    const mr=projectWeeklyRecord(st.u,week);
+    const excluded=mr?.excludedFromGroupEvaluation===true;
+    return `<label class="creaMemberItem30 ${excluded?'isExcluded':''}">
+      <input type="checkbox" class="creaWeeklyMemberInclude30" data-user="${escClass(st.u)}" ${excluded?'':'checked'}>
+      <span class="creaMemberName30" title="${escClass(st.name)}">${escClass(st.name)}</span>
+      <span class="creaMemberStatus30">${excluded?'🚫 Excluido':'✓ Incluido'}</span>
+    </label>`;
+  }).join('');
   modalBody.innerHTML=`<h2>👥 Evaluación semanal — grupo de Crea y Emprende</h2>
     <div class="card" style="background:#f8fafc">
-      <b>🏆 Proyecto: ${escClass(g.name)}</b><br>${members.map(x=>escClass(x.name)).join('<br>')}
-      <br>${escClass(u.grade||'')} ${escClass(u.section||'')} · <b>Categoría ${cat}</b>
+      <b>🏆 Proyecto: ${escClass(g.name)}</b>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin:7px 0 4px">${members.map(x=>`<span style="font-size:13px">👤 ${escClass(x.name)}</span>`).join('')}</div>
+      ${escClass(u.grade||'')} ${escClass(u.section||'')} · <b>Categoría ${cat}</b>
       <br>Semana ${week} · Fecha: ${escClass(date)}
-      <br><span class="muted">Este grupo proviene de Crea y Emprende, no del módulo “Grupos”. La misma evaluación se aplicará a todos sus integrantes.</span>
+      <br><span class="muted">La evaluación sigue siendo grupal. Si un integrante no debe ser evaluado en este caso excepcional, desmárcalo en “Integrantes incluidos”.</span>
+    </div>
+    <h3>👥 Integrantes incluidos en esta evaluación</h3>
+    <div class="card creaMemberBox30">
+      <p class="muted creaMemberHelp30"><b>Todos están incluidos por defecto.</b> Desmarca solo al estudiante que quieras excluir de esta evaluación.</p>
+      <div class="creaMemberGrid30">${memberRows}</div>
     </div>
     <h3>📁 Portafolio — Categoría ${cat}</h3>
     <p class="muted"><b>Calificación oficial por criterio:</b> Nivel 1 = 1 punto · Nivel 2 = 2 puntos · Nivel 3 = 3 puntos · Nivel 4 = 4 puntos. El total se expresa sobre el máximo de criterios y, aparte, se muestra su equivalencia a 20. <b>Aún no enseñado</b> no se incluye en el promedio.</p>
@@ -5924,6 +5957,10 @@ function saveCreaProjectWeeklyRubric30(groupId){
   const pr=db.projectRubrics[cat+'_product']||[];
   const week=Number(document.getElementById('prjWeek')?.value||1);
   const date=document.getElementById('prjWeekDate')?.value||todayLocal30();
+  const includedUsers=new Set([...document.querySelectorAll('.creaWeeklyMemberInclude30:checked')].map(el=>String(el.dataset.user||'')));
+  if(!includedUsers.size){
+    if(!confirm('Has excluido a todos los integrantes. ¿Quieres guardar la evaluación sin aplicar la rúbrica a ningún estudiante?'))return;
+  }
   const collect=(key,blankAsNA)=>[...document.querySelectorAll(`.rubLevel30[data-k="${key}"]`)].map(el=>{const v=String(el.value||'');if(v==='')return blankAsNA?'NA':null;return v==='NA'?'NA':Number(v);});
   const portfolioLevels=collect('portfolioLevels',false);
   const productLevels=collect('productLevels',true);
@@ -5933,14 +5970,29 @@ function saveCreaProjectWeeklyRubric30(groupId){
   const portfolio=projectRubricScore(portfolioLevels,pc.length);
   const product=productLevels.length?projectRubricScore(productLevels,pr.length):null;
   const savedUsers=[];
+  const excludedUsers=[];
   members.forEach(st=>{
     if(studentIsRetired32(st.u)||studentIsSuspended32(st.u))return;
     let r=projectWeeklyRecord(st.u,week);
     if(!r){r={id:'pweek_'+Date.now()+'_'+Math.random().toString(36).slice(2,9),user:st.u,week};db.projectWeeklyGrades.push(r);}
-    r.date=date;r.grade=st.grade||grade||'';r.section=st.section||sec||'';r.category=categoryForStudent(st);r.groupId=groupId;r.groupName=g.name;r.creaEmprendeGroup=true;r.creaProject=g.name;r.creaStage=g.stage||'Etapa institucional';r.portfolioLevels=portfolioLevels.slice();r.productLevels=productLevels.slice();r.portfolio=portfolio;r.product=product;r.savedAt=Date.now();savedUsers.push(st.u);
+    const included=includedUsers.has(String(st.u));
+    r.date=date;r.grade=st.grade||grade||'';r.section=st.section||sec||'';r.category=categoryForStudent(st);r.groupId=groupId;r.groupName=g.name;r.creaEmprendeGroup=true;r.creaProject=g.name;r.creaStage=g.stage||'Etapa institucional';
+    r.excludedFromGroupEvaluation=!included;
+    if(included){
+      r.portfolioLevels=portfolioLevels.slice();
+      r.productLevels=productLevels.slice();
+      r.portfolio=portfolio;
+      r.product=product;
+      r.savedAt=Date.now();
+      savedUsers.push(st.u);
+    }else{
+      // Conserva cualquier evaluación anterior, pero queda excluida del cálculo.
+      excludedUsers.push(st.u);
+      r.savedAt=Date.now();
+    }
   });
-  if(!savedUsers.length){alert('No se guardó la evaluación porque todos los integrantes están suspendidos o retirados.');return;}
-  try{save();const stored=JSON.parse(localStorage.getItem('aulaEPT')||'{}');const ok=savedUsers.every(user=>Array.isArray(stored.projectWeeklyGrades)&&stored.projectWeeklyGrades.some(x=>x.user===user&&Number(x.week)===week));if(!ok){alert('El sistema no pudo confirmar el guardado en este navegador.');return;}}catch(err){console.error('Error al guardar evaluación de Crea y Emprende:',err);alert('No se pudo guardar la evaluación. Revisa el almacenamiento del navegador.');return;}
+  if(!savedUsers.length && !excludedUsers.length){alert('No se pudo guardar la configuración de esta evaluación.');return;}
+  try{save();const stored=JSON.parse(localStorage.getItem('aulaEPT')||'{}');const touched=[...savedUsers,...excludedUsers];const ok=touched.every(user=>Array.isArray(stored.projectWeeklyGrades)&&stored.projectWeeklyGrades.some(x=>x.user===user&&Number(x.week)===week&&String(x.groupId||'')===String(groupId)));if(!ok){alert('El sistema no pudo confirmar el guardado en este navegador.');return;}}catch(err){console.error('Error al guardar evaluación de Crea y Emprende:',err);alert('No se pudo guardar la evaluación. Revisa el almacenamiento del navegador.');return;}
   const portfolioEvaluated=portfolioLevels.filter(x=>Number.isFinite(Number(x)));
   const portfolioRaw=portfolioEvaluated.reduce((a,b)=>a+Number(b),0);
   const portfolioMax=portfolioEvaluated.length*4;
@@ -5949,7 +6001,9 @@ function saveCreaProjectWeeklyRubric30(groupId){
   const productMax=productEvaluated.length*4;
   const pText=portfolio===null?'Pendiente':`${portfolioRaw} / ${portfolioMax} (equivalente ${portfolio.toFixed(2)} / 20)`;
   const prText=product===null?'Pendiente de evaluación':`${productRaw} / ${productMax} (equivalente ${product.toFixed(2)} / 20)`;
-  alert(`✅ Evaluación guardada correctamente para ${savedUsers.length} integrante(s).\nPortafolio: ${pText}\nProducto: ${prText}`);
+  alert(`✅ Evaluación guardada.
+Incluidos: ${savedUsers.length} · Excluidos: ${excludedUsers.length}
+${savedUsers.length?`Portafolio: ${pText}\nProducto: ${prText}`:'Ningún integrante recibió esta evaluación.'}`);
   openProjectWeekly();
 }
 
