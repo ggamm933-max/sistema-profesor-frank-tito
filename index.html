@@ -5663,8 +5663,14 @@ function projectRecord(u){
   const portfolioVals=weekly.map(x=>projectRubricScore(x.portfolioLevels,pc.length)).filter(x=>x!==null);
   const productVals=weekly.map(x=>projectRubricScore(x.productLevels,pr.length)).filter(x=>x!==null);
 
-  if(!portfolioVals.length) legacy.forEach(x=>{if(x.portfolio!==''&&x.portfolio!=null)portfolioVals.push(Number(x.portfolio));});
-  if(!productVals.length) legacy.forEach(x=>{if(x.product!==''&&x.product!=null)productVals.push(Number(x.product));});
+  // Si el estudiante fue trasladado de proyecto, NO rescatar las notas legacy
+  // del proyecto anterior. Los registros físicos se conservan para evitar pérdida
+  // accidental, pero dejan de participar hasta que exista una nueva evaluación.
+  const legacyReset=!!(db.creaProjectResets30 && db.creaProjectResets30[String(u)]);
+  if(!legacyReset){
+    if(!portfolioVals.length) legacy.forEach(x=>{if(x.portfolio!==''&&x.portfolio!=null)portfolioVals.push(Number(x.portfolio));});
+    if(!productVals.length) legacy.forEach(x=>{if(x.product!==''&&x.product!=null)productVals.push(Number(x.product));});
+  }
 
   // La exposición oficial de Crea y Emprende tiene 5 criterios de 1 a 4.
   // Los cinco puntajes de una misma evaluación NO se promedian: se SUMAN,
@@ -5775,6 +5781,292 @@ function normalizeGradeCY30(v){
 function normalizeSectionCY30(v){return String(v||'').trim().toUpperCase();}
 
 /* Grupos exclusivamente de Crea y Emprende. No usa db.groups. */
+
+/* ===== GRUPOS NUEVOS DE PROYECTO — CREA Y EMPRENDE ===== */
+function ensureCreaProjectGroups30(){
+  if(!Array.isArray(db.creaProjectGroups30))db.creaProjectGroups30=[];
+  if(!db.creaProjectResets30 || typeof db.creaProjectResets30!=='object')db.creaProjectResets30={};
+}
+
+// Devuelve el nombre del proyecto del grupo manual asignado al estudiante.
+// Este nombre tiene prioridad sobre cualquier registro antiguo/duplicado.
+function getManualCreaProjectName30(grade,section,stage,username){
+  ensureCreaProjectGroups30();
+  const uid=String(username||'');
+  const g=db.creaProjectGroups30.find(x=>
+    normalizeGradeCY30(x.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(x.section)===normalizeSectionCY30(section) &&
+    String(x.stage||'Etapa institucional')===String(stage||'Etapa institucional') &&
+    (x.memberUsers||[]).some(u=>String(u)===uid)
+  );
+  return g?.name||'';
+}
+
+function openCreaProjectGroupManager30(){
+  ensureClassData(); ensureCreaProjectGroups30();
+  const grade=window.cyGrade||'1.º', sec=window.cySection||'A', stage=window.cyStage||'Etapa institucional';
+  const groups=db.creaProjectGroups30.filter(g=>
+    normalizeGradeCY30(g.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(g.section)===normalizeSectionCY30(sec)
+  );
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>👥 Cambiar / crear grupo de proyecto</h2>
+    <p class="muted">Puedes crear un equipo nuevo y mover estudiantes desde el grupo actual. <b>Al cambiar de proyecto, solo se eliminan para los estudiantes seleccionados las evaluaciones de Portafolio y Producto del proyecto anterior.</b> Las notas de los demás estudiantes no se modifican y la Exposición se conserva.</p>
+    <div class="grid3">
+      <div><label>🎓 Grado</label><select id="cpgGrade30" onchange="refreshCreaProjectGroupManager30()">
+        ${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}" ${x===grade?'selected':''}>${x}</option>`).join('')}
+      </select></div>
+      <div><label>🔤 Sección</label><select id="cpgSection30" onchange="refreshCreaProjectGroupManager30()">
+        <option ${sec==='A'?'selected':''}>A</option><option ${sec==='B'?'selected':''}>B</option>
+      </select></div>
+      <div><label>🏆 Etapa</label><select id="cpgStage30">
+        ${['Etapa institucional','Etapa UGEL','Etapa DRE'].map(x=>`<option ${x===stage?'selected':''}>${x}</option>`).join('')}
+      </select></div>
+    </div>
+    <div style="margin-top:14px">
+      <label>Nombre del nuevo grupo / proyecto</label>
+      <input id="cpgName30" placeholder="Ej.: ECO PAPEL MANZANA — Equipo 2">
+    </div>
+    <div class="card" style="margin-top:14px;background:#f8fafc">
+      <h3 style="margin-bottom:6px">👥 Selecciona los integrantes</h3>
+      <div id="cpgMembers30"></div>
+    </div>
+    <div class="actions" style="margin-top:15px">
+      <button onclick="saveCreaProjectGroup30()">💾 Crear / cambiar grupo</button>
+      <button class="secondary" onclick="openCreaProjectGroupList30()">📋 Ver grupos creados</button>
+      <button class="secondary" onclick="closeModal()">Cancelar</button>
+    </div>`;
+  modal.classList.remove('hidden');
+  refreshCreaProjectGroupManager30();
+}
+
+function refreshCreaProjectGroupManager30(){
+  ensureCreaProjectGroups30();
+  const grade=document.getElementById('cpgGrade30')?.value||window.cyGrade||'1.º';
+  const sec=document.getElementById('cpgSection30')?.value||window.cySection||'A';
+  const stage=document.getElementById('cpgStage30')?.value||window.cyStage||'Etapa institucional';
+  const box=document.getElementById('cpgMembers30'); if(!box)return;
+
+  const students=(db.users||[]).filter(u=>u.role==='student' &&
+    normalizeGradeCY30(u.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(u.section)===normalizeSectionCY30(sec)
+  ).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+
+  const assigned=new Map();
+  db.creaProjectGroups30.forEach(g=>(g.memberUsers||[]).forEach(u=>assigned.set(String(u),g.name)));
+
+  box.innerHTML=students.length?students.map(u=>{
+    const rec=(db.creaEmprende||[]).find(r=>
+      normalizeGradeCY30(r.grade)===normalizeGradeCY30(grade)&&
+      normalizeSectionCY30(r.section)===normalizeSectionCY30(sec)&&
+      r.stage===stage&&(r.studentKey===u.u||r.username===u.u||(r.studentId!=null&&r.studentId===u.id))
+    );
+    const current=assigned.get(String(u.u));
+    const label=current||rec?.project||'Sin proyecto registrado';
+    return `<label class="creaMemberItem30" style="grid-template-columns:24px minmax(0,1fr) 1fr">
+      <input class="cpgMember30" type="checkbox" value="${escClass(u.u)}">
+      <span><b>${escClass(u.name)}</b><br><small class="muted">${escClass(label)}</small></span>
+      <span class="muted" style="font-size:11px">${current?`Grupo actual: ${escClass(current)}`:'Sin grupo manual'}</span>
+    </label>`;
+  }).join(''):'<span class="muted">No hay estudiantes en este grado/sección.</span>';
+}
+
+function clearOldCreaPortfolioProduct30(user,oldGroupIds,oldGroupNames){
+  ensureClassData();
+  const uid=String(user);
+  const ids=new Set((oldGroupIds||[]).map(x=>String(x)));
+  const names=new Set((oldGroupNames||[]).map(x=>String(x||'').trim().toLowerCase()).filter(Boolean));
+  let removedWeekly=0;
+
+  // Solo se eliminan Portafolio y Producto de los registros que pertenecían
+  // al proyecto/grupo anterior de ESTE estudiante. La Exposición se conserva.
+  (db.projectWeeklyGrades||[]).forEach(r=>{
+    if(String(r.user)!==uid)return;
+    const sameId=ids.size && ids.has(String(r.groupId||''));
+    const sameName=names.size && names.has(String(r.groupName||r.creaProject||'').trim().toLowerCase());
+    if(!sameId && !sameName)return;
+    if(r.portfolioLevels!==undefined || r.portfolio!==undefined){delete r.portfolioLevels;delete r.portfolio;removedWeekly++;}
+    if(r.productLevels!==undefined || r.product!==undefined){delete r.productLevels;delete r.product;}
+    // No borramos el registro completo: así no se pierde fecha u otra información.
+  });
+
+  // Compatibilidad con evaluaciones antiguas guardadas en projectGrades.
+  // IMPORTANTE: estos registros antiguos normalmente NO tienen grupo/proyecto.
+  // Por seguridad NO los destruimos al crear/eliminar/mover un grupo.
+  // En su lugar marcamos al estudiante como reiniciado para el proyecto anterior;
+  // projectRecord() dejará de rescatar esa nota antigua y la nueva evaluación
+  // empezará limpia. Así nunca se pierde físicamente una nota por error de grupo.
+  const hadLegacy=(db.projectGrades||[]).some(r=>
+    String(r.user)===uid &&
+    ((r.portfolio!==undefined && r.portfolio!=='' && r.portfolio!=null) ||
+     (r.product!==undefined && r.product!=='' && r.product!=null))
+  );
+  if(hadLegacy){
+    ensureCreaProjectGroups30();
+    db.creaProjectResets30[uid]={resetAt:Date.now(),oldGroupIds:[...ids],oldGroupNames:[...names]};
+  }
+  return {removedWeekly,removedLegacy:hadLegacy?1:0};
+}
+
+function saveCreaProjectGroup30(){
+  ensureClassData(); ensureCreaProjectGroups30();
+  const name=document.getElementById('cpgName30')?.value.trim()||'';
+  const grade=document.getElementById('cpgGrade30')?.value||'';
+  const section=document.getElementById('cpgSection30')?.value||'';
+  const stage=document.getElementById('cpgStage30')?.value||'Etapa institucional';
+  const members=[...document.querySelectorAll('.cpgMember30:checked')].map(x=>String(x.value)).filter(Boolean);
+  if(!name){alert('Escribe el nombre del nuevo grupo o proyecto.');return;}
+  if(!members.length){alert('Selecciona al menos un integrante.');return;}
+
+  // Detectamos el grupo/proyecto anterior ANTES de mover a los estudiantes.
+  // Esto permite borrar solo sus notas de Portafolio y Producto.
+  const previousGroupsByUser=new Map();
+  const currentGroups=getCreaProjectGroups30(grade,section);
+  members.forEach(uid=>{
+    const previous=currentGroups.filter(g=>(g.members||[]).some(st=>String(st.u)===uid));
+    previousGroupsByUser.set(uid,previous);
+  });
+
+  const affected=members.map(uid=>{
+    const groups=previousGroupsByUser.get(uid)||[];
+    const oldGroupIds=groups.map(g=>g.id);
+    const oldGroupNames=groups.map(g=>g.name);
+    const student=(db.users||[]).find(u=>String(u.u)===String(uid));
+    const recs=(db.creaEmprende||[]).filter(x=>
+      normalizeGradeCY30(x.grade)===normalizeGradeCY30(grade) &&
+      normalizeSectionCY30(x.section)===normalizeSectionCY30(section) &&
+      x.stage===stage &&
+      (String(x.studentKey||x.username||'')===String(uid) || (student && x.studentId!=null && String(x.studentId)===String(student.id)))
+    );
+    // Guardamos el nombre que tenía ANTES del traslado para poder restaurarlo
+    // si luego se elimina este grupo manual.
+    const previousProject=(recs.find(r=>String(r.project||'').trim())?.project||'').trim();
+    return {uid,oldGroupIds,oldGroupNames,previousProject};
+  });
+  const preview=affected.map(x=>{
+    const student=(db.users||[]).find(u=>String(u.u)===x.uid);
+    const old=(x.oldGroupNames||[]).filter(Boolean).join(', ');
+    return `• ${student?.name||x.uid}: ${old||'sin proyecto/grupo identificado'}`;
+  }).join('\n');
+
+  if(!confirm(`Vas a mover ${members.length} estudiante(s) al nuevo proyecto:
+
+${preview}
+
+Se eliminarán SOLO las notas de Portafolio y Producto asociadas al proyecto anterior de cada estudiante seleccionado.\n\nLas notas de los demás estudiantes NO se modificarán y la Exposición NO se borrará.\n\n¿Continuar?`))return;
+
+  const selected=new Set(members);
+  let totalWeekly=0,totalLegacy=0;
+  affected.forEach(x=>{
+    const out=clearOldCreaPortfolioProduct30(x.uid,x.oldGroupIds,x.oldGroupNames);
+    totalWeekly+=out.removedWeekly; totalLegacy+=out.removedLegacy;
+  });
+
+  // Si un estudiante ya pertenecía a otro grupo manual, se quita de ese
+  // grupo para que no aparezca simultáneamente en dos equipos.
+  db.creaProjectGroups30.forEach(g=>{
+    g.memberUsers=(g.memberUsers||[]).filter(u=>!selected.has(String(u)));
+    g.updatedAt=Date.now();
+  });
+
+  const id='cygrp_manual_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+  db.creaProjectGroups30.push({
+    id,name,grade,section,stage,memberUsers:[...new Set(members)],
+    previousProjects:Object.fromEntries(affected.map(x=>[String(x.uid),String(x.previousProject||'')])),
+    createdAt:Date.now(),updatedAt:Date.now()
+  });
+
+  // Sincronizar inmediatamente el nombre del proyecto en TODOS los registros
+  // duplicados que pudiera tener el estudiante para la etapa actual.
+  // Esto evita que la pantalla vuelva a mostrar el proyecto antiguo (por ejemplo,
+  // "Jabón") porque getRec() encuentre primero un registro duplicado.
+  members.forEach(uid=>{
+    const student=(db.users||[]).find(u=>String(u.u)===String(uid));
+    if(!student)return;
+    const matches=(db.creaEmprende||[]).filter(x=>
+      normalizeGradeCY30(x.grade)===normalizeGradeCY30(grade) &&
+      normalizeSectionCY30(x.section)===normalizeSectionCY30(section) &&
+      x.stage===stage &&
+      (String(x.studentKey||x.username||'')===String(uid) || (x.studentId!=null && String(x.studentId)===String(student.id)))
+    );
+    if(!matches.length){
+      db.creaEmprende.push({
+        id:'cy_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+        studentKey:student.u, username:student.u, studentId:student.id??null,
+        studentName:student.name||'', grade, section, stage,
+        project:name, updatedAt:new Date().toISOString()
+      });
+    }else{
+      matches.forEach(r=>{
+        r.studentKey=student.u;
+        r.username=student.u;
+        r.studentId=student.id??r.studentId??null;
+        r.studentName=student.name||r.studentName||'';
+        r.grade=grade;
+        r.section=section;
+        r.stage=stage;
+        r.project=name;
+        r.updatedAt=new Date().toISOString();
+      });
+    }
+  });
+
+  window.cyGrade=grade; window.cySection=section; window.cyStage=stage;
+  save();
+  alert(`✅ Cambio realizado.\n\nNuevo grupo: ${name}\nEstudiantes trasladados: ${members.length}\n\nSe limpiaron únicamente sus evaluaciones anteriores de Portafolio y Producto.\nRegistros semanales afectados: ${totalWeekly}${totalLegacy?`\nRegistros antiguos afectados: ${totalLegacy}`:''}\n\nLos demás estudiantes mantienen sus notas intactas.`);
+  closeModal();
+  render();
+}
+
+function openCreaProjectGroupList30(){
+  ensureCreaProjectGroups30();
+  const groups=db.creaProjectGroups30.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'es'));
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`<h2>📋 Grupos nuevos de proyecto</h2>
+    <p class="muted">Estos son grupos manuales. Al trasladar a un estudiante, solo se limpian sus notas de Portafolio y Producto del proyecto anterior; los demás estudiantes no se afectan.</p>
+    <div style="overflow:auto"><table>
+      <tr><th>Grupo / proyecto</th><th>Grado</th><th>Sección</th><th>Etapa</th><th>Integrantes</th><th>Acción</th></tr>
+      ${groups.map(g=>`<tr>
+        <td><b>${escClass(g.name)}</b></td><td>${escClass(g.grade)}</td><td>${escClass(g.section)}</td><td>${escClass(g.stage||'')}</td>
+        <td>${(g.memberUsers||[]).map(uid=>escClass((db.users||[]).find(u=>u.u===uid)?.name||uid)).join('<br>')||'—'}</td>
+        <td><button class="small danger" onclick="deleteCreaProjectGroup30('${escClass(g.id)}')">Eliminar grupo</button></td>
+      </tr>`).join('')||'<tr><td colspan="6">No hay grupos manuales.</td></tr>'}
+    </table></div>
+    <div class="actions" style="margin-top:15px"><button class="secondary" onclick="openCreaProjectGroupManager30()">← Volver</button></div>`;
+  modal.classList.remove('hidden');
+}
+
+function deleteCreaProjectGroup30(id){
+  ensureCreaProjectGroups30();
+  const g=db.creaProjectGroups30.find(x=>String(x.id)===String(id));
+  if(!g)return;
+  if(!confirm(`¿Eliminar el grupo "${g.name}"?\n\nNo se eliminarán notas ni evaluaciones.\nLos estudiantes dejarán de pertenecer a este grupo y quedarán SIN proyecto/grupo manual asignado hasta que les asignes uno nuevo.`))return;
+
+  // Eliminar un grupo NO borra calificaciones y NO devuelve al estudiante
+  // al proyecto anterior. Si el registro todavía muestra el nombre del grupo
+  // eliminado, se limpia únicamente ese nombre para que el estudiante quede
+  // sin proyecto/grupo actual. El proyecto anterior se conserva solo como
+  // historial lógico para la limpieza hecha al momento del traslado.
+  (g.memberUsers||[]).forEach(uid=>{
+    (db.creaEmprende||[]).forEach(r=>{
+      if(String(r.studentKey||r.username||'')!==String(uid))return;
+      if(normalizeGradeCY30(r.grade)!==normalizeGradeCY30(g.grade))return;
+      if(normalizeSectionCY30(r.section)!==normalizeSectionCY30(g.section))return;
+      if(String(r.stage||'Etapa institucional')!==String(g.stage||'Etapa institucional'))return;
+      // Solo limpiamos si el registro aún corresponde al grupo que se elimina.
+      if(String(r.project||'').trim().toLowerCase()===String(g.name||'').trim().toLowerCase()){
+        r.project='';
+        r.updatedAt=new Date().toISOString();
+      }
+    });
+  });
+
+  db.creaProjectGroups30=db.creaProjectGroups30.filter(x=>String(x.id)!==String(id));
+  save();
+  openCreaProjectGroupList30();
+}
+/* ===== FIN GRUPOS NUEVOS DE PROYECTO ===== */
+
 function getCreaProjectGroups30(grade,sec){
   ensureClassData();
   const ng=normalizeGradeCY30(grade), ns=normalizeSectionCY30(sec);
@@ -5785,31 +6077,65 @@ function getCreaProjectGroups30(grade,sec){
     normalizeSectionCY30(u.section)===ns
   );
   const studentMap=new Map(students.map(u=>[String(u.u||''),u]));
-  // Para Portafolio y Producto, basta con que el estudiante tenga un
-  // proyecto registrado en Crea y Emprende. NO exigimos 'Participó':
-  // un estudiante puede incorporarse después y registrar recién su proyecto.
-  const records=(db.creaEmprende||[]).filter(r=>{
-    return normalizeGradeCY30(r.grade)===ng && normalizeSectionCY30(r.section)===ns;
-  });
+  const records=(db.creaEmprende||[]).filter(r=>
+    normalizeGradeCY30(r.grade)===ng && normalizeSectionCY30(r.section)===ns
+  );
+
+  // Los grupos creados manualmente tienen prioridad sobre el agrupamiento
+  // automático por nombre de proyecto. Así se puede mover un estudiante
+  // a un equipo nuevo sin borrar sus notas ni evidencias.
+  const manualGroups=Array.isArray(db.creaProjectGroups30)?db.creaProjectGroups30:[];
+  const manualByUser=new Map();
+  manualGroups
+    .filter(g=>normalizeGradeCY30(g.grade)===ng && normalizeSectionCY30(g.section)===ns)
+    .forEach(g=>(g.memberUsers||[]).forEach(u=>manualByUser.set(String(u),g)));
+
   const map=new Map();
   records.forEach(r=>{
     const username=String(r.studentKey||r.username||'');
     let st=studentMap.get(username);
     if(!st && r.studentId!=null) st=students.find(u=>String(u.id)===String(r.studentId));
     if(!st)return;
+
+    const manual=manualByUser.get(username);
     const project=String((r.project||r.detail||'')).trim();
-    if(!project)return;
-    const key=project.toLocaleLowerCase().replace(/\s+/g,' ').trim();
-    if(!map.has(key)){
-      const safeKey=ng+'|'+ns+'|'+key;
-      map.set(key,{id:'cygrp_'+btoa(unescape(encodeURIComponent(safeKey))).replace(/[^a-zA-Z0-9_-]/g,''),name:project,grade,section:sec,stage:r.stage||'',members:[]});
+    if(!project && !manual)return;
+
+    let id,name;
+    if(manual){
+      id=String(manual.id);
+      name=String(manual.name||project||'Nuevo grupo');
+    }else{
+      const key=project.toLocaleLowerCase().replace(/\s+/g,' ').trim();
+      id='cygrp_'+btoa(unescape(encodeURIComponent(ng+'|'+ns+'|'+key))).replace(/[^a-zA-Z0-9_-]/g,'');
+      name=project;
     }
-    const g=map.get(key);
+
+    if(!map.has(id)){
+      map.set(id,{id,name,grade,section:sec,stage:r.stage||'Etapa institucional',members:[]});
+    }
+    const g=map.get(id);
     if(!g.members.some(x=>x.u===st.u))g.members.push(st);
   });
-  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name));
-}
 
+  manualGroups
+    .filter(g=>normalizeGradeCY30(g.grade)===ng && normalizeSectionCY30(g.section)===ns)
+    .forEach(g=>{
+      if(!map.has(String(g.id))){
+        map.set(String(g.id),{id:String(g.id),name:String(g.name||'Nuevo grupo'),
+          grade:g.grade,section:g.section,stage:g.stage||'Etapa institucional',members:[]});
+      }
+      const out=map.get(String(g.id));
+      (g.memberUsers||[]).forEach(uid=>{
+        const st=studentMap.get(String(uid));
+        if(st && !out.members.some(x=>x.u===st.u))out.members.push(st);
+      });
+    });
+
+  return [...map.values()]
+    .filter(g=>g.members.length)
+    .sort((a,b)=>a.name.localeCompare(b.name,'es'));
+}
 function getCreaProjectGroup30(groupId,grade,sec){
   let g=getCreaProjectGroups30(grade,sec).find(x=>x.id===groupId);
   if(g)return g;
@@ -8052,12 +8378,16 @@ function creaEmprende(){
 
   const getRec=u=>{
     const username=u.u||'';
-    return (db.creaEmprende||[]).find(r=>
+    const r=(db.creaEmprende||[]).find(r=>
       r.grade===grade &&
       r.section===section &&
       r.stage===stage &&
       (r.studentKey===username || r.username===username || (r.studentId!=null && r.studentId===u.id))
     )||{};
+    const manualProject=getManualCreaProjectName30(grade,section,stage,username);
+    // Si existe un grupo manual, su nombre manda y reemplaza visualmente
+    // cualquier nombre antiguo como "Jabón" que haya quedado en registros duplicados.
+    return manualProject ? {...r,project:manualProject} : r;
   };
 
   const safeKey=u=>encodeURIComponent(u.u||'');
@@ -8094,6 +8424,7 @@ function creaEmprende(){
       </td>
       <td>
         <button class="small" onclick="saveCY('${key}',${index})">💾 Guardar</button>
+        <button class="small secondary" style="margin-top:6px" onclick="changeCreaStudentProject30('${key}',${index})">🔄 Cambiar proyecto</button>
       </td>
     </tr>`;
   }).join('');
@@ -8111,7 +8442,10 @@ function creaEmprende(){
         <h2>🏆 Crea y Emprende</h2>
         <p class="muted">Registro independiente de participación. <b>No modifica las calificaciones.</b></p>
       </div>
-      <span class="badge">REGISTRO</span>
+      <div class="actions">
+        <button class="secondary" onclick="openCreaProjectGroupManager30()">👥 Cambiar / crear grupo de proyecto</button>
+        <span class="badge">REGISTRO</span>
+      </div>
     </div>
 
     <div class="grid3" style="margin-top:15px">
@@ -8244,7 +8578,8 @@ function autoSaveCY(encodedUsername,rowIndex){
   }
 
   r.status=status;
-  r.project=project;
+  const manualProject=getManualCreaProjectName30(grade,section,stage,username);
+  r.project=manualProject||project;
   r.reason=status==='no participó'?reason:'';
   r.detail=detail;
   r.updatedAt=new Date().toISOString();
@@ -8258,6 +8593,86 @@ function autoSaveCY(encodedUsername,rowIndex){
   save();
 }
 
+
+function changeCreaStudentProject30(encodedUsername,rowIndex){
+  ensureClassData(); ensureCreaProjectGroups30();
+  const username=decodeURIComponent(encodedUsername||'');
+  const student=(db.users||[]).find(u=>u.role==='student'&&u.u===username);
+  if(!student){alert('No se encontró al estudiante.');return}
+
+  const grade=document.getElementById('cyGrade')?.value||window.cyGrade||student.grade||'1.º';
+  const section=document.getElementById('cySection')?.value||window.cySection||student.section||'A';
+  const stage=document.getElementById('cyStage')?.value.trim()||window.cyStage||'Etapa institucional';
+  const currentRec=(db.creaEmprende||[]).find(x=>
+    x.grade===grade && x.section===section && x.stage===stage &&
+    (x.studentKey===username || x.username===username || (x.studentId!=null && x.studentId===student.id))
+  )||{};
+  const oldProject=String(currentRec.project||currentRec.detail||'').trim();
+  const newProject=prompt(`Cambiar proyecto de ${student.name}.\n\nProyecto actual: ${oldProject||'Sin proyecto registrado'}\n\nEscribe el NUEVO proyecto/grupo:` ,oldProject||'');
+  if(newProject===null)return;
+  const name=String(newProject).trim();
+  if(!name){alert('Debes escribir el nombre del nuevo proyecto/grupo.');return}
+  if(name.toLocaleLowerCase()===oldProject.toLocaleLowerCase()){
+    alert('El proyecto no ha cambiado.');return;
+  }
+
+  const currentGroups=getCreaProjectGroups30(grade,section);
+  const previous=currentGroups.filter(g=>((g.members||[]).some(st=>String(st.u)===username) || (g.memberUsers||[]).some(u=>String(u)===username)));
+  const oldGroupIds=previous.map(g=>g.id);
+  const oldGroupNames=previous.map(g=>g.name);
+
+  if(!confirm(`Vas a cambiar a ${student.name} de proyecto.\n\nAnterior: ${oldProject||'Sin proyecto'}\nNuevo: ${name}\n\nSe eliminarán ÚNICAMENTE para este estudiante sus notas de Portafolio y Producto del proyecto anterior.\n\nLos demás estudiantes NO serán afectados y la Exposición se conservará.\n\n¿Continuar?`))return;
+
+  const out=clearOldCreaPortfolioProduct30(username,oldGroupIds,oldGroupNames);
+
+  // Quitar únicamente a este estudiante de cualquier grupo manual anterior.
+  db.creaProjectGroups30.forEach(g=>{
+    g.memberUsers=(g.memberUsers||[]).filter(u=>String(u)!==username);
+    g.updatedAt=Date.now();
+  });
+
+  // Si ya existe un grupo manual con el nuevo nombre, se incorpora allí;
+  // de lo contrario se crea uno nuevo para este estudiante.
+  const norm=String(name).trim().toLocaleLowerCase().replace(/\s+/g,' ');
+  let target=db.creaProjectGroups30.find(g=>
+    normalizeGradeCY30(g.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(g.section)===normalizeSectionCY30(section) &&
+    String(g.stage||'Etapa institucional')===String(stage) &&
+    String(g.name||'').trim().toLocaleLowerCase().replace(/\s+/g,' ')===norm
+  );
+  if(!target){
+    target={id:'cygrp_manual_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),name,grade,section,stage,memberUsers:[],createdAt:Date.now(),updatedAt:Date.now()};
+    db.creaProjectGroups30.push(target);
+  }
+  if(!Array.isArray(target.memberUsers))target.memberUsers=[];
+  if(!target.memberUsers.map(String).includes(username))target.memberUsers.push(username);
+  target.updatedAt=Date.now();
+
+  // Actualizar TODOS los registros duplicados de este estudiante en la etapa actual.
+  // Así la columna Proyecto / grupo / función siempre refleja el nuevo proyecto.
+  const matches=(db.creaEmprende||[]).filter(x=>
+    normalizeGradeCY30(x.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(x.section)===normalizeSectionCY30(section) &&
+    x.stage===stage &&
+    (String(x.studentKey||x.username||'')===String(username) || (x.studentId!=null && String(x.studentId)===String(student.id)))
+  );
+  if(!matches.length){
+    db.creaEmprende.push({id:'cy_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),studentKey:username,username,studentId:student.id??null,studentName:student.name||'',grade,section,stage,project:name,updatedAt:new Date().toISOString()});
+  }else{
+    matches.forEach(r=>{
+      r.studentKey=username; r.username=username; r.studentId=student.id??r.studentId??null;
+      r.studentName=student.name||r.studentName||''; r.grade=grade; r.section=section; r.stage=stage;
+      r.project=name; r.updatedAt=new Date().toISOString();
+    });
+  }
+
+  // Mantener visible el cambio en la fila actual.
+  const projectInput=document.getElementById('cyProject_'+rowIndex);
+  if(projectInput)projectInput.value=name;
+  save();
+  alert(`✅ Cambio de proyecto realizado.\n\n${student.name}\n${oldProject||'Sin proyecto'} → ${name}\n\nPortafolio anterior reiniciado: ${out.removedWeekly+out.removedLegacy>0?'sí':'no había registro encontrado'}\nProducto anterior reiniciado: ${out.removedWeekly+out.removedLegacy>0?'sí':'no había registro encontrado'}\nLos demás estudiantes no fueron afectados.`);
+  render();
+}
 
 function saveCY(encodedUsername,rowIndex){
   const cyUser0=document.getElementById('cyStudent')?.value||'';
@@ -8309,7 +8724,8 @@ function saveCY(encodedUsername,rowIndex){
   }
 
   r.status=status;
-  r.project=project;
+  const manualProject=getManualCreaProjectName30(grade,section,stage,username);
+  r.project=manualProject||project;
   r.reason=status==='no participó'?reason:'';
   r.detail=detail;
   r.updatedAt=new Date().toISOString();
