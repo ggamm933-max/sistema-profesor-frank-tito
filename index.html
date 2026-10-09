@@ -397,28 +397,41 @@ function convertPendingNotebook05_31(bimesterKey){
   const arr=db.notebookGrades;
   const students=(db.users||[]).filter(u=>u.role==='student');
   let count=0;
-
-  // Cada registro de Cuaderno representa una sesión. Al cerrar el bimestre,
-  // todo estudiante del grado/sección del registro que todavía no tenga nota
-  // recibe 05 automático. No se crea una segunda sesión ni se modifica una
-  // nota que ya exista.
   const records=arr.filter(r=>isRealComponentRecord('notebookGrades',r));
+  const isRecovery=r=>String(r?.recordType||r?.type||'').toLowerCase()==='recovery';
+  const hasScore=(recordId,user)=>{
+    const x=arr.find(s=>String(s.recordId)===String(recordId)&&s.user===user);
+    return x && x.grade!==null && x.grade!==undefined && x.grade!=='' && Number.isFinite(Number(x.grade));
+  };
   records.forEach(rec=>{
     const date=String(rec.date||'');
     if(!date || date<b.start || date>b.end)return;
     const scope=recordScope('notebookGrades',rec);
     if(!scope.grade || !scope.section)return;
-
     students.forEach(u=>{
       if(studentIsRetired32(u))return;
       if(String(u.grade||'')!==String(scope.grade) || String(u.section||'').toUpperCase()!==String(scope.section).toUpperCase())return;
 
-      let score=arr.find(x=>String(x.recordId)===String(rec.id) && x.user===u.u);
-      const hasGrade=score && score.grade!==null && score.grade!==undefined && score.grade!=='' && Number.isFinite(Number(score.grade));
-      if(hasGrade)return;
+      // Una recuperación vinculada no recibe 05 por separado si existe una nota
+      // válida en cualquiera de las dos revisiones. El 05 solo se coloca cuando
+      // no existe ninguna nota de Cuaderno (original ni recuperación).
+      let related=[];
+      if(isRecovery(rec) && rec.recoveryOf){
+        const original=records.find(r=>String(r.id)===String(rec.recoveryOf));
+        if(original)related=[original,rec];
+      }else{
+        related=[rec,...records.filter(r=>isRecovery(r)&&String(r.recoveryOf||'')===String(rec.id))];
+      }
+      const anyGrade=related.some(r=>hasScore(r.id,u.u));
+      if(anyGrade)return;
 
+      // Si hay recuperación, coloca el 05 automático en la revisión original
+      // (o en el registro actual si no se puede resolver el vínculo), evitando
+      // crear 05 independientes que puedan confundirse con una recuperación.
+      const target=related.find(r=>!isRecovery(r)) || rec;
+      let score=arr.find(x=>String(x.recordId)===String(target.id) && x.user===u.u);
       if(!score){
-        score={id:'score_'+Date.now()+'_'+Math.random().toString(36).slice(2),recordId:rec.id,user:u.u,grade:5};
+        score={id:'score_'+Date.now()+'_'+Math.random().toString(36).slice(2),recordId:target.id,user:u.u,grade:5};
         arr.push(score);
       }else{
         score.grade=5;
@@ -431,7 +444,6 @@ function convertPendingNotebook05_31(bimesterKey){
   });
   return count;
 }
-
 function removeAutomaticNotebook05_31(bimesterKey){
   if(!Array.isArray(db.notebookGrades))return 0;
   const before=db.notebookGrades.length;
@@ -1005,23 +1017,41 @@ function getStudentClassDetail30(u){
   const records=Array.isArray(db.classRecords)?db.classRecords:[];
   const evals=Array.isArray(db.classEvaluations)?db.classEvaluations:[];
   const recovs=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
-  const result=[];const seen=new Set();
-  records.filter(r=>r&&r.id&&(r.recordType||'normal')!=='recovery').forEach(r=>{
-    const linked=records.filter(x=>x&&x.id&&(x.recordType||'normal')==='recovery'&&String(x.recoveryOf||'')===String(r.id));
-    const recoveryPair=linked.map(x=>({rec:x,ev:evals.find(e=>String(e.classId)===String(x.id)&&e.user===u&&e.grade!==null&&e.grade!==undefined&&e.grade!=='' )})).find(x=>x.ev);
-    const ev=recoveryPair?.ev||evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='' );
-    if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){
-      result.push({date:r.date||ev.date||'',title:r.title||ev.title||'Registro de clase',session:r.sessionNumber||'',note:n,source:recoveryPair?'Recuperación de sesión':'Registro de clase',recoveredFrom:recoveryPair?recoveryPair.rec.title:''});
-      seen.add(String(r.id));linked.forEach(x=>seen.add(String(x.id)));
-    }return;}
-    const rr=recovs.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
-    if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){result.push({date:r.date||rr.date||'',title:r.title||rr.title||'Recuperación',session:r.sessionNumber||'',note:n,source:'Recuperación'});seen.add(String(r.id));}}
+  const result=[];
+  const seen=new Set();
+
+  // Exactamente la misma prioridad que classAvg():
+  // 1) evaluación de Registro de clase; 2) recuperación; 3) evaluaciones huérfanas.
+  records.filter(r=>r&&r.id).forEach(r=>{
+    const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="");
+    if(ev){
+      const n=Number(ev.grade);
+      if(Number.isFinite(n)){
+        result.push({date:r.date||ev.date||"",title:r.title||ev.title||"Registro de clase",session:r.sessionNumber||"",note:n,source:"Registro de clase"});
+        seen.add(String(r.id));
+      }
+      return;
+    }
+    const rr=recovs.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="");
+    if(rr){
+      const n=Number(rr.grade);
+      if(Number.isFinite(n)){
+        result.push({date:r.date||rr.date||"",title:r.title||rr.title||"Recuperación",session:r.sessionNumber||"",note:n,source:"Recuperación"});
+        seen.add(String(r.id));
+      }
+    }
   });
-  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))&&!((records.find(r=>String(r.id)===String(x.classId))||{}).recordType==='recovery')).forEach(x=>{
-    const n=Number(x.grade);if(Number.isFinite(n))result.push({date:x.date||'',title:x.title||'Evaluación',session:x.sessionNumber||'',note:n,source:'Evaluación'});
-  });
+
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==""&&!seen.has(String(x.classId)))
+    .forEach(x=>{
+      const n=Number(x.grade);
+      if(Number.isFinite(n)) result.push({date:x.date||"",title:x.title||"Evaluación",session:x.sessionNumber||"",note:n,source:"Evaluación"});
+    });
+
   return result;
 }
+
+
 
 
 function abrirDetalleMenuEstudianteV3(user){
@@ -4244,30 +4274,59 @@ function componentAvg(arr,u){
   const vals=(arr||[]).filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="").map(x=>Number(x.grade));
   return avgNums(vals);
 }
+// Cuaderno: una revisión marcada como recuperación mejora la revisión original.
+// Regla: sin nota original + nota de recuperación = recuperación; con ambas = mayor;
+// solo original = original; sin ninguna = queda pendiente para el cierre (05 automático).
+function notebookAvg(u){
+  const arr=Array.isArray(db.notebookGrades)?db.notebookGrades:[];
+  const records=arr.filter(r=>isRealComponentRecord('notebookGrades',r));
+  const regular=records.filter(r=>String(r.recordType||'').toLowerCase()!=='recovery' && String(r.type||'').toLowerCase()!=='recovery');
+  const recovery=records.filter(r=>String(r.recordType||'').toLowerCase()==='recovery' || String(r.type||'').toLowerCase()==='recovery');
+  const usedRecovery=new Set();
+  const vals=[];
+  regular.forEach(orig=>{
+    const scopeO=recordScope('notebookGrades',orig);
+    const candidates=recovery.filter(rec=>{
+      if(usedRecovery.has(String(rec.id))) return false;
+      if(String(rec.recoveryOf||'')!==String(orig.id)) return false;
+      const scopeR=recordScope('notebookGrades',rec);
+      return scopeR.grade===scopeO.grade && String(scopeR.section||'').toUpperCase()===String(scopeO.section||'').toUpperCase();
+    });
+    const ov=Number((arr.find(x=>String(x.recordId)===String(orig.id)&&x.user===u)||{}).grade);
+    const rv=candidates.map(rec=>({rec,grade:Number((arr.find(x=>String(x.recordId)===String(rec.id)&&x.user===u)||{}).grade)})).filter(x=>Number.isFinite(x.grade));
+    if(Number.isFinite(ov) || rv.length){
+      const best=Math.max(Number.isFinite(ov)?ov:-Infinity,...rv.map(x=>x.grade));
+      vals.push(best); rv.forEach(x=>usedRecovery.add(String(x.rec.id)));
+    }
+  });
+  // Recuperaciones sin revisión original: su nota sí cuenta.
+  recovery.forEach(rec=>{
+    if(usedRecovery.has(String(rec.id))) return;
+    const score=arr.find(x=>String(x.recordId)===String(rec.id)&&x.user===u);
+    const n=Number(score?.grade);
+    if(Number.isFinite(n)) vals.push(n);
+  });
+  return avgNums(vals);
+}
 function classAvg(u){
   ensureClassData();
   const classRecords=Array.isArray(db.classRecords)?db.classRecords:[];
   const evals=Array.isArray(db.classEvaluations)?db.classEvaluations:[];
   const recoveries=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
   const values=[];const seen=new Set();
-  const normalRecords=classRecords.filter(r=>r&&r.id&&(r.recordType||'normal')!=='recovery');
-  normalRecords.forEach(r=>{
-    const linked=classRecords.filter(x=>x&&x.id&&(x.recordType||'normal')==='recovery'&&String(x.recoveryOf||'')===String(r.id));
-    const recoveryEv=linked.map(x=>evals.find(e=>String(e.classId)===String(x.id)&&e.user===u&&e.grade!==null&&e.grade!==undefined&&e.grade!==''))
-      .find(Boolean);
-    const ev=recoveryEv||evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
-    if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));linked.forEach(x=>seen.add(String(x.id)));}return;}
+  classRecords.filter(r=>r&&r.id).forEach(r=>{
+    const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}return;}
     const rr=recoveries.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
     if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}}
   });
-  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))&&!((classRecords.find(r=>String(r.id)===String(x.classId))||{}).recordType==='recovery')).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
   return avgNums(values);
 }
 function activitiesAvg(u){return componentAvg(db.activitiesGrades,u)}
 function participationAvg(u){return componentAvg(db.participations,u)}
 function behaviorAvg(u){return componentAvg(db.behaviorGrades,u)}
 function uniformAvg(u){return componentAvg(db.uniformGrades,u)}
-function notebookAvg(u){return componentAvg(db.notebookGrades,u)}
 function folderAvg(u){return componentAvg(db.folderGrades,u)}
 function examAvg(u){return componentAvg(db.examGrades,u)}
 function creaInstitutionalRecord31(user){
@@ -4603,11 +4662,8 @@ function registroClase(){
         <div style="margin-top:18px">
           <label>📖 Sesión seleccionada</label>
           <select id="ceClass30" onchange="window._activeClassEval30=this.value;renderClass30()">
-            ${records.map(r=>`<option value="${escClass(r.id)}" ${String(r.id)===String(activeRec.id)?'selected':''}>${(r.recordType||'normal')==='recovery'?'🔄 RECUPERACIÓN · ':''}${escClass(r.title)} — ${escClass(r.grade)} ${escClass(r.section)}</option>`).join('')}
+            ${records.map(r=>`<option value="${escClass(r.id)}" ${String(r.id)===String(activeRec.id)?'selected':''}>${escClass(r.title)} — ${escClass(r.grade)} ${escClass(r.section)}</option>`).join('')}
           </select>
-          <div class="actions" style="margin-top:10px">
-            <button class="secondary" onclick="configureRecoveryForSelected30()">🔄 Marcar / configurar recuperación</button>
-          </div>
           <div class="card" style="margin-top:15px;background:#f8fafc" id="ceInfo30"></div>
           <div class="grid3" style="margin-top:12px">
             <div><label>Grado</label><input value="${escClass(activeRec.grade)}" readonly></div>
@@ -4668,68 +4724,40 @@ function newClassRecord30(){
   modalBody.innerHTML=`<h2>＋ Nueva clase</h2>
   <label>Fecha</label><input id="crDate30" type="date" value="${todayLocal30()}">
   <label>Título de la sesión</label><input id="crTitle30" placeholder="Ej.: Diseño Pensativo">
-  <label>Tipo de sesión</label><select id="crType30" onchange="toggleRecoveryLink30()"><option value="normal">📝 Sesión normal</option><option value="recovery">🔄 Sesión de recuperación</option></select>
-  <div id="crRecoveryWrap30" style="display:none"><label>Recupera a</label><select id="crRecoveryOf30"><option value="">Seleccionar después de elegir grado y sección</option></select><div class="muted" style="margin-top:4px">La sesión conserva su propio título, pero su nota reemplaza la nota original del estudiante recuperado.</div></div>
   <label>Propósito de aprendizaje</label><textarea id="crPurpose30" rows="3"></textarea>
   <label>Criterios de evaluación</label><textarea id="crCriteria30" rows="3"></textarea>
   <div class="grid3">
-    <div><label>Grado</label><select id="crGrade30" onchange="refreshRecoveryOptions30()"><option value="">Seleccionar</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
-    <div><label>Sección</label><select id="crSec30" onchange="refreshRecoveryOptions30()"><option value="">Seleccionar</option><option>A</option><option>B</option></select></div>
+    <div><label>Grado</label><select id="crGrade30"><option value="">Seleccionar</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+    <div><label>Sección</label><select id="crSec30"><option value="">Seleccionar</option><option>A</option><option>B</option></select></div>
     <div><label>Actividad vinculada (opcional)</label><select id="crAct30"><option value="">Ninguna</option>${(db.activities||[]).map(a=>`<option value="${escClass(a.id)}">${escClass(a.title)}</option>`).join('')}</select></div>
   </div>
   <div class="actions" style="margin-top:15px"><button onclick="saveClassRecord30()">Guardar clase</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
   modal.classList.remove('hidden');
-  refreshRecoveryOptions30();
-  modal.classList.remove('hidden');
-}
-function toggleRecoveryLink30(){
-  const type=document.getElementById('crType30')?.value||'normal';
-  const wrap=document.getElementById('crRecoveryWrap30');
-  if(wrap)wrap.style.display=type==='recovery'?'block':'none';
-  refreshRecoveryOptions30();
-}
-function refreshRecoveryOptions30(){
-  const sel=document.getElementById('crRecoveryOf30');if(!sel)return;
-  const grade=document.getElementById('crGrade30')?.value||'';
-  const section=document.getElementById('crSec30')?.value||'';
-  const current=sel.value;
-  const options=(db.classRecords||[]).filter(r=>r&&r.id&&(r.recordType||'normal')!=='recovery'&&(!grade||r.grade===grade)&&(!section||r.section===section));
-  sel.innerHTML='<option value="">Seleccionar sesión anterior</option>'+options.map(r=>`<option value="${escClass(r.id)}">${escClass(r.date||'')} — ${escClass(r.title||'Registro de clase')}</option>`).join('');
-  if(options.some(r=>String(r.id)===String(current)))sel.value=current;
 }
 function saveClassRecord30(){
-  const date=document.getElementById('crDate30')?.value,title=document.getElementById('crTitle30')?.value.trim(),purpose=document.getElementById('crPurpose30')?.value.trim(),criteria=document.getElementById('crCriteria30')?.value.trim(),grade=document.getElementById('crGrade30')?.value,section=document.getElementById('crSec30')?.value,activity=document.getElementById('crAct30')?.value||'',recordType=document.getElementById('crType30')?.value||'normal',recoveryOf=document.getElementById('crRecoveryOf30')?.value||'';
+  const date=document.getElementById('crDate30')?.value,title=document.getElementById('crTitle30')?.value.trim(),purpose=document.getElementById('crPurpose30')?.value.trim(),criteria=document.getElementById('crCriteria30')?.value.trim(),grade=document.getElementById('crGrade30')?.value,section=document.getElementById('crSec30')?.value,activity=document.getElementById('crAct30')?.value||'';
   if(!date||!title||!grade||!section){alert('Completa fecha, título, grado y sección.');return}
-  if(recordType==='recovery'&&!recoveryOf){alert('Selecciona la sesión que esta recuperación reemplaza.');return}
   ensureClassData();
-  db.classRecords.push({id:'class_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date,title,purpose,criteria,grade,section,activity,recordType,recoveryOf:recordType==='recovery'?recoveryOf:'',createdAt:Date.now()});
+  db.classRecords.push({id:'class_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),date,title,purpose,criteria,grade,section,activity,createdAt:Date.now()});
   save();closeModal();render();
 }
 function editClassRecord30(){
   const id=document.getElementById('ceClass30')?.value,r=classRecordById(id);if(!r)return;
-  const type=r.recordType||'normal';
-  const opts=(db.classRecords||[]).filter(x=>x&&x.id&&String(x.id)!==String(r.id)&&(x.recordType||'normal')!=='recovery'&&x.grade===r.grade&&x.section===r.section);
   modalBody.innerHTML=`<h2>✏️ Editar clase</h2>
     <label>Fecha</label><input id="crDate30" type="date" value="${escClass(r.date)}">
     <label>Título de la sesión</label><input id="crTitle30" value="${escClass(r.title)}">
-    <label>Tipo de sesión</label><select id="crType30" onchange="toggleRecoveryLink30()"><option value="normal" ${type==='normal'?'selected':''}>📝 Sesión normal</option><option value="recovery" ${type==='recovery'?'selected':''}>🔄 Sesión de recuperación</option></select>
-    <div id="crRecoveryWrap30" style="display:${type==='recovery'?'block':'none'}"><label>Recupera a</label><select id="crRecoveryOf30"><option value="">Seleccionar sesión anterior</option>${opts.map(x=>`<option value="${escClass(x.id)}" ${String(x.id)===String(r.recoveryOf||'')?'selected':''}>${escClass(x.date||'')} — ${escClass(x.title||'Registro de clase')}</option>`).join('')}</select><div class="muted" style="margin-top:4px">La sesión conserva su propio título, pero su nota reemplaza la nota original del estudiante recuperado.</div></div>
     <label>Propósito de aprendizaje</label><textarea id="crPurpose30" rows="3">${escClass(r.purpose||'')}</textarea>
     <label>Criterios de evaluación</label><textarea id="crCriteria30" rows="3">${escClass(r.criteria||'')}</textarea>
-    <div class="grid3"><div><label>Grado</label><select id="crGrade30" onchange="refreshRecoveryOptions30()">${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${r.grade===x?'selected':''}>${x}</option>`).join('')}</select></div>
-    <div><label>Sección</label><select id="crSec30" onchange="refreshRecoveryOptions30()"><option ${r.section==='A'?'selected':''}>A</option><option ${r.section==='B'?'selected':''}>B</option></select></div></div>
+    <div class="grid3"><div><label>Grado</label><select id="crGrade30">${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${r.grade===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div><label>Sección</label><select id="crSec30"><option ${r.section==='A'?'selected':''}>A</option><option ${r.section==='B'?'selected':''}>B</option></select></div></div>
     <div class="actions" style="margin-top:15px"><button onclick="updateClassRecord30('${escClass(r.id)}')">Guardar cambios</button><button class="danger" onclick="deleteClassRecord30('${escClass(r.id)}')">Eliminar clase</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
 function updateClassRecord30(id){
   const r=classRecordById(id);if(!r)return;
-  const type=document.getElementById('crType30')?.value||'normal';
-  const recoveryOf=document.getElementById('crRecoveryOf30')?.value||'';
-  if(type==='recovery'&&!recoveryOf){alert('Selecciona la sesión que esta recuperación reemplaza.');return}
-  r.date=document.getElementById('crDate30').value;r.title=document.getElementById('crTitle30').value.trim();r.purpose=document.getElementById('crPurpose30').value.trim();r.criteria=document.getElementById('crCriteria30').value.trim();r.grade=document.getElementById('crGrade30').value;r.section=document.getElementById('crSec30').value;r.recordType=type;r.recoveryOf=type==='recovery'?recoveryOf:'';
+  r.date=document.getElementById('crDate30').value;r.title=document.getElementById('crTitle30').value.trim();r.purpose=document.getElementById('crPurpose30').value.trim();r.criteria=document.getElementById('crCriteria30').value.trim();r.grade=document.getElementById('crGrade30').value;r.section=document.getElementById('crSec30').value;
   save();closeModal();render();
 }
-
 function deleteClassRecord30(id){
   if(!confirm('¿Eliminar esta clase y sus evaluaciones?'))return;
   db.classRecords=db.classRecords.filter(x=>x.id!==id);
@@ -4917,101 +4945,6 @@ function setEvidenceStatus30(user,value){
 function evidenceBlocksGrade30(status){
   return status==='no_encontrada'||status==='sin_nombre';
 }
-function recoverySessionSource30(r){
-  const sessions=db.sessions||[];
-  if(!r)return null;
-  // 1) Preferir la vinculación directa guardada en el registro de clase.
-  let ses=sessions.find(s=>r.session&&String(s.id)===String(r.session));
-  if(ses)return ses;
-  // 2) Registros antiguos pueden no tener sessionId. Intentar reconstruirlo
-  // por grado/sección + título + fecha, sin modificar ningún dato existente.
-  const rg=String(r.grade||'').trim(), rs=String(r.section||'').trim();
-  const rt=String(r.title||'').trim().toLowerCase();
-  const rd=String(r.date||'').trim();
-  ses=sessions.find(s=>{
-    const sg=String(s.grade||'').trim(), ss=String(s.section||'').trim();
-    const st=String(s.title||'').trim().toLowerCase();
-    const sd=String(s.date||'').trim();
-    const gradeOk=!rg||!sg||sg===rg||sg==='1.º-2.º'||sg==='3.º-5.º';
-    const secOk=!rs||!ss||ss===rs;
-    return gradeOk&&secOk&&rt&&st===rt&&(rd&&sd===rd);
-  });
-  if(ses)return ses;
-  // 3) Como último recurso, título + grado/sección.
-  ses=sessions.find(s=>{
-    const sg=String(s.grade||'').trim(), ss=String(s.section||'').trim();
-    const st=String(s.title||'').trim().toLowerCase();
-    return rt&&st===rt&&(!rg||!sg||sg===rg||sg==='1.º-2.º'||sg==='3.º-5.º')&&(!rs||!ss||ss===rs);
-  });
-  return ses||null;
-}
-function recoverySessionNumber30(r){
-  const ses=recoverySessionSource30(r);
-  const n=ses?.number ?? r?.sessionNumber ?? '';
-  return n==='' || n===null || n===undefined ? '' : String(n).padStart(2,'0');
-}
-function recoverySessionLabel30(r){
-  const ses=recoverySessionSource30(r);
-  const num=recoverySessionNumber30(r);
-  const title=ses?.title || r?.title || 'Sesión';
-  const grade=r?.grade || ses?.grade || '';
-  const section=r?.section || ses?.section || '';
-  const date=r?.date || ses?.date || '';
-  return `${num ? `Sesión ${num}: ` : 'Sesión: '}${escClass(title)} — ${escClass(grade)} ${escClass(section)} — ${escClass(date)}`;
-}
-function configureRecoveryForSelected30(){
-  const id=document.getElementById('ceClass30')?.value;
-  const r=classRecordById(id);
-  if(!r){alert('Selecciona una sesión evaluable.');return}
-  const currentGrade=String(r.grade||'').trim();
-  const currentSection=String(r.section||'').trim().toUpperCase();
-  const currentDate=String(r.date||'');
-  const opts=(db.classRecords||[]).filter(x=>{
-    if(!x||!x.id||String(x.id)===String(r.id)) return false;
-    if((x.recordType||'normal')==='recovery') return false;
-    if(String(x.grade||'').trim()!==currentGrade) return false;
-    if(String(x.section||'').trim().toUpperCase()!==currentSection) return false;
-    if(currentDate && x.date && String(x.date)>=currentDate) return false;
-    return true;
-  }).sort((a,b)=>{
-    const na=Number(a.sessionNumber), nb=Number(b.sessionNumber);
-    if(Number.isFinite(na)&&Number.isFinite(nb)) return na-nb;
-    if(Number.isFinite(na)) return -1; if(Number.isFinite(nb)) return 1;
-    return String(a.date||'').localeCompare(String(b.date||''));
-  });
-  const type=r.recordType||'normal';
-  modalBody.innerHTML=`<h2>🔄 Configurar recuperación</h2>
-    <div class="card" style="background:#eff6ff">
-      <b>Sesión seleccionada:</b><br>${recoverySessionLabel30(r)}
-    </div>
-    <label style="margin-top:12px">Tipo de sesión</label>
-    <select id="crType30">
-      <option value="normal" ${type==='normal'?'selected':''}>📝 Sesión normal</option>
-      <option value="recovery" ${type==='recovery'?'selected':''}>🔄 Sesión de recuperación</option>
-    </select>
-    <label>Recupera a</label>
-    <select id="crRecoveryOf30">
-      <option value="">Seleccionar sesión anterior</option>
-      ${opts.map(x=>`<option value="${escClass(x.id)}" ${String(x.id)===String(r.recoveryOf||'')?'selected':''}>${recoverySessionLabel30(x)}</option>`).join('')}
-    </select>
-    <div class="muted" style="margin-top:6px">La sesión conserva su título y sus notas ya registradas. Si se marca como recuperación, la nota obtenida aquí reemplazará la nota de la sesión original para cada estudiante que tenga recuperación.</div>
-    <div class="actions" style="margin-top:15px">
-      <button onclick="saveRecoveryLinkForSelected30('${escClass(r.id)}')">💾 Guardar</button>
-      <button class="secondary" onclick="closeModal()">Cancelar</button>
-    </div>`;
-  modal.classList.remove('hidden');
-}
-function saveRecoveryLinkForSelected30(id){
-  const r=classRecordById(id);if(!r)return;
-  const type=document.getElementById('crType30')?.value||'normal';
-  const recoveryOf=document.getElementById('crRecoveryOf30')?.value||'';
-  if(type==='recovery'&&!recoveryOf){alert('Selecciona la Sesión que esta recuperación reemplaza.');return}
-  if(type==='recovery'&&String(recoveryOf)===String(id)){alert('Una sesión no puede recuperarse a sí misma.');return}
-  r.recordType=type;
-  r.recoveryOf=type==='recovery'?recoveryOf:'';
-  save();closeModal();render();
-}
-
 function renderClass30(){
   const box=document.getElementById('ceTable30'); if(!box)return;
   ensureClassData();
@@ -5036,7 +4969,6 @@ function renderClass30(){
     const forced=retired||suspended;
     const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
     const needs=attendanceNeedsRecovery(att);
-    const isSessionRecovery=(rec.recordType||'normal')==='recovery';
     const recovery=getRecovery30(rec.id,u.u);
     const recovered=recovery && recovery.grade!==null && recovery.grade!==undefined && recovery.grade!=='';
     const evidence=getEvidence30(rec.id,u.u);
@@ -5049,13 +4981,10 @@ function renderClass30(){
     const recoveryNeeded=needs||hasEvidenceProblem;
     const pendingRecovery=recoveryNeeded && !recovered;
 
-    if(pendingRecovery && !isSessionRecovery) pending.push(u.name||u.u);
+    if(pendingRecovery) pending.push(u.name||u.u);
 
     let statusCell='';
-    if(isSessionRecovery && !forced){
-      const original=classRecordById(rec.recoveryOf);
-      statusCell=`<div style="font-weight:800">🔄 RECUPERACIÓN</div><div class="muted" style="font-size:.88rem;margin-top:4px">Reemplaza: ${escClass(original?.title||'Sesión anterior')}</div>`;
-    }else if(retired){
+    if(retired){
       statusCell=`<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>`;
     }else if(suspended){
       statusCell=`<span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span><div class="muted" style="font-size:.82rem;margin-top:4px">No participa en esta sesión mientras mantenga el estado de suspensión.</div>`;
@@ -5078,14 +5007,14 @@ function renderClass30(){
           <option value="NO HIZO" ${ev.status==='NO HIZO'?'selected':''}>❌ NO HIZO</option>
         </select>`;
     }
-    const displayGrade=forced?'05':(isSessionRecovery?(ev.grade??''):(recoveryNeeded?(recovered?recovery.grade:''):(ev.grade??'')));
+    const displayGrade=forced?'05':(recoveryNeeded?(recovered?recovery.grade:''):(ev.grade??''));
     const level=forced?'C':(displayGrade===''?'—':classLevel(displayGrade));
     return `<tr>
       <td>${i+1}</td>
       <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>':suspended?'<br><span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
       <td>${forced?'<span class="badge bad">'+(suspended?'🟠 SUSPENDIDO':'⚫ RETIRADO')+'</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       <td>${statusCell}</td>
-      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||(!isSessionRecovery&&recoveryNeeded)?'readonly disabled':''} placeholder="No calificable"></td>
+      <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||recoveryNeeded?'readonly disabled':''} placeholder="No calificable"></td>
       <td class="ceLevel30" data-user="${escClass(u.u)}">${level}</td>
     </tr>`;
   }).join('');
@@ -5197,15 +5126,8 @@ function saveClassEval30(){
   if(forcedUsers.length){ alert('⚠️ Hay estudiantes suspendidos o retirados. No se guardarán evaluaciones para ellos; su resultado queda DESAPROBADO.'); }
   ensureClassData();const id=document.getElementById('ceClass30')?.value,rec=classRecordById(id);if(!rec){alert('Primero selecciona una sesión de aprendizaje.');return}
   const ss=[...document.querySelectorAll('.ceStatus30')],gs=[...document.querySelectorAll('.ceGrade30')];let n=0;
-  const isRecovery=(rec.recordType||'normal')==='recovery';
-  const users=[...new Set((isRecovery?gs:ss).map(e=>e.dataset.user).filter(Boolean))];
-  users.forEach(u=>{
-    if(studentForcedDisapproved32(u))return;
-    const stEl=ss.find(e=>e.dataset.user===u), g=gs.find(e=>e.dataset.user===u);
-    const st=stEl?stEl.value:'RECUPERACION';
-    const raw=g?g.value:'';
-    let r=classEvalRecord(id,u);
-    if(!st && raw===''){if(r)db.classEvaluations=db.classEvaluations.filter(x=>x!==r);return}
+  ss.forEach(e=>{const u=e.dataset.user;if(studentForcedDisapproved32(u))return;const st=e.value,g=gs.find(x=>x.dataset.user===u),raw=g?g.value:'';let r=classEvalRecord(id,u);
+    if(!st&&raw===''){if(r)db.classEvaluations=db.classEvaluations.filter(x=>x!==r);return}
     const grade=raw===''?null:Math.max(0,Math.min(20,Number(raw)));
     if(!r)db.classEvaluations.push({id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId:id,user:u,status:st,grade,date:rec.date,title:rec.title,gradeClass:rec.grade,section:rec.section});
     else{r.status=st;r.grade=grade}
@@ -5398,32 +5320,33 @@ function newComponentRecord(key,arrName,title){
     <div class="grid3">
       <div>
         <label>🎓 Grado</label>
-        <select id="cmpGrade" onchange="loadComponentSessions()">
+        <select id="cmpGrade" onchange="loadComponentSessions();loadNotebookRecoveryOptions()">
           <option value="">Seleccionar grado</option>
           ${grades.map(x=>`<option value="${x}">${x}</option>`).join('')}
         </select>
       </div>
       <div>
         <label>🔤 Sección</label>
-        <select id="cmpSec" onchange="loadComponentSessions()">
+        <select id="cmpSec" onchange="loadComponentSessions();loadNotebookRecoveryOptions()">
           <option value="">Seleccionar sección</option>
           <option>A</option>
           <option>B</option>
         </select>
       </div>
       <div>
-        <label>📅 Fecha de la sesión</label>
-        <input id="cmpDate" type="date" value="${today}" readonly>
+        <label>📅 Fecha de la sesión / recuperación</label>
+        <input id="cmpDate" type="date" value="${today}">
       </div>
     </div>
 
     <div style="margin-top:14px">
       <label>📖 Sesión de aprendizaje</label>
-      <select id="cmpSession" onchange="selectComponentSession()">
+      <select id="cmpSession" onchange="selectComponentSession();loadNotebookRecoveryOptions()">
         <option value="">Primero selecciona grado y sección</option>
       </select>
-      <p class="muted" style="margin-top:6px">
-        Aquí se muestran las sesiones que ya creaste. La fecha se toma automáticamente de la sesión.
+      <p class="muted" id="cmpSessionHelp" style="margin-top:6px">
+        Para una revisión normal selecciona la sesión donde corresponde la revisión.
+        Para una recuperación puedes registrarla sin crear otra sesión de aprendizaje.
       </p>
     </div>
 
@@ -5431,6 +5354,20 @@ function newComponentRecord(key,arrName,title){
       <label>Título / actividad</label>
       <input id="cmpTitle" value="${escClass(title)}" readonly>
     </div>
+
+    ${arrName==='notebookGrades'?`
+    <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
+      <label>📚 Tipo de revisión de cuaderno</label>
+      <select id="notebookReviewType" onchange="loadNotebookRecoveryOptions()">
+        <option value="normal">📝 Revisión normal</option>
+        <option value="recovery">🔄 Recuperación</option>
+      </select>
+      <div id="notebookRecoveryWrap" style="display:none;margin-top:10px">
+        <label>Recupera a</label>
+        <select id="notebookRecoveryOf"><option value="">Primero selecciona grado, sección y sesión</option></select>
+        <p class="muted" style="margin-top:5px">La nota de recuperación mejora la revisión vinculada; no se cuenta como una revisión adicional.</p>
+      </div>
+    </div>`:''}
 
     <div class="actions">
       <button onclick="saveComponentRecord('${key}','${arrName}')">Crear</button>
@@ -5452,7 +5389,10 @@ function loadComponentSessions(){
   }
 
   const sessions=allSessionsForUI().filter(s=>{
-    return sessionAppliesToGrade(s,grade) &&
+    // Pasamos también la sección para que las sesiones compartidas
+    // (3.º-5.º) con fecha independiente por grado/sección aparezcan
+    // correctamente, por ejemplo en 4.º B.
+    return sessionAppliesToGrade(s,grade,section) &&
       (!s.section || s.section===section || s.section==='Todas');
   });
 
@@ -5477,6 +5417,51 @@ function selectComponentSession(){
 
   if(date)date.value=s.date||todayLocal30();
   if(title)title.value=s.title||'';
+  if(document.getElementById('notebookReviewType')) loadNotebookRecoveryOptions();
+}
+
+function loadNotebookRecoveryOptions(){
+  const type=document.getElementById('notebookReviewType')?.value||'normal';
+  const wrap=document.getElementById('notebookRecoveryWrap');
+  const sel=document.getElementById('notebookRecoveryOf');
+  const sessionSel=document.getElementById('cmpSession');
+  const dateInput=document.getElementById('cmpDate');
+  const titleInput=document.getElementById('cmpTitle');
+  const help=document.getElementById('cmpSessionHelp');
+  if(!wrap||!sel)return;
+  const isRecovery=type==='recovery';
+  wrap.style.display=isRecovery?'block':'none';
+
+  if(sessionSel && isRecovery && !sessionSel.value){
+    sessionSel.innerHTML='<option value="">— Sin sesión: recuperación de Cuaderno —</option>';
+  }
+  if(dateInput)dateInput.readOnly=false;
+  if(help){
+    help.textContent=isRecovery
+      ? 'La recuperación se registra con su propia fecha y no obliga a crear otra sesión. Solo selecciona la revisión anterior que recupera.'
+      : 'Aquí se muestran las sesiones que ya creaste. La fecha se toma automáticamente de la sesión.';
+  }
+  if(type!=='recovery'){
+    sel.innerHTML='<option value="">No aplica</option>';
+    return;
+  }
+  const grade=document.getElementById('cmpGrade')?.value||'';
+  const section=document.getElementById('cmpSec')?.value||'';
+  const sessionId=document.getElementById('cmpSession')?.value||'';
+  const current=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+  const currentDate=document.getElementById('cmpDate')?.value||current?.date||'';
+  const records=(db.notebookGrades||[]).filter(r=>isRealComponentRecord('notebookGrades',r));
+  const options=records.filter(r=>{
+    if(String(r.recordType||r.type||'').toLowerCase()==='recovery')return false;
+    const sc=recordScope('notebookGrades',r);
+    if(grade && sc.grade!==grade)return false;
+    if(section && String(sc.section||'').toUpperCase()!==String(section).toUpperCase())return false;
+    if(sessionId && String(r.session)===String(sessionId))return false;
+    if(currentDate && String(r.date||'')>=String(currentDate))return false;
+    return true;
+  });
+  sel.innerHTML='<option value="">Seleccionar revisión anterior</option>'+options.map(r=>`<option value="${escClass(r.id)}">${escClass(r.sessionNumber?'Sesión '+r.sessionNumber+': ':'')}${escClass(r.sessionTitle||r.title||'Revisión')} · ${escClass(r.date||'')}</option>`).join('');
+  if(!options.length)sel.innerHTML='<option value="">No hay revisiones anteriores para recuperar</option>';
 }
 
 function saveComponentRecord(key,arrName){
@@ -5486,27 +5471,41 @@ function saveComponentRecord(key,arrName){
   const section=document.getElementById('cmpSec')?.value||'';
   const sessionId=document.getElementById('cmpSession')?.value||'';
   const ses=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
+  const isNotebook=arrName==='notebookGrades';
+  const reviewType=isNotebook?(document.getElementById('notebookReviewType')?.value||'normal'):'normal';
+  const isRecovery=isNotebook && reviewType==='recovery';
 
   if(!grade||!section){
     alert('Selecciona el grado y la sección.');
     return;
   }
-  if(!ses){
+  if(!ses && !isRecovery){
     alert('Selecciona una sesión de aprendizaje ya creada.');
     return;
   }
 
+  const enteredDate=document.getElementById('cmpDate')?.value||todayLocal30();
+  const enteredTitle=document.getElementById('cmpTitle')?.value.trim()||key;
   const r={
     id:'cmp_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-    date:sessionDateForGradeSection(ses,ses.grade,ses.section)||todayLocal30(),
-    title:ses.title||document.getElementById('cmpTitle')?.value.trim()||key,
+    date:isRecovery ? enteredDate : (sessionDateForGradeSection(ses,ses.grade,ses.section)||enteredDate),
+    title:isRecovery ? (enteredTitle||'Recuperación de Cuaderno') : (ses.title||enteredTitle||key),
     grade,
     section,
-    session:ses.id,
-    sessionNumber:ses.number||'',
-    sessionTitle:ses.title||'',
-    unit:ses.unit||''
+    session:ses?.id||'',
+    sessionNumber:ses?.number||'',
+    sessionTitle:ses?.title||'',
+    unit:ses?.unit||''
   };
+  if(isNotebook){
+    r.recordType=reviewType;
+    r.type=reviewType;
+    r.recoveryOf=isRecovery?(document.getElementById('notebookRecoveryOf')?.value||''):'';
+    if(isRecovery && !r.recoveryOf){
+      alert('Selecciona la revisión anterior que esta recuperación reemplaza/mejora.');
+      return;
+    }
+  }
 
   db[arrName].push(r);
   save();
@@ -5553,6 +5552,20 @@ function editComponentRecord(key,arrName,id){
       <p class="muted">La fecha y el título se toman de la sesión seleccionada.</p>
     </div>
 
+    ${arrName==='notebookGrades'?`
+    <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
+      <label>📚 Tipo de revisión de cuaderno</label>
+      <select id="editNotebookReviewType" onchange="loadEditNotebookRecoveryOptions('${escClass(id)}')">
+        <option value="normal" ${(String(rec.recordType||rec.type||'').toLowerCase()!=='recovery')?'selected':''}>📝 Revisión normal</option>
+        <option value="recovery" ${(String(rec.recordType||rec.type||'').toLowerCase()==='recovery')?'selected':''}>🔄 Recuperación</option>
+      </select>
+      <div id="editNotebookRecoveryWrap" style="display:${String(rec.recordType||rec.type||'').toLowerCase()==='recovery'?'block':'none'};margin-top:10px">
+        <label>Recupera a</label>
+        <select id="editNotebookRecoveryOf"><option value="">Seleccionar revisión anterior</option></select>
+        <p class="muted" style="margin-top:5px">La recuperación no se suma como una revisión nueva: mejora la nota de la revisión vinculada.</p>
+      </div>
+    </div>`:''}
+
     <div class="actions">
       <button onclick="updateComponentRecord('${key}','${arrName}','${escClass(id)}')">💾 Guardar cambios</button>
       <button class="secondary" onclick="closeModal()">Cancelar</button>
@@ -5560,6 +5573,7 @@ function editComponentRecord(key,arrName,id){
 
   modal.classList.remove('hidden');
   loadEditComponentSessions(arrName,id);
+  if(arrName==='notebookGrades') loadEditNotebookRecoveryOptions(id);
 }
 
 function loadEditComponentSessions(arrName,id){
@@ -5596,6 +5610,30 @@ function selectEditComponentSession(){
   if(date)date.value=s.date||todayLocal30();
 }
 
+function loadEditNotebookRecoveryOptions(id){
+  const rec=(db.notebookGrades||[]).find(x=>String(x.id)===String(id));
+  const type=document.getElementById('editNotebookReviewType')?.value||'normal';
+  const wrap=document.getElementById('editNotebookRecoveryWrap');
+  const sel=document.getElementById('editNotebookRecoveryOf');
+  if(!wrap||!sel)return;
+  wrap.style.display=type==='recovery'?'block':'none';
+  if(type!=='recovery'){sel.innerHTML='<option value="">No aplica</option>';return;}
+  const grade=document.getElementById('editCmpGrade')?.value||'';
+  const section=document.getElementById('editCmpSec')?.value||'';
+  const records=(db.notebookGrades||[]).filter(r=>isRealComponentRecord('notebookGrades',r));
+  const options=records.filter(r=>{
+    if(String(r.id)===String(id))return false;
+    if(String(r.recordType||r.type||'').toLowerCase()==='recovery')return false;
+    const sc=recordScope('notebookGrades',r);
+    if(grade && sc.grade!==grade)return false;
+    if(section && String(sc.section||'').toUpperCase()!==String(section).toUpperCase())return false;
+    if(rec?.date && String(r.date||'')>=String(rec.date))return false;
+    return true;
+  });
+  sel.innerHTML='<option value="">Seleccionar revisión anterior</option>'+options.map(r=>`<option value="${escClass(r.id)}" ${String(rec?.recoveryOf||'')===String(r.id)?'selected':''}>${escClass(r.sessionNumber?'Sesión '+r.sessionNumber+': ':'')}${escClass(r.sessionTitle||r.title||'Revisión')} · ${escClass(r.date||'')}</option>`).join('');
+  if(!options.length)sel.innerHTML='<option value="">No hay revisiones anteriores para recuperar</option>';
+}
+
 function updateComponentRecord(key,arrName,id){
   ensureClassData();
   const rec=(db[arrName]||[]).find(x=>x.id===id);
@@ -5623,6 +5661,16 @@ function updateComponentRecord(key,arrName,id){
   rec.title=ses.title||rec.title;
   rec.date=ses.date||todayLocal30();
   rec.unit=ses.unit||rec.unit||'';
+  if(arrName==='notebookGrades'){
+    const rt=document.getElementById('editNotebookReviewType')?.value||'normal';
+    rec.recordType=rt;
+    rec.type=rt;
+    rec.recoveryOf=rt==='recovery'?(document.getElementById('editNotebookRecoveryOf')?.value||''):'';
+    if(rt==='recovery' && !rec.recoveryOf){
+      alert('Selecciona la revisión anterior que esta recuperación reemplaza/mejora.');
+      return;
+    }
+  }
 
   save();
   closeModal();
