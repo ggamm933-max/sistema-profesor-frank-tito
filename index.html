@@ -9033,7 +9033,13 @@ function refreshCreaRecoveryGroupUI31(user){
 }
 function openCreaRecoveryGroupManager31(){
   ensureClassData();
-  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>{
+    const ga=normalizeStudentGrade23(a.grade||a.grado)||'99';
+    const gb=normalizeStudentGrade23(b.grade||b.grado)||'99';
+    const sa=(normalizeStudentSection23(a.section||a.seccion)||'Z').toUpperCase();
+    const sb=(normalizeStudentSection23(b.section||b.seccion)||'Z').toUpperCase();
+    return ga.localeCompare(gb,'es',{numeric:true}) || sa.localeCompare(sb,'es') || String(a.name||'').localeCompare(String(b.name||''),'es');
+  });
   const custom=(db.creaRecoveryGroups||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
   modalBody.classList.add('wide');
   modalBody.innerHTML=`<h2>👥 Grupos para Recuperación Crea</h2>
@@ -9409,7 +9415,22 @@ function saveCreaRecoveryEval31(user){
 }
 function creaRecovery31(){
   ensureClassData();
-  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const allStudents=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true);
+  const gradeFilter=String(window.creaRecoveryGradeFilter31||'Todos');
+  const sectionFilter=String(window.creaRecoverySectionFilter31||'Todas').toUpperCase();
+  const students=allStudents.filter(u=>{
+    const g=normalizeStudentGrade23(u.grade||u.grado)||'';
+    const sec=(normalizeStudentSection23(u.section||u.seccion)||'').toUpperCase();
+    return (gradeFilter==='Todos'||g===gradeFilter) && (sectionFilter==='TODAS'||sec===sectionFilter);
+  }).sort((a,b)=>{
+    const ga=normalizeStudentGrade23(a.grade||a.grado)||'99';
+    const gb=normalizeStudentGrade23(b.grade||b.grado)||'99';
+    const sa=(normalizeStudentSection23(a.section||a.seccion)||'Z').toUpperCase();
+    const sb=(normalizeStudentSection23(b.section||b.seccion)||'Z').toUpperCase();
+    return ga.localeCompare(gb,'es',{numeric:true}) || sa.localeCompare(sb,'es') || String(a.name||'').localeCompare(String(b.name||''),'es');
+  });
+  const gradeOptions=['Todos','1.º','2.º','3.º','4.º','5.º'].map(g=>`<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
+  const sectionOptions=['Todas','A','B'].map(sec=>`<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
   const rows=students.map((u,i)=>{
     const r=(db.creaRecoveryEvaluations||[]).find(x=>x.user===u.u)||{};
     const complete=Number.isFinite(Number(r.portfolio))&&Number.isFinite(Number(r.exposition));
@@ -9422,9 +9443,8 @@ function creaRecovery31(){
     const recoveryGroup=r.creaRecoveryMode==='grupal'?(r.creaRecoveryGroupName||'Grupo sin nombre'):'Sin grupo';
     return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')} · ${portfolioModeLabel}<br>${recoveryMode}${r.creaRecoveryMode==='grupal'?` · ${escClass(recoveryGroup)}`:''}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>${hasProduct?Number(r.product).toFixed(2):'No presentado'}</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
   }).join('');
-  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🏆 Recuperación pedagógica — Crea y Emprende</h2><button class="secondary" onclick="openCreaRecoveryGroupManager31()">👥 Administrar grupos de recuperación</button></div><p class="muted" style="margin-top:10px">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio + Exposición son obligatorios</b>; <b>Producto es opcional</b> y solo se incorpora si realmente lo presentan.</p><div class="alert"><b>Regla:</b> Portafolio + Exposición son el mínimo. Sin Producto, Proyecto = Portafolio 30% + Exposición 40% normalizado sobre 70%. Con Producto, se incorpora 30%. El máximo es <b>14 puntos (B)</b>.</div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto /20</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes marcados para esta modalidad.</td></tr>'}</table></div></div>`;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🏆 Recuperación pedagógica — Crea y Emprende</h2><button class="secondary" onclick="openCreaRecoveryGroupManager31()">👥 Administrar grupos de recuperación</button></div><p class="muted" style="margin-top:10px">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio + Exposición son obligatorios</b>; <b>Producto es opcional</b> y solo se incorpora si realmente lo presentan.</p><div class="alert"><b>Regla:</b> Portafolio + Exposición son el mínimo. Sin Producto, Proyecto = Portafolio 30% + Exposición 40% normalizado sobre 70%. Con Producto, se incorpora 30%. El máximo es <b>14 puntos (B)</b>.</div><div class="card" style="margin-top:15px;background:#f8fafc"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label>Grado</label><select id="creaRecoveryGradeFilter31" onchange="window.creaRecoveryGradeFilter31=this.value; render();">${gradeOptions}</select></div><div><label>Sección</label><select id="creaRecoverySectionFilter31" onchange="window.creaRecoverySectionFilter31=this.value; render();">${sectionOptions}</select></div><div class="muted" style="padding-bottom:8px">Mostrando <b>${students.length}</b> de ${allStudents.length} estudiantes</div></div></div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto /20</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes para el filtro seleccionado.</td></tr>'}</table></div></div>`;
 }
-
 function render(){
   if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','recoveries','creaRecovery','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
   const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',creaRecovery:'🏆 Recuperación Crea',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',recoveries:'Recuperaciones',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
