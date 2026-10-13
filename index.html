@@ -258,9 +258,93 @@ function startFirebaseSync(){
   }
 }
 
+function ensureBioPlasticoMembers31(){
+  // Incorporación puntual solicitada: ambos estudiantes deben existir en la
+  // nómina de 2.º B y además quedar registrados en el proyecto grupal
+  // "Bio plastico" de Crea y Emprende para la evaluación general.
+  if(!Array.isArray(db.users)) db.users=[];
+  if(!Array.isArray(db.creaEmprende)) db.creaEmprende=[];
+
+  const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toUpperCase().replace(/[^A-Z0-9]+/g," ").trim().replace(/\s+/g," ");
+  const targets=[
+    {name:"CHUMA TACO, DARWIN YEFERSON", u:"chuma.taco.darwin", id:"CY_BIO_2B_CHUMA"},
+    {name:"HUILLCAÑAHUI QQUEHUE, ABDON SNAYDER", u:"huillcanahui.qquehue.abdon", id:"CY_BIO_2B_HUILLCA"}
+  ];
+  const project="Bio plastico";
+  const grade="2.º";
+  const section="B";
+  const stage="Etapa institucional";
+  let changed=false;
+
+  targets.forEach(t=>{
+    // Buscar primero por nombre normalizado en TODA la nómina, no solamente
+    // dentro de 2.º B. Así también funciona si fueron agregados con otro grado
+    // o si la sección se cambió anteriormente.
+    let st=(db.users||[]).find(u=>u.role==='student' && norm(u.name)===norm(t.name));
+
+    // Si no existen en la nómina, crearlos para que puedan aparecer tanto en
+    // Estudiantes como en Crea y Emprende y, por consecuencia, en la evaluación.
+    if(!st){
+      st={
+        id:t.id,
+        u:t.u,
+        p:"1234",
+        role:"student",
+        name:t.name,
+        grade,
+        section,
+        status:"Activo",
+        createdAt:Date.now()
+      };
+      db.users.push(st);
+      changed=true;
+    }else{
+      // Asegurar que estén en 2.º B para esta incorporación.
+      if(st.role!=='student'){st.role='student';changed=true;}
+      if(st.grade!==grade){st.grade=grade;changed=true;}
+      if(st.section!==section){st.section=section;changed=true;}
+      // Estos dos integrantes pertenecen a la evaluación normal de Bio plastico.
+      // Si quedaron marcados por error como Recuperación Crea, deben volver a
+      // aparecer en Proyecto 70 %.
+      if(st.creaRecovery===true){st.creaRecovery=false;changed=true;}
+      if(!st.status){st.status='Activo';changed=true;}
+    }
+
+    const exists=db.creaEmprende.some(r=>
+      normalizeGradeCY30(r.grade)===normalizeGradeCY30(grade) &&
+      normalizeSectionCY30(r.section)===section &&
+      String(r.stage||"")===stage &&
+      String(r.studentKey||r.username||"")===String(st.u||"") &&
+      norm(r.project||r.detail)===norm(project)
+    );
+    if(!exists){
+      db.creaEmprende.push({
+        id:"cybio_"+t.u,
+        studentKey:st.u||"",
+        username:st.u||"",
+        studentId:st.id??null,
+        grade,section,stage,
+        status:"participó",
+        project,
+        reason:"",
+        detail:"Integrante incorporado al grupo para evaluación general de Portafolio y Producto.",
+        updatedAt:Date.now()
+      });
+      changed=true;
+    }
+  });
+
+  if(changed){
+    localStorage.setItem("aulaEPT",JSON.stringify(db));
+  }
+  return changed;
+}
+
 window.addEventListener("firebase-ready", async ()=>{
   const exists = await loadFromFirebase();
-  if(!exists) await saveToFirebase();
+  const changed = ensureBioPlasticoMembers31();
+  if(!exists || changed) await saveToFirebase();
   startFirebaseSync();
 });
 
@@ -6135,6 +6219,11 @@ function normalizeSectionCY30(v){return String(v||'').trim().toUpperCase();}
 /* Grupos exclusivamente de Crea y Emprende. No usa db.groups. */
 function getCreaProjectGroups30(grade,sec){
   ensureClassData();
+  // Reasegura la incorporación solicitada justo al abrir la evaluación.
+  // Esto evita que una sincronización de Firebase haya reemplazado la copia
+  // local después del inicio de sesión.
+  const bioChanged = typeof ensureBioPlasticoMembers31 === 'function' ? ensureBioPlasticoMembers31() : false;
+  if(bioChanged && typeof save === 'function') save();
   const ng=normalizeGradeCY30(grade), ns=normalizeSectionCY30(sec);
   const students=(db.users||[]).filter(u=>
     u.role==='student' &&
@@ -6154,6 +6243,12 @@ function getCreaProjectGroups30(grade,sec){
     const username=String(r.studentKey||r.username||'');
     let st=studentMap.get(username);
     if(!st && r.studentId!=null) st=students.find(u=>String(u.id)===String(r.studentId));
+    // Compatibilidad con registros antiguos de Crea y Emprende: algunos
+    // guardan el nombre del estudiante aunque el usuario haya cambiado.
+    if(!st && r.studentName){
+      const rn=String(r.studentName).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+      st=students.find(u=>String(u.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ')===rn);
+    }
     if(!st)return;
     const project=String((r.project||r.detail||'')).trim();
     if(!project)return;
