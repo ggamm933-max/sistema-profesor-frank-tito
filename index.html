@@ -158,6 +158,7 @@ const seed = {
  announcements:[]
 };
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
+if(!Array.isArray(db.classRecoveryLinks))db.classRecoveryLinks=[];
 let me=null, page="home";
 function save(){
   localStorage.setItem("aulaEPT",JSON.stringify(db));
@@ -1012,47 +1013,119 @@ function fmtGradeDetail30(v){
   return (v===null||v===undefined||v===""||!Number.isFinite(Number(v))) ? "—" : Number(v).toFixed(2);
 }
 
+function classRecoveryLinkForTarget30(user,targetClassId){
+  return (Array.isArray(db.classRecoveryLinks)?db.classRecoveryLinks:[]).find(x=>String(x.user)===String(user)&&String(x.targetClassId)===String(targetClassId))||null;
+}
+function classRecoveryLinkForSource30(user,sourceClassId){
+  return (Array.isArray(db.classRecoveryLinks)?db.classRecoveryLinks:[]).find(x=>String(x.user)===String(user)&&String(x.sourceClassId)===String(sourceClassId))||null;
+}
+function effectiveClassNote30(user,classId){
+  const ev=(db.classEvaluations||[]).find(x=>String(x.classId)===String(classId)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+  const link=classRecoveryLinkForTarget30(user,classId);
+  if(link){
+    const src=(db.classEvaluations||[]).find(x=>String(x.classId)===String(link.sourceClassId)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    const a=ev&&Number.isFinite(Number(ev.grade))?Number(ev.grade):null;
+    const b=src&&Number.isFinite(Number(src.grade))?Number(src.grade):null;
+    if(a===null&&b===null)return null;
+    return {note:a===null?b:b===null?a:Math.max(a,b), original:a, recovery:b, sourceClassId:link.sourceClassId, link};
+  }
+  if(classRecoveryLinkForSource30(user,classId)) return {skip:true};
+  if(ev&&Number.isFinite(Number(ev.grade))) return {note:Number(ev.grade),original:Number(ev.grade)};
+  return null;
+}
+function openClassRecoveryLink30(user,sourceClassId){
+  ensureClassData();
+  const sourceRec=classRecordById(sourceClassId);
+  const sourceEv=(db.classEvaluations||[]).find(x=>String(x.classId)===String(sourceClassId)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+  if(!sourceRec||!sourceEv){alert('Esta nota no está disponible para usarla como recuperación.');return;}
+  if(!Array.isArray(db.classRecoveryLinks))db.classRecoveryLinks=[];
+  const existingSource=classRecoveryLinkForSource30(user,sourceClassId);
+  const existingTarget=classRecoveryLinkForTarget30(user,sourceClassId);
+  let currentLink=existingSource||existingTarget||null;
+
+  const candidates=(db.classRecords||[]).filter(r=>r&&r.id&&String(r.id)!==String(sourceClassId)).map(r=>{
+    const ev=(db.classEvaluations||[]).find(x=>String(x.classId)===String(r.id)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(!ev)return null;
+    const targetLink=classRecoveryLinkForTarget30(user,r.id);
+    const sourceLink=classRecoveryLinkForSource30(user,r.id);
+    // Al modificar un vínculo, se permite volver a seleccionar su pareja actual.
+    const isCurrentPartner=currentLink && (String(currentLink.sourceClassId)===String(r.id)||String(currentLink.targetClassId)===String(r.id));
+    if((targetLink||sourceLink)&&!isCurrentPartner)return null;
+    return {r,ev};
+  }).filter(Boolean);
+
+  if(!candidates.length && !currentLink){alert('No hay otra nota registrada y disponible para vincular como recuperación.');return;}
+  const old=document.getElementById('classRecoveryLinkModal30');if(old)old.remove();
+  const ov=document.createElement('div');ov.id='classRecoveryLinkModal30';ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px';
+  const currentText=currentLink
+    ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px;margin:12px 0"><b>Vínculo actual:</b> ${escClass(classRecordById(currentLink.targetClassId)?.sessionNumber||'')} · ${escClass(classRecordById(currentLink.targetClassId)?.title||'Sesión')} (${Number(((db.classEvaluations||[]).find(x=>String(x.classId)===String(currentLink.targetClassId)&&String(x.user)===String(user)))?.grade||0)}) ← recuperación ${escClass(classRecordById(currentLink.sourceClassId)?.sessionNumber||'')} · ${Number(sourceEv.grade)}</div>`
+    : '';
+  ov.innerHTML=`<div style="background:#fff;width:min(680px,96vw);max-height:90vh;overflow:auto;border-radius:18px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.35)">
+    <h2 style="margin-top:0">🔗 Vincular recuperación entre sesiones</h2>
+    <p><b>Esta sesión será la recuperación:</b><br>${escClass(sourceRec.sessionNumber||'')} · ${escClass(sourceRec.title||'Registro de clase')} · <b>nota ${Number(sourceEv.grade)}</b></p>
+    ${currentText}
+    <p class="muted">Selecciona la sesión cuya nota quieres recuperar. Las dos notas <b>no se promedian</b>: para la sesión recuperada se conserva la <b>mayor nota</b>. La sesión usada como recuperación no vuelve a contarse en el promedio.</p>
+    <label><b>Sesión que será recuperada</b></label>
+    <select id="crlTarget30" style="width:100%;margin-top:7px;padding:10px">${candidates.map(({r,ev})=>`<option value="${escClass(r.id)}" ${currentLink&&String(currentLink.targetClassId)===String(r.id)?'selected':''}>${escClass(r.sessionNumber||'')} · ${escClass(r.title||'Registro de clase')} · nota actual ${Number(ev.grade)}</option>`).join('')}</select>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px">
+      <button type="button" class="secondary" id="crlCancel30">Cancelar</button>
+      ${currentLink?'<button type="button" class="secondary" id="crlDelete30">🗑️ Quitar recuperación</button>':''}
+      <button type="button" id="crlSave30">💾 ${currentLink?'Guardar cambio':'Vincular recuperación'}</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#crlCancel30').onclick=()=>ov.remove();
+  ov.querySelector('#crlDelete30')?.addEventListener('click',()=>{
+    if(!confirm('¿Quitar la relación de recuperación entre estas sesiones? Las notas originales no se eliminarán.'))return;
+    db.classRecoveryLinks=db.classRecoveryLinks.filter(x=>x!==currentLink);
+    save();ov.remove();renderClass30();
+    alert('✅ Recuperación desvinculada. Las notas originales se conservaron.');
+  });
+  ov.querySelector('#crlSave30').onclick=()=>{
+    const targetId=ov.querySelector('#crlTarget30')?.value;
+    if(!targetId||String(targetId)===String(sourceClassId)){alert('Selecciona otra sesión como nota a recuperar.');return;}
+    if(!Array.isArray(db.classRecoveryLinks))db.classRecoveryLinks=[];
+    db.classRecoveryLinks=db.classRecoveryLinks.filter(x=>{
+      if(currentLink&&x===currentLink)return false;
+      return !(String(x.user)===String(user)&&(String(x.sourceClassId)===String(sourceClassId)||String(x.targetClassId)===String(targetId)));
+    });
+    db.classRecoveryLinks.push({id:'crl_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user:String(user),sourceClassId:String(sourceClassId),targetClassId:String(targetId),createdAt:currentLink?.createdAt||Date.now(),updatedAt:Date.now()});
+    save();ov.remove();renderClass30();
+    alert('✅ Recuperación vinculada. Se tomará la nota mayor y no se promediarán las dos notas.');
+  };
+}
+
 function getStudentClassDetail30(u){
   ensureClassData();
   const records=Array.isArray(db.classRecords)?db.classRecords:[];
   const evals=Array.isArray(db.classEvaluations)?db.classEvaluations:[];
   const recovs=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
-  const result=[];
-  const seen=new Set();
-
-  // Exactamente la misma prioridad que classAvg():
-  // 1) evaluación de Registro de clase; 2) recuperación; 3) evaluaciones huérfanas.
+  const result=[];const seen=new Set();
   records.filter(r=>r&&r.id).forEach(r=>{
-    const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="");
-    if(ev){
-      const n=Number(ev.grade);
-      if(Number.isFinite(n)){
-        result.push({date:r.date||ev.date||"",title:r.title||ev.title||"Registro de clase",session:r.sessionNumber||"",note:n,source:"Registro de clase"});
-        seen.add(String(r.id));
-      }
-      return;
+    if(isRecoverySourceRecord30(r)) return;
+    const sessionRecovery=sessionRecoveryResult30(u,r);
+    if(sessionRecovery&&sessionRecovery.note!==null){
+      const a=sessionRecovery.original,b=sessionRecovery.recovery;
+      result.push({date:r.date||'',title:r.title||'Registro de clase',session:r.sessionNumber||sessionRecordById30(r.session)?.number||'',note:sessionRecovery.note,source:`Recuperada por Sesión ${sessionRecovery.recoverySession.number}: mayor nota (${b===null?'—':b} vs ${a===null?'—':a})`});
+      seen.add(String(r.id));seen.add(String(sessionRecovery.sourceRec.id));return;
     }
-    const rr=recovs.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=="");
-    if(rr){
-      const n=Number(rr.grade);
-      if(Number.isFinite(n)){
-        result.push({date:r.date||rr.date||"",title:r.title||rr.title||"Recuperación",session:r.sessionNumber||"",note:n,source:"Recuperación"});
-        seen.add(String(r.id));
-      }
+    const linked=classRecoveryLinkForTarget30(u,r.id);
+    const sourceLink=classRecoveryLinkForSource30(u,r.id);
+    if(sourceLink)return;
+    const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(linked){
+      const src=evals.find(x=>String(x.classId)===String(linked.sourceClassId)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+      const a=ev&&Number.isFinite(Number(ev.grade))?Number(ev.grade):null;
+      const b=src&&Number.isFinite(Number(src.grade))?Number(src.grade):null;
+      if(a!==null||b!==null){const n=a===null?b:b===null?a:Math.max(a,b);result.push({date:r.date||ev?.date||'',title:r.title||ev?.title||'Registro de clase',session:r.sessionNumber||'',note:n,source:`Recuperación vinculada (${b===null?'—':b} sobre ${a===null?'—':a})`});seen.add(String(r.id));seen.add(String(linked.sourceClassId));}return;
     }
+    if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){result.push({date:r.date||ev.date||'',title:r.title||ev.title||'Registro de clase',session:r.sessionNumber||'',note:n,source:'Registro de clase'});seen.add(String(r.id));}return;}
+    const rr=recovs.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){result.push({date:r.date||rr.date||'',title:r.title||rr.title||'Recuperación',session:r.sessionNumber||'',note:n,source:'Recuperación'});seen.add(String(r.id));}}
   });
-
-  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==""&&!seen.has(String(x.classId)))
-    .forEach(x=>{
-      const n=Number(x.grade);
-      if(Number.isFinite(n)) result.push({date:x.date||"",title:x.title||"Evaluación",session:x.sessionNumber||"",note:n,source:"Evaluación"});
-    });
-
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))&&!classRecoveryLinkForSource30(u,x.classId)&&!isRecoverySourceRecord30(classRecordById(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))result.push({date:x.date||'',title:x.title||'Evaluación',session:x.sessionNumber||sessionRecordById30(classRecordById(x.classId)?.session)?.number||'',note:n,source:'Evaluación'});});
   return result;
 }
-
-
-
 
 function abrirDetalleMenuEstudianteV3(user){
   const st=(db.users||[]).find(x=>String(x.u)===String(user));
@@ -4308,6 +4381,40 @@ function notebookAvg(u){
   });
   return avgNums(vals);
 }
+function sessionRecordById30(sessionId){
+  return (db.sessions||[]).find(s=>String(s.id)===String(sessionId))||null;
+}
+function isRecoverySession30(session){
+  return !!(session&&session.sessionType==='recovery'&&session.recoveryOfSession);
+}
+function recoverySessionForTarget30(targetSessionId, grade, section){
+  return (db.sessions||[]).find(s=>isRecoverySession30(s)&&String(s.recoveryOfSession)===String(targetSessionId)&&String(s.unit||'')===String(sessionRecordById30(targetSessionId)?.unit||'') &&
+    (String(s.grade||'')===String(grade||'') || String(s.grade||'')==='3.º-5.º'))||null;
+}
+function classRecordForSessionStudent30(sessionId,grade,section){
+  ensureClassData();
+  return (db.classRecords||[]).find(r=>String(r.session||'')===String(sessionId)&&String(r.grade||'')===String(grade||'')&&String(r.section||'')===String(section||''))||null;
+}
+function sessionRecoveryResult30(user, targetRec){
+  if(!targetRec)return null;
+  const targetSession=sessionRecordById30(targetRec.session);
+  const recoverySession=recoverySessionForTarget30(targetRec.session,targetRec.grade,targetRec.section);
+  if(!targetSession||!recoverySession)return null;
+  const sourceRec=classRecordForSessionStudent30(recoverySession.id,targetRec.grade,targetRec.section);
+  if(!sourceRec)return null;
+  const originalEv=(db.classEvaluations||[]).find(x=>String(x.classId)===String(targetRec.id)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+  const recoveryEv=(db.classEvaluations||[]).find(x=>String(x.classId)===String(sourceRec.id)&&String(x.user)===String(user)&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+  const a=originalEv&&Number.isFinite(Number(originalEv.grade))?Number(originalEv.grade):null;
+  const b=recoveryEv&&Number.isFinite(Number(recoveryEv.grade))?Number(recoveryEv.grade):null;
+  if(a===null&&b===null)return {targetRec,sourceRec,recoverySession,original:null,recovery:null,note:null};
+  return {targetRec,sourceRec,recoverySession,original:a,recovery:b,note:a===null?b:b===null?a:Math.max(a,b)};
+}
+function isRecoverySourceRecord30(rec){
+  const s=sessionRecordById30(rec?.session);
+  if(!isRecoverySession30(s))return false;
+  const target=classRecordForSessionStudent30(s.recoveryOfSession,rec.grade,rec.section);
+  return !!target;
+}
 function classAvg(u){
   ensureClassData();
   const classRecords=Array.isArray(db.classRecords)?db.classRecords:[];
@@ -4315,14 +4422,29 @@ function classAvg(u){
   const recoveries=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
   const values=[];const seen=new Set();
   classRecords.filter(r=>r&&r.id).forEach(r=>{
+    if(isRecoverySourceRecord30(r)) return;
+    const sessionRecovery=sessionRecoveryResult30(u,r);
+    if(sessionRecovery&&sessionRecovery.note!==null){values.push(Number(sessionRecovery.note));seen.add(String(r.id));seen.add(String(sessionRecovery.sourceRec.id));return;}
+    const link=classRecoveryLinkForTarget30(u,r.id);
+    const sourceLink=classRecoveryLinkForSource30(u,r.id);
+    if(sourceLink)return;
     const ev=evals.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+    if(link){
+      const src=evals.find(x=>String(x.classId)===String(link.sourceClassId)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
+      const a=ev&&Number.isFinite(Number(ev.grade))?Number(ev.grade):null;
+      const b=src&&Number.isFinite(Number(src.grade))?Number(src.grade):null;
+      const n=a===null?b:b===null?a:Math.max(a,b);
+      if(n!==null&&Number.isFinite(n)){values.push(n);seen.add(String(r.id));seen.add(String(link.sourceClassId));}
+      return;
+    }
     if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}return;}
     const rr=recoveries.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
     if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}}
   });
-  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))&&!classRecoveryLinkForSource30(u,x.classId)&&!isRecoverySourceRecord30(classRecordById(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
   return avgNums(values);
 }
+
 function activitiesAvg(u){return componentAvg(db.activitiesGrades,u)}
 function participationAvg(u){return componentAvg(db.participations,u)}
 function behaviorAvg(u){return componentAvg(db.behaviorGrades,u)}
@@ -5005,7 +5127,13 @@ function renderClass30(){
           <option value="HIZO" ${ev.status==='HIZO'?'selected':''}>✅ HIZO</option>
           <option value="A MEDIAS" ${ev.status==='A MEDIAS'?'selected':''}>⚠️ A MEDIAS</option>
           <option value="NO HIZO" ${ev.status==='NO HIZO'?'selected':''}>❌ NO HIZO</option>
-        </select>`;
+        </select>${(ev.grade!==null&&ev.grade!==undefined&&ev.grade!=='')?`<br><button type="button" class="secondary" style="margin-top:6px" onclick="openClassRecoveryLink30('${escClass(u.u)}','${escClass(rec.id)}')">🔗 Usar esta nota como recuperación</button>`:''}`;
+    }
+    const linkForTarget=classRecoveryLinkForTarget30(u.u,rec.id);
+    const linkForSource=classRecoveryLinkForSource30(u.u,rec.id);
+    if(ev.grade!==null&&ev.grade!==undefined&&ev.grade!=='' && !forced){
+      const linkLabel=linkForTarget?'✏️ Modificar recuperación':(linkForSource?'✏️ Modificar recuperación':'🔗 Usar esta nota como recuperación');
+      statusCell+=`<br><button type="button" class="secondary" style="margin-top:6px" onclick="openClassRecoveryLink30('${escClass(u.u)}','${escClass(rec.id)}')">${linkLabel}</button>`;
     }
     const displayGrade=forced?'05':(recoveryNeeded?(recovered?recovery.grade:''):(ev.grade??''));
     const level=forced?'C':(displayGrade===''?'—':classLevel(displayGrade));
@@ -8722,6 +8850,7 @@ function openUnit(id, selectedGroup='1.º A'){
     <h3 style="margin:7px 0">Sesión ${escClass(x.number)}: ${escClass(x.title)}</h3>
     <div class="muted">${escClass(x.description||'')}</div>
     <div style="margin-top:7px"><b>🎓 Grupo:</b> ${escClass(sessionGradeLabel(x))}</div>
+    ${x.sessionType==='recovery'?`<div style="margin-top:7px;color:#9a3412;font-weight:800">🔄 Recuperación de Sesión ${escClass(sessionRecordById30(x.recoveryOfSession)?.number||'—')} · ${escClass(sessionRecordById30(x.recoveryOfSession)?.title||'')}</div>`:''}
     ${sessionDateEntries(x).length?`<div style="margin-top:8px"><button class="secondary small" id="sessionDatesBtn_${x.id}" onclick="toggleSessionDates(${x.id})">📅 Ver fechas</button><span class="muted" style="margin-left:8px">${escClass(sessionDatesSummary(x))}</span><div id="sessionDates_${x.id}" style="display:none;margin-top:8px" class="muted">${sessionDateEntries(x).map(d=>`<div>📅 <b>${escClass(d.label)}</b>: ${escClass(d.date)}</div>`).join('')}</div></div>`:''}</div>
     <div class="actions" style="align-self:flex-start"><button onclick="viewSession(${x.id})">Ver</button>
     ${me.role==='teacher'?`<button class="secondary" onclick="editSession(${x.id})">✏️ Editar</button><button class="danger" onclick="deleteSession(${x.id})">🗑️ Eliminar</button>`:''}</div>
@@ -8735,6 +8864,8 @@ function addSession(unitId, group='1.º A'){
   const firstSecond=isFirstSecondSessionGroup(group);
   const count=nextSessionNumber26(unitId,group);
   const shared=!firstSecond;
+  const previous=(db.sessions||[]).filter(x=>x.unit===unitId && sessionGroupsForFilter30(x).some(g=>g===group) && Number(x.number||0)<count)
+    .sort((a,b)=>Number(b.number||0)-Number(a.number||0));
   modalBody.innerHTML=`<h2>＋ Nueva sesión</h2>
   <div class="card" style="background:#eff6ff"><b>🎓 Grupo:</b> ${sessionTabLabel(group)}<br><span class="muted">${firstSecond?'Esta sesión quedará registrada únicamente para este grado y sección.':'La misma sesión puede utilizarse para 3.º, 4.º y 5.º, pero cada grado puede tener una fecha diferente.'}</span></div>
   <label>Número de sesión</label><input id="sesN" type="number" min="1" value="${count}">
@@ -8747,18 +8878,37 @@ function addSession(unitId, group='1.º A'){
   </div>
   ${shared?`<div style="margin-top:12px"><label>📅 Fechas independientes por grado y sección</label>
     <div class="grid3">
-      <div><label>3.º A</label><input id="sesF3A" type="date"></div>
-      <div><label>3.º B</label><input id="sesF3B" type="date"></div>
-      <div><label>4.º A</label><input id="sesF4A" type="date"></div>
-      <div><label>4.º B</label><input id="sesF4B" type="date"></div>
-      <div><label>5.º A</label><input id="sesF5A" type="date"></div>
-      <div><label>5.º B</label><input id="sesF5B" type="date"></div>
-    </div>
-    <small class="muted">Cada grado y sección puede tener una fecha diferente para la misma sesión.</small>
+      <div><label>3.º A</label><input id="sesF3A" type="date"></div><div><label>3.º B</label><input id="sesF3B" type="date"></div>
+      <div><label>4.º A</label><input id="sesF4A" type="date"></div><div><label>4.º B</label><input id="sesF4B" type="date"></div>
+      <div><label>5.º A</label><input id="sesF5A" type="date"></div><div><label>5.º B</label><input id="sesF5B" type="date"></div>
+    </div><small class="muted">Cada grado y sección puede tener una fecha diferente para la misma sesión.</small>
   </div>`:''}
+  <label>Tipo de sesión</label>
+  <select id="sesType30" onchange="toggleSessionRecovery30()">
+    <option value="normal">Sesión normal</option>
+    <option value="recovery">🔄 Sesión de recuperación</option>
+  </select>
+  <div id="sesRecoveryBox30" style="display:none;margin-top:10px;padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
+    <label>Sesión que recupera</label>
+    <select id="sesRecoveryOf30" style="width:100%">
+      <option value="">Seleccionar sesión...</option>
+      ${previous.map(x=>`<option value="${escClass(x.id)}">Sesión ${escClass(x.number)} · ${escClass(x.title)}</option>`).join('')}
+    </select>
+    <small class="muted">La nota de esta sesión se comparará con la nota de la sesión seleccionada. Se tomará la mayor y la sesión de recuperación no se contará otra vez.</small>
+  </div>
   <label>Estado</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option></select>
   <div class="actions" style="margin-top:15px"><button onclick="saveSession(${unitId},'${group}')">Guardar sesión</button><button class="secondary" onclick="openUnit(${unitId},'${group}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
+}
+function sessionGroupsForFilter30(x){
+  if(isFirstSecondSessionGroup(x.grade+' '+(x.section||''))) return [String(x.grade)+' '+String(x.section||'')];
+  if(String(x.grade)==='3.º-5.º') return ['3.º-5.º'];
+  return [String(x.grade||'')];
+}
+function toggleSessionRecovery30(){
+  const type=document.getElementById('sesType30')?.value||'normal';
+  const box=document.getElementById('sesRecoveryBox30');
+  if(box)box.style.display=type==='recovery'?'block':'none';
 }
 function saveSession(unitId, group='1.º A'){
   if(!db.sessions)db.sessions=[];
@@ -8768,18 +8918,19 @@ function saveSession(unitId, group='1.º A'){
   const section=document.getElementById('sesSec').value;
   const date=document.getElementById('sesF').value;
   const status=document.getElementById('sesS').value;
+  const sessionType=document.getElementById('sesType30')?.value||'normal';
+  const recoveryOfSession=document.getElementById('sesRecoveryOf30')?.value||'';
   if(!number||!title){alert('Completa número y título de la sesión.');return}
   let grade=group, sec=section;
-  if(isFirstSecondSessionGroup(group)){
-    const parts=group.split(' '); grade=parts[0]; sec=parts[1];
-  }
+  if(isFirstSecondSessionGroup(group)){const parts=group.split(' ');grade=parts[0];sec=parts[1];}
+  if(sessionType==='recovery'&&!recoveryOfSession){alert('Selecciona la sesión que esta recuperación va a recuperar.');return}
+  if(sessionType==='recovery'&&String(recoveryOfSession)===String(Date.now())){return}
   const dateByGrade={}; const dateByGradeSection={};
   if(String(grade)==='3.º-5.º'){
     [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)dateByGradeSection[g+'|'+ss]=v;});
-    // Mantener también fecha por grado para compatibilidad con registros antiguos.
     ['3.º','4.º','5.º'].forEach(g=>{const v=dateByGradeSection[g+'|A']||dateByGradeSection[g+'|B']||'';if(v)dateByGrade[g]=v;});
   }
-  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade,section:sec,date,status,dateByGrade,dateByGradeSection});
+  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,grade,section:sec,date,status,dateByGrade,dateByGradeSection,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:''});
   save();openUnit(unitId,group);
 }
 function editSession(id){
@@ -8805,6 +8956,19 @@ function editSession(id){
     <div><label>5.º A</label><input id="sesF5A" type="date" value="${escClass((x.dateByGradeSection||{})['5.º|A']||'')}"></div>
     <div><label>5.º B</label><input id="sesF5B" type="date" value="${escClass((x.dateByGradeSection||{})['5.º|B']||'')}"></div>
   </div><small class="muted">Cada grado y sección puede tener una fecha diferente para la misma sesión.</small></div>`:''}
+  <label>Tipo de sesión</label>
+  <select id="sesType30" onchange="toggleSessionRecovery30()">
+    <option value="normal" ${x.sessionType!=='recovery'?'selected':''}>Sesión normal</option>
+    <option value="recovery" ${x.sessionType==='recovery'?'selected':''}>🔄 Sesión de recuperación</option>
+  </select>
+  <div id="sesRecoveryBox30" style="display:${x.sessionType==='recovery'?'block':'none'};margin-top:10px;padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px">
+    <label>Sesión que recupera</label>
+    <select id="sesRecoveryOf30" style="width:100%">
+      <option value="">Seleccionar sesión...</option>
+      ${(db.sessions||[]).filter(y=>String(y.id)!==String(x.id)&&String(y.unit)===String(x.unit)&&sessionGroupsForFilter30(y).some(g=>g===oldGroup)).sort((a,b)=>Number(a.number||0)-Number(b.number||0)).map(y=>`<option value="${escClass(y.id)}" ${String(x.recoveryOfSession||'')===String(y.id)?'selected':''}>Sesión ${escClass(y.number)} · ${escClass(y.title)}</option>`).join('')}
+    </select>
+    <small class="muted">Se toma la mayor nota entre la sesión recuperada y esta sesión. Esta sesión no suma como una nota adicional.</small>
+  </div>
   <label>Estado</label><select id="sesS"><option ${x.status==='Programada'?'selected':''}>Programada</option><option ${x.status==='En desarrollo'?'selected':''}>En desarrollo</option><option ${x.status==='Finalizada'?'selected':''}>Finalizada</option></select>
   <div class="actions" style="margin-top:15px"><button onclick="saveEditedSession(${id})">Guardar cambios</button><button class="danger" onclick="deleteSession(${id})">🗑️ Eliminar sesión</button><button class="secondary" onclick="openUnit(${x.unit},'${oldGroup}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
@@ -8818,6 +8982,11 @@ function saveEditedSession(id){
   if(!title){alert('Completa el título de la sesión.');return}
   x.number=Number(document.getElementById('sesN')?.value)||x.number;
   x.title=title;x.description=description;x.status=status;x.date=date;
+  const sessionType=document.getElementById('sesType30')?.value||'normal';
+  const recoveryOfSession=document.getElementById('sesRecoveryOf30')?.value||'';
+  if(sessionType==='recovery'&&!recoveryOfSession){alert('Selecciona la sesión que esta recuperación va a recuperar.');return}
+  x.sessionType=sessionType==='recovery'?'recovery':'normal';
+  x.recoveryOfSession=x.sessionType==='recovery'?recoveryOfSession:'';
   if(String(x.grade)==='3.º-5.º'){
     x.dateByGrade={}; x.dateByGradeSection={};
     [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)x.dateByGradeSection[g+'|'+ss]=v;});
@@ -8843,7 +9012,7 @@ function viewSession(id){
   modalBody.innerHTML=`<h2>📖 Sesión ${x.number}: ${escClass(x.title)}</h2>
   <div class="badge" style="display:inline-block;margin:5px 0">🎓 ${escClass(sessionGradeLabel(x))}</div>
   <p>${escClass(x.description||'Sin descripción.')}</p>
-  <p class="muted">${sessionDatesLabel(x)!=='Sin fecha'?'📅 Fechas: '+escClass(sessionDatesLabel(x)):'Sin fecha'} · ${escClass(x.status||'Programada')}</p><hr>
+  <p class="muted">${sessionDatesLabel(x)!=='Sin fecha'?'📅 Fechas: '+escClass(sessionDatesLabel(x)):'Sin fecha'} · ${escClass(x.status||'Programada')}</p>${x.sessionType==='recovery'?`<div class="card" style="background:#fff7ed;border:1px solid #fed7aa"><b>🔄 Sesión de recuperación</b><br>Recupera: Sesión ${escClass(sessionRecordById30(x.recoveryOfSession)?.number||'—')} · ${escClass(sessionRecordById30(x.recoveryOfSession)?.title||'—')}<br><small>Para cada estudiante se toma la mayor nota entre ambas sesiones. Esta sesión no se suma nuevamente como una nota independiente.</small></div>`:''}<hr>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3>🎬 Materiales</h3>${me.role==='teacher'?`<button onclick="addSessionMaterial(${id})">＋ Agregar material</button>`:''}</div>
   <div class="list" style="margin-top:10px">${mats.map(m=>`<div class="item"><div><span class="badge">${escClass(m.type||'Recurso')}</span><h3 style="margin:6px 0">${escClass(m.title)}</h3><div class="muted">${escClass(m.description||'')}</div></div>${m.url?`<a href="${m.url}" target="_blank" rel="noopener"><button>🔗 Abrir</button></a>`:''}</div>`).join('')||`<p class="muted">Todavía no hay materiales para esta sesión.</p>`}</div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px"><h3>📝 Actividades</h3>${me.role==='teacher'?`<button onclick="addSessionActivity(${id})">＋ Crear actividad</button>`:''}</div>
