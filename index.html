@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 .creaMemberStatus30{font-size:11px;font-weight:700;white-space:nowrap;color:#15803d}
 .creaMemberItem30.isExcluded .creaMemberStatus30{color:#b91c1c}
 @media(max-width:700px){.creaMemberGrid30{grid-template-columns:1fr}}
-</style>
+.disability-badge{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 7px;border-radius:999px;background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font-size:11px;font-weight:800;white-space:nowrap}</style>
 
 <!-- Firebase: sincronización entre PC, celular y otros dispositivos -->
 <script type="module">
@@ -1071,7 +1071,7 @@ function grades(){
    const f=d.final==null?"—":Number(d.final).toFixed(2);
    const lv=d.final==null?"—":classLevel(d.final);
    return `<tr>
-     <td><b>${escClass(u.name||u.u)}</b></td>
+     <td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</td>
      <td>${escClass(u.grade||"—")}</td>
      <td>${escClass(u.section||"—")}</td>
      <td>${d.project==null?"—":Number(d.project).toFixed(2)}</td>
@@ -1723,7 +1723,7 @@ function chat(){
  return `<div class="card chat"><div class="messages">${msgs.map(m=>`<div class="msg ${m.from===me.u?"me":""}"><b>${m.from==="profesor"?"👨‍🏫 Profesor":(db.users.find(x=>x.u===m.from)?.name||m.from)}</b>${m.text}<small class="muted" style="display:block;margin-top:4px">${m.date}</small></div>`).join("")}</div><div class="actions"><input id="chatText" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')sendMessage()" style="flex:1"><button onclick="sendMessage()">Enviar</button></div></div>`;
 }
 function sendMessage(){const t=chatText.value.trim();if(!t)return;db.messages.push({from:me.u,to:me.role==="teacher"?"2A":"profesor",text:t,date:new Date().toLocaleString("es-PE")});save();render()}
-function closeModal(){modal.classList.add("hidden");window.__openChat22=null}
+function closeModal(){modal.classList.add("hidden");modalCard.classList.remove("wide");modalBody.classList.remove("wide");window.__openChat22=null}
 window.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))closeModal()});
 const xLocal=db.users.find(u=>u.u==="profesor"&&u.role==="teacher")||seed.users[0];me=xLocal;localStorage.setItem("session","profesor");start();
 
@@ -2804,7 +2804,7 @@ function grades(){
    const lv=d.final==null?"—":classLevel(d.final);
 
    return `<tr>
-     <td><b>${escClass(u.name||u.u)}</b></td>
+     <td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</td>
      <td>${escClass(u.grade||"—")}</td>
      <td>${escClass(u.section||"—")}</td>
      <td>${d.project==null?"—":Number(d.project).toFixed(2)}</td>
@@ -3095,6 +3095,15 @@ function syncAllStudentAttendanceStatus31(){let c=false;(db.users||[]).forEach(u
 function studentAcademicStatus31(u){const f=studentAbsenceCount31(u?.u);if(studentIsSuspended31(u))return 'Suspensión';if(studentIsRetired31(u))return 'Retirado';if(studentDisapprovedByAbsences31(u))return 'Desaprobado por faltas';if(u?.attendanceReconsidered===true&&f>=5)return 'En recuperación';if(f===4)return 'A punto de desaprobar por faltas';return 'Activo';}
 function studentStatusBadge31(u){const st=studentAcademicStatus31(u);if(st==='Suspensión')return '<span class="badge bad">🟠 Suspendido · Desaprobado</span>';if(st==='Retirado')return '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado · Desaprobado</span>';if(st==='Desaprobado por faltas')return '<span class="badge bad">🔴 Desaprobado por faltas</span>';if(st==='En recuperación')return '<span class="badge warn">📝 En recuperación · máximo B</span>';if(st==='A punto de desaprobar por faltas')return '<span class="badge warn">🟠 A punto de desaprobar por faltas</span>';return '<span class="badge ok">🟢 Activo</span>';}
 
+function studentDisabilityBadge31(u){
+  return u && u.discapacidad===true
+    ? '<span class="disability-badge" title="♿">♿</span>'
+    : '';
+}
+function studentNameWithDisability31(u){
+  return `${escClass(u?.name||u?.u||'')}${studentDisabilityBadge31(u)}`;
+}
+
 function studentIsRetired32(user){
   const u=typeof user==='string' ? (db.users||[]).find(x=>x.u===user) : user;
   return !!u && String(u.status||'').trim().toLowerCase()==='retirado';
@@ -3167,6 +3176,12 @@ function students(){
           <option>Todos</option><option>Activo</option><option>Suspensión</option><option>Retirado</option><option>A punto de desaprobar por faltas</option><option>Desaprobado por faltas</option>
         </select>
       </div>
+      <div>
+        <label style="font-size:16px">♿</label>
+        <select id="studentDisability23" onchange="renderStudents23()" style="height:48px">
+          <option value="Todos">Todos</option><option value="Sí">♿ Con discapacidad</option><option value="No">Sin discapacidad registrada</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -3220,6 +3235,7 @@ function renderStudents23(){
   const g=(document.getElementById('studentGrade23')?.value||'Todos').trim();
   const sec=(document.getElementById('studentSection23')?.value||'Todas').trim().toUpperCase();
   const statusFilter=(document.getElementById('studentStatus23')?.value||'Todos').trim();
+  const disabilityFilter=(document.getElementById('studentDisability23')?.value||'Todos').trim();
   syncAllStudentAttendanceStatus31();
 
   /*
@@ -3240,6 +3256,7 @@ function renderStudents23(){
     return (g==='Todos' || ug===g) &&
            (sec==='TODAS' || us===sec) &&
            (statusFilter==='Todos' || status===statusFilter) &&
+           (disabilityFilter==='Todos' || (disabilityFilter==='Sí' ? u.discapacidad===true : u.discapacidad!==true)) &&
            (!q || name.includes(q) || user.includes(q));
   });
 
@@ -3295,7 +3312,7 @@ function renderStudents23(){
           <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Faltas</th><th>Estado</th><th>Acciones</th></tr>
           ${arr.map((u,i)=>`<tr>
             <td>${i+1}</td>
-            <td><b>${escClass(u.name||'')}</b></td>
+            <td><b>${escClass(u.name||'')}</b> ${u.discapacidad===true?'<span class="badge" style="background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font-size:11px">♿</span>':''}</td>
             <td><span class="badge">${escClass(normalizeStudentGrade23(u.grade||u.grado)||'Sin grado')}</span></td>
             <td><span class="badge">${escClass(normalizeStudentSection23(u.section||u.seccion)||'Sin sección')}</span></td>
             <td>${escClass(u.u||'')}</td>
@@ -3333,7 +3350,7 @@ function renderStudents23(){
             <tr><th>#</th><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Faltas</th><th>Estado</th><th>Acciones</th></tr>
             ${list.map((u,i)=>`<tr>
               <td>${i+1}</td>
-              <td><b>${escClass(u.name||'')}</b></td>
+              <td><b>${escClass(u.name||'')}</b> ${u.discapacidad===true?'<span class="badge" style="background:#e0f2fe;color:#075985;border:1px solid #7dd3fc;font-size:11px">♿</span>':''}</td>
               <td><span class="badge">${escClass(normalizeStudentGrade23(u.grade||u.grado)||'Sin grado')}</span></td>
               <td><span class="badge">${escClass(normalizeStudentSection23(u.section||u.seccion)||'Sin sección')}</span></td>
               <td>${escClass(u.u||'')}</td>
@@ -3392,6 +3409,13 @@ function addStudent23(editUser){
         </div>
       </div>`:''}
     </div>
+    <div class="card" style="margin-top:15px;background:#f0f9ff;border:1px solid #bae6fd">
+      <b>♿ Atención educativa</b>
+      <p class="muted" style="margin:6px 0">Registra aquí si el estudiante tiene discapacidad. Esta condición quedará visible en la lista de estudiantes y en la evaluación.</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:800"><input id="stDisability23" type="checkbox" ${u&&u.discapacidad===true?'checked':''}> ♿ ♿</label>
+      <label style="margin-top:10px">Referencia / observación (opcional)</label>
+      <input id="stDisabilityDetail23" value="${u?escClass(u.discapacidadDetalle||''):''}" placeholder="Ej.: requiere adaptación o apoyo educativo">
+    </div>
       ${u?`<div class="card" style="margin-top:15px;background:#f0fdf4;border:1px solid #bbf7d0">
         <b>🏆 Crea y Emprende — recuperación pedagógica</b>
         <p class="muted" style="margin:6px 0">Para estudiantes que <b>no participaron en la etapa institucional</b> y desarrollarán posteriormente el proyecto en aula.</p>
@@ -3418,7 +3442,8 @@ function saveStudent23(oldUser){
   const section=document.getElementById('stSec23')?.value;
   const pass=document.getElementById('stPass23')?.value.trim()||'1234';
   const newStatus=document.getElementById('stStatus31')?.value||'Activo';
-  const disChecked=document.getElementById('stDis31')?.checked===true;
+  const disChecked=document.getElementById('stDisability23')?.checked===true;
+  const discapacidadDetalle=document.getElementById('stDisabilityDetail23')?.value.trim()||'';
   if(!name||!username||!grade||!section){alert('Completa nombre, usuario, grado y sección.');return;}
   if(!Array.isArray(db.users))db.users=[];
   if(oldUser){
@@ -3426,6 +3451,8 @@ function saveStudent23(oldUser){
     if(!u){alert('No se encontró al estudiante.');return;}
     const oldStatus=String(u.status||'Activo').trim();
     u.name=name;u.grade=grade;u.section=section;u.p=pass;u.status=newStatus;
+    u.discapacidad=disChecked;
+    u.discapacidadDetalle=discapacidadDetalle;
     if(oldStatus!==newStatus){
       const d=todayStatusDate31();
       if(!Array.isArray(u.statusHistory))u.statusHistory=[];
@@ -3488,9 +3515,9 @@ function saveStudent23(oldUser){
     if(!u.id)u.id='st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   }else{
     if(db.users.some(x=>x.u===username)){alert('Ese usuario ya existe.');return;}
-    const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false,statusHistory:[{date:todayStatusDate31(),status:newStatus}]}; if(newStatus==='Suspensión'||newStatus==='Retirado')nu.statusSince=todayStatusDate31();
+    const nu={id:'st_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),u:username,name,role:'student',grade,section,p:pass,status:newStatus,attendanceDisapproved:false,attendanceReconsidered:false,discapacidad:disChecked,discapacidadDetalle, statusHistory:[{date:todayStatusDate31(),status:newStatus}]}; if(newStatus==='Suspensión'||newStatus==='Retirado')nu.statusSince=todayStatusDate31();
     nu.creaRecovery=creaRecoveryChecked;
-    db.users.push(nu);if(disChecked)nu.attendanceDisapproved=true;else syncStudentAttendanceStatus31(nu);
+    db.users.push(nu);syncStudentAttendanceStatus31(nu);
   }
   save();closeModal();render();
 }
@@ -3719,14 +3746,14 @@ function renderAttendanceTable25(){
    const key=date+"|"+u.u, val=db.attendance&&db.attendance[key]||"";
    const statusOnDate=studentStatusForDate31(u,date);
    if(String(statusOnDate).toLowerCase()==='suspensión'||String(statusOnDate).toLowerCase()==='suspension'){
-     return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
+     return `<tr><td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</td><td>${u.grade||"—"} · ${u.section||"—"}</td>
        <td><span class="badge bad">🟠 Suspendido</span><div class="muted" style="font-size:.82rem;margin-top:4px">No registra asistencia en esta fecha por suspensión.</div></td></tr>`;
    }
    if(String(statusOnDate).toLowerCase()==='retirado'){
-     return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
+     return `<tr><td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</td><td>${u.grade||"—"} · ${u.section||"—"}</td>
        <td><span class="badge" style="background:#e5e7eb;color:#374151">⚫ Retirado</span><div class="muted" style="font-size:.82rem;margin-top:4px">No registra asistencia en esta fecha por retiro.</div></td></tr>`;
    }
-   return `<tr><td><b>${u.name||u.u}</b></td><td>${u.grade||"—"} · ${u.section||"—"}</td>
+   return `<tr><td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</td><td>${u.grade||"—"} · ${u.section||"—"}</td>
    <td><select class="attSel25" data-user="${u.u}" style="min-width:150px" onchange="autoSaveAttendance25(this)">
     <option value="" ${!val?"selected":""}>Sin registrar</option>
     <option value="Presente" ${val==="Presente"?"selected":""}>✅ Presente</option>
@@ -4545,6 +4572,47 @@ function creaInstitutionalRecord31(user){
      (r.studentId!=null && st.id!=null && String(r.studentId)===String(st.id)))
   )||null;
 }
+
+function creaRecoveryStatusBlocked31(user){
+  const st=(user&&typeof user==='object')?user:(db.users||[]).find(x=>x.u===user);
+  if(!st)return '';
+  const status=String(st.status||'Activo').trim().toLowerCase();
+  if(status==='retirado')return 'Retirado';
+  if(status==='suspension'||status==='suspensión')return 'Suspendido';
+  return '';
+}
+function creaRecoveryParticipationStages31(user){
+  ensureClassData();
+  const st=(user&&typeof user==='object')?user:(db.users||[]).find(x=>x.u===user);
+  if(!st)return [];
+  const uid=String(st.u||'');
+  const sid=st.id!=null?String(st.id):'';
+  const order={'Etapa institucional':1,'Etapa UGEL':2,'Etapa DRE':3};
+  const stages=[];
+  (db.creaEmprende||[]).forEach(r=>{
+    const stage=String(r.stage||'').trim();
+    const participated=String(r.status||'').trim().toLowerCase()==='participó';
+    const sameStudent=
+      String(r.studentKey||r.username||'')===uid ||
+      (r.studentId!=null && sid!=='' && String(r.studentId)===sid);
+    if(participated && sameStudent && order[stage] && !stages.includes(stage)) stages.push(stage);
+  });
+  return stages.sort((a,b)=>order[a]-order[b]);
+}
+function creaRecoveryParticipationLabel31(user){
+  const stages=creaRecoveryParticipationStages31(user);
+  if(!stages.length)return '';
+  const short={'Etapa institucional':'Institucional','Etapa UGEL':'UGEL','Etapa DRE':'DRE'};
+  return stages.map(x=>short[x]||x).join(' → ');
+}
+function creaRecoveryBlockedParticipant31(user){
+  const st=(user&&typeof user==='object')?user:(db.users||[]).find(x=>x.u===user);
+  if(!st)return false;
+  // Retirado/Suspendido bloquea. Si cambia a Activo, vuelve a estar disponible,
+  // salvo que además haya participado en Crea y Emprende (Institucional/UGEL/DRE).
+  if(creaRecoveryStatusBlocked31(st))return true;
+  return creaRecoveryParticipationStages31(st).length>0;
+}
 function creaInstitutionalParticipant31(user){
   const r=creaInstitutionalRecord31(user);
   return !!(r && String(r.status||'').trim().toLowerCase()==='participó');
@@ -4743,6 +4811,7 @@ function openMissingWorkDashboard30(){
 
   modalBody.classList.remove('projectMainModal');
   modalBody.classList.add('wide');
+  modalCard.classList.add('wide');
   modalBody.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:-24px;background:#fff;padding:0 0 12px;z-index:20;border-bottom:1px solid #e2e8f0">
       <div><h2 style="margin:0">🔎 Trabajos no encontrados</h2><div class="muted">${escClass(grade)} ${escClass(section)} · revisión consolidada de todas las sesiones registradas</div></div>
       <button class="secondary" onclick="closeModal()" title="Cerrar">✕ Cerrar</button>
@@ -5087,7 +5156,7 @@ function openRecovery30(user){
   const existing=(db.classRecoveries||[]).find(x=>x.classId===id&&x.user===user);
   modalBody.innerHTML=`
     <h2>🔄 Recuperación de actividad</h2>
-    <p><b>${escClass(u.name||u.u)}</b></p>
+    <p><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}</p>
     <p class="muted">📅 ${escClass(rec.date)} · 📖 ${escClass(rec.title)}<br>Asistencia: <b>${escClass(attendanceStatusLabel(att))}</b>${evidenceProblem?'<br>📋 Motivo: <b>'+escClass(evidence.status==='sin_nombre'?'Trabajo presentado sin nombre':'No se encontró su trabajo')+'</b>':''}</p>
     <div style="margin-top:14px">
       <label>Forma de recuperación</label>
@@ -5223,7 +5292,7 @@ function renderClass30(){
     const level=forced?'C':(displayGrade===''?'—':classLevel(displayGrade));
     return `<tr>
       <td>${i+1}</td>
-      <td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>':suspended?'<br><span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td><b>${escClass(u.name)}</b>${studentDisabilityBadge31(u)}${retired?'<br><span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO · DESAPROBADO</span>':suspended?'<br><span class="badge bad">🟠 SUSPENDIDO · DESAPROBADO</span>':''}<br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
       <td>${forced?'<span class="badge bad">'+(suspended?'🟠 SUSPENDIDO':'⚫ RETIRADO')+'</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       <td>${statusCell}</td>
       <td><input class="ceGrade30" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${displayGrade}" style="width:90px" ${forced||recoveryNeeded?'readonly disabled':''} placeholder="No calificable"></td>
@@ -5951,7 +6020,7 @@ function openComponentRecord(key,arrName,id){
             ? '<span class="badge" style="background:#e5e7eb;color:#374151">⚫ RETIRADO</span>'
             : (att ? `<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>` : '<span class="muted">⚪ Sin registrar</span>');
           return `<tr>
-            <td><b>${escClass(u.name)}</b></td>
+            <td><b>${escClass(u.name)}</b>${studentDisabilityBadge31(u)}</td>
             <td>${attLabel}</td>
             <td>${retired?'<span class="muted">🚫 No calificable</span>':`<input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${n}" style="width:90px" oninput="autoSaveComponentGrade('${escClass(arrName)}','${escClass(id)}',this)">`}</td>
             <td class="cmpLevel" data-user="${escClass(u.u)}">${retired?'—':(n===''?'—':classLevel(n))}</td>
@@ -6516,7 +6585,7 @@ function openStudentWeeklyRubric30(user){
 
   modalBody.innerHTML=`<h2>📝 Evaluación semanal</h2>
   <div class="card" style="background:#f8fafc">
-    <b>${escClass(u.name)}</b><br>${escClass(u.grade||'')} ${escClass(u.section||'')} · <b>Categoría ${cat}</b><br>
+    <b>${escClass(u.name)}</b>${studentDisabilityBadge31(u)}<br>${escClass(u.grade||'')} ${escClass(u.section||'')} · <b>Categoría ${cat}</b><br>
     Semana ${week} · Fecha: ${escClass(date)}
   </div>
 
@@ -6714,7 +6783,6 @@ function saveExpositionBatchEdit30(key){
 
 function openExpositionEvaluation(){
   modalBody.classList.remove('projectMainModal');
-  modalBody.classList.add('wide');
   modalBody.innerHTML=`<h2>🎤 Evaluación de exposición</h2>
     <p class="muted">Primero selecciona el tipo de exposición que vas a evaluar. Cada modalidad tiene un propósito diferente.</p>
     <div class="grid2" style="gap:16px;margin-top:18px">
@@ -7514,7 +7582,11 @@ function openTimerWindow30(){
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>
   *{box-sizing:border-box}body{margin:0;background:#101010;color:#fff;font-family:Arial,Helvetica,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}.wrap{width:94vw;max-width:1200px;text-align:center;padding:30px}.title{font-size:clamp(32px,5vw,68px);font-weight:900;color:#00e676;letter-spacing:1px}.subtitle{font-size:clamp(18px,2.5vw,30px);color:#ddd;margin:12px 0}.timer{font-size:clamp(90px,18vw,220px);font-weight:900;line-height:1;margin:35px 0;font-variant-numeric:tabular-nums}.timer.warning{color:#ffb300}.timer.done{color:#ff5252}.group{font-size:clamp(24px,4vw,46px);font-weight:800;margin:8px 0 18px;color:#fff}.members{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:0 auto 24px;max-width:1050px}.member{background:#1f1f1f;border:1px solid #444;border-radius:12px;padding:10px 16px;font-size:18px}.controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.controls button{border:0;border-radius:10px;padding:14px 28px;font-size:18px;font-weight:700;cursor:pointer;background:#00e676;color:#111}.controls button:hover{filter:brightness(1.08)}.status{font-size:22px;color:#ff9800;margin-top:16px;min-height:28px;font-weight:700}.member{box-shadow:0 2px 8px rgba(0,0,0,.25)}@media(max-width:700px){.wrap{padding:16px}.member{font-size:15px}}
   </style></head><body><div class="wrap"><div class="title">${safeTitle}</div><div class="subtitle">${safeSubtitle}</div>${groupName?`<div class="group">👥 ${String(groupName).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div><div class="members">${memberHtml}</div>`:''}<div id="tm" class="timer">${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}</div><div class="controls"><button class="start" id="start">▶ Iniciar</button><button class="pause" id="pause">⏸ Pausar</button><button class="reset" id="reset">↩ Reiniciar</button><button class="close" onclick="window.close()">✕ Cerrar</button></div><div id="status" class="status"></div></div><script>
-  let total=${min*60+sec},left=total,run=false,timer=null;const tm=document.getElementById('tm'),st=document.getElementById('status');function fmt(v){return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')}function draw(){tm.textContent=fmt(Math.max(0,left));tm.className='timer'+(left>0&&left<=10?' warning':'')+(left===0?' done':'')}function start(){if(run)return; if(left<=0)left=total;if(left<=0)return;run=true;st.textContent='⏳ Tiempo en marcha...';clearInterval(timer);timer=setInterval(()=>{left--;draw();if(left<=0){clearInterval(timer);timer=null;run=false;st.textContent='🔔 ¡TIEMPO TERMINADO!';try{new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=').play().catch(()=>{})}catch(e){}}},1000)}function pause(){clearInterval(timer);timer=null;run=false;st.textContent='⏸ Pausado.'}function reset(){pause();left=total;st.textContent='';draw()}document.getElementById('start').onclick=start;document.getElementById('pause').onclick=pause;document.getElementById('reset').onclick=reset;draw();<\/script></body></html>`);
+  let total=${min*60+sec},left=total,run=false,timer=null;const tm=document.getElementById('tm'),st=document.getElementById('status');function fmt(v){return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')}function draw(){tm.textContent=fmt(Math.max(0,left));tm.className='timer'+(left>0&&left<=10?' warning':'')+(left===0?' done':'')}function start(){if(run)return; if(left<=0)left=total;if(left<=0)return;run=true;st.textContent='⏳ Tiempo en marcha...';clearInterval(timer);timer=setInterval(()=>{left--;draw();if(left<=0){clearInterval(timer);timer=null;run=false;st.textContent='🔔 ¡TIEMPO TERMINADO!';try{new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=').play().catch(()=>{})}catch(e){}}},1000)}function pause(){clearInterval(timer);timer=null;run=false;st.textContent='⏸ Pausado.'}function reset(){pause();left=total;st.textContent='';draw()}document.getElementById('start').onclick=start;document.getElementById('pause').onclick=pause;document.getElementById('reset').onclick=reset;draw();<\/script>
+
+
+<!-- Indicador ♿ integrado en asistencia, registro de clase, recuperacion Crea, evaluaciones por componentes, proyecto y evaluacion final. -->
+</body></html>`);
   w.document.close();w.focus();
 }
 
@@ -8155,7 +8227,7 @@ function grades(){
     const d=(snapshot&&snapshot[u.u]&&!u.creaRecovery) ? snapshot[u.u] : evaluationDetail(u.u);
     const finalLevel=studentDisapprovedByAbsences31(u)?'Desaprobado por faltas':(u.creaRecovery===true && d.level!=='—' ? 'Recuperación · '+d.level : (u.creaRecovery===true && d.level==='—' ? 'Recuperación · Pendiente' : d.level));
     return `<tr>
-      <td><b>${escClass(u.name)}</b><br>${studentStatusBadge31(u)}</td>
+      <td><b>${escClass(u.name)}</b>${studentDisabilityBadge31(u)}<br>${studentStatusBadge31(u)}</td>
       <td>${escClass(normalizeStudentGrade23(u.grade||u.grado)||'—')}</td>
       <td>${escClass(normalizeStudentSection23(u.section||u.seccion)||'—')}</td>
       <td>${d.project===null?'—':d.project.toFixed(2)}</td>
@@ -8357,7 +8429,7 @@ function projectWork(){
     if(cond==='grupo1'&&project1)proj='p1';
     if(cond==='grupo2'&&project2)proj='p2';
     const sc=retired?null:(r?.score!==null&&r?.score!==undefined&&r?.score!==''?Number(r.score):null);
-    return `<tr><td><b>${escClass(u.name)}</b>${retired?'<br><span class="badge">⚫ RETIRADO</span>':''}</td>
+    return `<tr><td><b>${escClass(u.name)}</b>${studentDisabilityBadge31(u)}${retired?'<br><span class="badge">⚫ RETIRADO</span>':''}</td>
       <td><select id="pwCond_${i}" onchange="syncPWProject(${i})" ${retired||lockedCond?'disabled':''}>${opts(cond,[['grupo1','Grupo 1'],['grupo2','Grupo 2'],['apoyo','Apoyo'],['representacion','🏫 Representación institucional']])}</select></td>
       <td><select id="pwProj_${i}" ${retired||((cond==='grupo1'||cond==='grupo2'||cond==='apoyo')&&!r?.projectUnlocked)?'disabled':''}>${projectOpts(proj,cond)}</select></td>
       <td><select id="pwMat_${i}" ${retired?'disabled':''}><option value="" ${!mat?'selected':''}>— Seleccionar —</option>${opts(mat,[['si','✅ Sí'],['no','❌ No']])}</select></td>
@@ -9198,7 +9270,7 @@ function recoveries31(){
       if(rr&&rr.grade!==null&&rr.grade!==undefined&&rr.grade!=='')done++;else pending++;
     });
     const current=finalGrade(u.u),level=current===null?'—':classLevel(current);
-    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div></td><td><b>${abs}</b></td><td>${done}</td><td>${pending}</td><td>${current===null?'—':Number(current).toFixed(2)}</td><td>${level}</td><td><button class="small" onclick="openStudentRecovery31('${escClass(u.u)}')">👁️ Ver recuperación</button></td></tr>`;
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}<div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')}</div></td><td><b>${abs}</b></td><td>${done}</td><td>${pending}</td><td>${current===null?'—':Number(current).toFixed(2)}</td><td>${level}</td><td><button class="small" onclick="openStudentRecovery31('${escClass(u.u)}')">👁️ Ver recuperación</button></td></tr>`;
   }).join('');
   const allPending=[];
   reconsidered.forEach(u=>classRecords.filter(r=>String(r.grade)===String(u.grade)&&String(r.section)===String(u.section)).forEach(r=>{
@@ -9295,52 +9367,249 @@ function refreshCreaRecoveryGroupUI31(user){
     }
   }
 }
+
+function updateCreaRecoverySelectionCount31(){
+  const n=document.querySelectorAll('#recGrpMembers31 .creaRecManagerMember31:checked').length;
+  const el=document.getElementById('recGrpSelectionCount31');
+  if(el)el.textContent=`${n} seleccionado${n===1?'':'s'}`;
+}
+function selectAllAvailableCreaRecovery31(select){
+  const box=document.getElementById('recGrpMembers31');
+  if(!box)return;
+  box.querySelectorAll('.creaRecManagerMember31').forEach(cb=>{
+    if(!cb.disabled){
+      const card=cb.closest('.creaRecManagerMemberCard36');
+      if(!card || card.style.display!=='none') cb.checked=!!select;
+    }
+  });
+  updateCreaRecoverySelectionCount31();
+}
+function filterCreaRecoveryStudents31(){
+  const input=document.getElementById('recGrpStudentSearch31');
+  const q=String(input?.value||'').trim().toLocaleLowerCase('es');
+  document.querySelectorAll('#recGrpMembers31 .creaRecManagerMemberCard36').forEach(card=>{
+    const name=String(card.dataset.studentName||'').toLocaleLowerCase('es');
+    card.style.display=(!q || name.includes(q))?'flex':'none';
+  });
+}
+function clearCreaRecoveryStudentSearch31(){
+  const input=document.getElementById('recGrpStudentSearch31');
+  if(input)input.value='';
+  filterCreaRecoveryStudents31();
+}
+
 function openCreaRecoveryGroupManager31(){
   ensureClassData();
-  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true).sort((a,b)=>{
-    const ga=normalizeStudentGrade23(a.grade||a.grado)||'99';
-    const gb=normalizeStudentGrade23(b.grade||b.grado)||'99';
-    const sa=(normalizeStudentSection23(a.section||a.seccion)||'Z').toUpperCase();
-    const sb=(normalizeStudentSection23(b.section||b.seccion)||'Z').toUpperCase();
-    return ga.localeCompare(gb,'es',{numeric:true}) || sa.localeCompare(sb,'es') || String(a.name||'').localeCompare(String(b.name||''),'es');
-  });
-  const custom=(db.creaRecoveryGroups||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+
+  // El administrador de recuperación usa toda la ventana disponible.
+  modalCard.classList.add('wide');
   modalBody.classList.add('wide');
-  modalBody.innerHTML=`<h2>👥 Grupos para Recuperación Crea</h2>
-  <p class="muted">Aquí se administran los <b>grupos de recuperación</b>. Los grupos que ya existen en <b>Crea y Emprende</b> se cargan automáticamente y <b>no se duplican</b>. Un estudiante solo queda en un grupo de recuperación cuando tú lo asignas. Los estudiantes que <b>participaron en la etapa institucional</b> aparecen identificados y <b>no pueden ser seleccionados para recuperación</b>.</p>
-  <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe"><b>🏆 Grupos existentes de Crea y Emprende</b><div class="muted" style="margin-top:6px">Se pueden seleccionar directamente desde la evaluación de cada estudiante. No se crea un grupo nuevo desde Ana ni desde otro estudiante.</div></div>
-  <div class="card" style="margin-top:12px"><h3 style="margin-top:0">➕ Crear grupo nuevo de recuperación</h3>
-    <label>Grado</label><select id="recGrpGrade31">${[1,2,3,4,5].map(n=>`<option value="${n}">${n}°</option>`).join('')}</select>
-    <label style="margin-top:8px">Sección</label><select id="recGrpSection31"><option>A</option><option>B</option></select>
-    <label style="margin-top:8px">Nombre del grupo / proyecto</label><input id="recGrpName31" placeholder="Ej.: Eco Papel Manzana">
-    <label style="margin-top:8px">Integrantes de recuperación (opcional al crear)</label>
-    <div class="muted" style="margin:4px 0 8px">A continuación aparece <b>toda la lista del grado y sección</b>. Marca a quienes formarán parte del grupo. Los estudiantes que <b>participaron en la etapa institucional</b> aparecen bloqueados y no pueden formar parte de Recuperación Crea. También puedes crear el grupo con <b>0 integrantes</b> y agregarlos después.</div>
-    <div id="recGrpMembers31" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px"></div>
-    <div class="actions" style="margin-top:12px"><button type="button" onclick="createCreaRecoveryGroupFromManager31()">➕ Crear grupo</button></div>
-  </div>
-  <div class="card" style="margin-top:12px"><h3 style="margin-top:0">📁 Grupos nuevos ya creados</h3><div id="recGrpCustomList31"></div></div>
-  <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+
+  const custom=(db.creaRecoveryGroups||[]).slice().sort((a,b)=>
+    String(a.name||'').localeCompare(String(b.name||''),'es')
+  );
+
+  modalBody.classList.add('wide');
+  modalBody.innerHTML=`
+    <div style="height:100%;display:flex;flex-direction:column;min-height:0">
+      <div class="creaRecoveryHeader31">
+        <div class="creaRecoveryTitle31">👥 Grupos para Recuperación Crea</div>
+        <div class="creaRecoverySubtitle31">Organiza los estudiantes en un solo panel.</div>
+      </div>
+
+      <div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;
+                  padding:7px 10px;border-radius:8px;font-size:11px;flex:0 0 auto">
+        <b>🚫 Bloqueo automático:</b> quienes participaron en <b>Institucional, UGEL o DRE</b>,
+        o figuran como <b>Retirados / Suspendidos</b>, no pueden incluirse en Recuperación Crea.
+        Si un suspendido cambia nuevamente a <b>Activo</b>, podrá ser seleccionado.
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.9fr);
+                  gap:10px;flex:1;min-height:0;margin-top:9px">
+
+        <!-- CREAR / SELECCIONAR -->
+        <div class="card" style="margin:0;display:flex;flex-direction:column;min-height:0;padding:10px">
+          <h3 style="margin:0 0 8px">➕ Crear grupo nuevo</h3>
+
+          <div class="recoveryForm32" style="display:grid;grid-template-columns:90px 90px minmax(180px,1fr);
+                      gap:7px;align-items:end;flex:0 0 auto">
+            <div>
+              <label>Grado</label>
+              <select id="recGrpGrade31">${[1,2,3,4,5].map(n=>`<option value="${n}">${n}°</option>`).join('')}</select>
+            </div>
+            <div>
+              <label>Sección</label>
+              <select id="recGrpSection31"><option>A</option><option>B</option></select>
+            </div>
+            <div>
+              <label>Grupo / proyecto</label>
+              <input id="recGrpName31" placeholder="Ej.: Eco Papel Manzana">
+              <div id="recGrpProjectHint31" style="font-size:10px;color:#64748b;margin-top:3px">
+                Un solo grupo por grado y sección.
+              </div>
+            </div>
+          </div>
+
+          <div class="recoverySelectTools32" style="display:flex;gap:5px;align-items:center;margin:7px 0;flex-wrap:wrap;flex:0 0 auto">
+            <button type="button" class="small" onclick="selectAllAvailableCreaRecovery31(true)">☑ Todos</button>
+            <button type="button" class="secondary small" onclick="selectAllAvailableCreaRecovery31(false)">☐ Ninguno</button>
+            <input id="recGrpStudentSearch31" type="search"
+              placeholder="🔎 Buscar estudiante..."
+              style="flex:1;min-width:150px;margin:0;padding:6px 8px">
+            <button type="button" class="secondary small" onclick="clearCreaRecoveryStudentSearch31()">✕</button>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;
+                      font-size:11px;color:#64748b;margin-bottom:4px;flex:0 0 auto">
+            <span>👥 Selecciona integrantes</span>
+            <span id="recGrpSelectionCount31">0 seleccionados</span>
+          </div>
+
+          <div id="recGrpMembers31"
+            style="display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:7px;
+                   flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:7px;
+                   border:1px solid #d7e3f1;border-radius:10px;background:#f4f8fc"></div>
+
+          <div class="actions" style="margin-top:7px;flex:0 0 auto">
+            <button type="button" onclick="createCreaRecoveryGroupFromManager31()">➕ Crear grupo</button>
+          </div>
+        </div>
+
+        <!-- GRUPOS EXISTENTES -->
+        <div class="card" style="margin:0;display:flex;flex-direction:column;min-height:0;padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <h3 style="margin:0">📁 Grupos creados</h3>
+            <span class="muted">${custom.length}</span>
+          </div>
+          <div id="recGrpCustomList31"
+               style="margin-top:7px;flex:1;min-height:0;overflow:auto">
+            ${custom.length ? custom.map((g,i)=>`
+              <div class="recoveryProjectDirect35" data-group-index="${i}">
+                <div class="recoveryProjectDirectName35">📁 ${escClass(String(g.name||'').trim() || 'Proyecto sin nombre')}</div>
+                <div class="recoveryProjectDirectMeta35">
+                  ${escClass(String(g.grade||'').replace('°',''))}° · ${escClass(String(g.section||''))}
+                  · 👥 ${(Array.isArray(g.memberUsers)?g.memberUsers.length:0)} integrante(s)
+                </div>
+                <div class="recoveryProjectDirectActions35">
+                  <button type="button" class="small"
+                    onclick="manageCreaRecoveryGroupMembers31('${escClass(g.id)}')">👥 Integrantes</button>
+                  <button type="button" class="secondary small"
+                    onclick="deleteCreaRecoveryGroup31('${escClass(g.id)}')">🗑️</button>
+                </div>
+              </div>
+            `).join('') : '<div class="recoveryProjectEmpty35">No hay grupos creados.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
   modal.classList.remove('hidden');
-  const gg=document.getElementById('recGrpGrade31'),ss=document.getElementById('recGrpSection31');
+
+  const gg=document.getElementById('recGrpGrade31');
+  const ss=document.getElementById('recGrpSection31');
+  const projectInput=document.getElementById('recGrpName31');
+
+  // Al cambiar Grado + Sección, mostrar el proyecto/grupo ya creado.
+  const syncExistingProjectName37=()=>{
+    if(!projectInput)return;
+    const grade=String(gg?.value||'');
+    const sec=String(ss?.value||'').trim().toUpperCase();
+    const found=(Array.isArray(custom)?custom:[]).find(g=>
+      normalizeGradeCY30(g.grade)===normalizeGradeCY30(grade) &&
+      normalizeSectionCY30(g.section)===normalizeSectionCY30(sec)
+    );
+    if(found){
+      projectInput.value=String(found.name||'').trim();
+      projectInput.readOnly=true;
+      projectInput.style.background='#eff6ff';
+      projectInput.style.border='2px solid #60a5fa';
+      projectInput.style.color='#1746a2';
+      projectInput.style.fontWeight='800';
+      const hint=document.getElementById('recGrpProjectHint31');
+      if(hint)hint.innerHTML='🔒 Grupo ya creado. Usa <b>Integrantes</b> para modificarlo.';
+    }else{
+      projectInput.value='';
+      projectInput.readOnly=false;
+      projectInput.style.background='';
+      projectInput.style.border='';
+      projectInput.style.color='';
+      projectInput.style.fontWeight='';
+      const hint=document.getElementById('recGrpProjectHint31');
+      if(hint)hint.textContent='Un solo grupo por grado y sección.';
+    }
+  };
+
   const refresh=()=>{
-    const grade=gg?.value||'4',sec=ss?.value||'A';
-    const allStudents=(db.users||[]).filter(u=>u.role==='student'&&normalizeGradeCY30(u.grade)===normalizeGradeCY30(grade)&&normalizeSectionCY30(u.section)===normalizeSectionCY30(sec)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+    const grade=gg?.value||'4', sec=ss?.value||'A';
+    const allStudents=(db.users||[])
+      .filter(u=>u.role==='student' &&
+        normalizeGradeCY30(u.grade)===normalizeGradeCY30(grade) &&
+        normalizeSectionCY30(u.section)===normalizeSectionCY30(sec))
+      .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+
     const box=document.getElementById('recGrpMembers31');
     if(!box)return;
-    box.innerHTML=allStudents.length?allStudents.map(u=>{
-      const institutional=creaInstitutionalParticipant31(u);
-      return `<label style="display:flex;align-items:center;gap:7px;opacity:${institutional?'0.62':'1'}"><input class="creaRecManagerMember31" type="checkbox" value="${escClass(u.u)}" ${institutional?'disabled':''}> ${escClass(u.name)}${institutional?' <span class="muted">· ✅ Participó en Crea y Emprende institucional · no disponible para recuperación</span>':(u.creaRecovery===true?' <span class="muted">· Recuperación activa</span>':'')}</label>`;
-    }).join(''):'<span class="muted">No hay estudiantes registrados en ese grado/sección.</span>';
+    const existingGroup=(db.creaRecoveryGroups||[]).find(g=>
+      normalizeGradeCY30(g.grade)===normalizeGradeCY30(grade) &&
+      normalizeSectionCY30(g.section)===normalizeSectionCY30(sec)
+    );
+    const existingMembers=new Set((existingGroup?.memberUsers||[]).map(String));
+
+    box.innerHTML=allStudents.length
+      ? allStudents.map(u=>{
+          const blocked=creaRecoveryBlockedParticipant31(u);
+          const blockedStatus=creaRecoveryStatusBlocked31(u);
+          const creaStages=creaRecoveryParticipationLabel31(u);
+          const active=u.creaRecovery===true;
+          const checked=existingMembers.has(String(u.u));
+          const lockReason=blockedStatus
+            ? `🚫 ${blockedStatus} · no disponible`
+            : (creaStages ? `🏆 Crea y Emprende · ${creaStages} · no disponible` : '');
+          return `<label class="creaRecManagerMemberCard36" data-student-name="${escClass(String(u.name||''))}" style="
+              display:flex;align-items:center;gap:8px;padding:8px 9px;
+              border:1px solid ${blocked?'#fecaca':'#d7e3f1'};
+              border-radius:9px;
+              background:${blocked?'#fff5f5':'#fff'};
+              opacity:${blocked?'0.78':'1'};
+              font-size:11px;line-height:1.2;min-height:50px;
+              box-sizing:border-box;overflow:hidden">
+            <input class="creaRecManagerMember31" type="checkbox"
+              value="${escClass(u.u)}" ${checked?'checked':''} ${blocked?'disabled':''}
+              style="flex:0 0 auto;width:16px;height:16px">
+            <span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1">
+              <span style="display:flex;align-items:center;gap:5px;min-width:0">
+                <span class="creaRecStudentName36"
+                  style="display:block;font-weight:700;color:#172033;white-space:normal;overflow-wrap:anywhere;min-width:0">
+                  ${escClass(u.name)}
+                </span>
+                ${blocked ? '<span title="No disponible para Recuperación Crea" style="flex:0 0 auto">🔒</span>' : (active ? '<span title="Recuperación activa" style="color:#166534;flex:0 0 auto">●</span>' : '')}
+              </span>
+              ${lockReason ? `<span style="display:block;font-size:9px;font-weight:800;color:${blockedStatus?'#b91c1c':'#92400e'};white-space:normal;overflow-wrap:anywhere">${lockReason}</span>` : ''}
+            </span>
+          </label>`;
+        }).join('')
+      : '<span class="muted" style="grid-column:1/-1;text-align:center;padding:20px">No hay estudiantes registrados.</span>';
+
+    box.querySelectorAll('.creaRecManagerMember31').forEach(cb=>{
+      cb.addEventListener('change',updateCreaRecoverySelectionCount31);
+    });
+    updateCreaRecoverySelectionCount31();
   };
-  const renderCustom=()=>{
-    const box=document.getElementById('recGrpCustomList31');if(!box)return;
-    box.innerHTML=custom.length?`<div style="overflow:auto"><table><tr><th>Grupo</th><th>Grado</th><th>Sección</th><th>Integrantes</th><th>Acción</th></tr>${custom.map(g=>{
-      const ms=(g.memberUsers||[]).map(id=>(db.users||[]).find(u=>u.role==='student'&&String(u.u)===String(id))).filter(Boolean);
-      return `<tr><td><b>${escClass(g.name)}</b></td><td>${escClass(g.grade)}</td><td>${escClass(g.section)}</td><td>${ms.map(u=>escClass(u.name)).join(' · ')||'<span class="muted">0 integrantes — aún no asignados</span>'}</td><td style="white-space:nowrap"><button class="small" onclick="manageCreaRecoveryGroupMembers31('${escClass(g.id)}')">👥 Agregar / quitar</button> <button class="secondary small" onclick="deleteCreaRecoveryGroup31('${escClass(g.id)}')">🗑️ Eliminar</button></td></tr>`;
-    }).join('')}</table></div>`:'<div class="muted">No hay grupos nuevos de recuperación creados.</div>';
-  };
-  gg?.addEventListener('change',refresh);ss?.addEventListener('change',refresh);refresh();renderCustom();
+
+  const renderCustom=()=>{};
+
+  gg?.addEventListener('change',()=>{syncExistingProjectName37();refresh();});
+  ss?.addEventListener('change',()=>{syncExistingProjectName37();refresh();});
+  const studentSearch=document.getElementById('recGrpStudentSearch31');
+  studentSearch?.addEventListener('input',filterCreaRecoveryStudents31);
+
+  syncExistingProjectName37();
+  refresh();
+  renderCustom();
+
 }
+
 function createCreaRecoveryGroupFromManager31(){
   ensureClassData();
   const name=document.getElementById('recGrpName31')?.value.trim()||'';
@@ -9349,9 +9618,33 @@ function createCreaRecoveryGroupFromManager31(){
   const members=[...document.querySelectorAll('.creaRecManagerMember31:checked')].map(x=>x.value).filter(Boolean);
   if(!name){alert('Escribe el nombre del grupo o proyecto.');return;}
   if(!Array.isArray(db.creaRecoveryGroups))db.creaRecoveryGroups=[];
+
+  // Regla: un solo grupo/proyecto de Recuperación por Grado + Sección.
+  // Evita que al volver a pulsar "Crear grupo" se genere un duplicado
+  // (por ejemplo, 2° B + "Papel Artesanal..." con 22 integrantes y otro vacío).
+  const sameClassGroup=db.creaRecoveryGroups.find(g=>
+    normalizeGradeCY30(g.grade)===normalizeGradeCY30(grade) &&
+    normalizeSectionCY30(g.section)===normalizeSectionCY30(section)
+  );
+  if(sameClassGroup){
+    const blockedUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaRecoveryBlockedParticipant31(u)).map(u=>String(u.u)));
+    const uniqueMembers=[...new Set(members)].filter(x=>!blockedUsers.has(String(x)));
+    const oldMembers=new Set((sameClassGroup.memberUsers||[]).map(String));
+    sameClassGroup.memberUsers=uniqueMembers;
+    const memberSet=new Set(uniqueMembers);
+    (db.users||[]).filter(u=>u.role==='student').forEach(u=>{if(memberSet.has(String(u.u)))u.creaRecovery=true;});
+    const stillGrouped=new Set();
+    (db.creaRecoveryGroups||[]).forEach(gr=>(gr.memberUsers||[]).forEach(uid=>stillGrouped.add(String(uid))));
+    oldMembers.forEach(uid=>{if(!stillGrouped.has(uid)){const u=(db.users||[]).find(x=>x.role==='student'&&String(x.u)===uid);if(u)u.creaRecovery=false;}});
+    save();
+    alert(`✅ Integrantes actualizados en «${String(sameClassGroup.name||'Proyecto').trim()}».\n\nIntegrantes: ${uniqueMembers.length}`);
+    openCreaRecoveryGroupManager31();
+    return;
+  }
+
   const id='reccgrp_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-  const institutionalUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaInstitutionalParticipant31(u)).map(u=>String(u.u)));
-  const uniqueMembers=[...new Set(members)].filter(x=>!institutionalUsers.has(String(x)));
+  const blockedUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaRecoveryBlockedParticipant31(u)).map(u=>String(u.u)));
+  const uniqueMembers=[...new Set(members)].filter(x=>!blockedUsers.has(String(x)));
   db.creaRecoveryGroups.push({id,name,grade,section,memberUsers:uniqueMembers,createdAt:Date.now(),source:'Grupo de recuperación'});
   // Los estudiantes que se seleccionan para un grupo nuevo quedan habilitados
   // automáticamente para Recuperación Crea. No se deshabilita a ningún otro
@@ -9367,27 +9660,85 @@ function manageCreaRecoveryGroupMembers31(groupId){
   ensureClassData();
   const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
   if(!g)return;
-  const students=(db.users||[]).filter(u=>u.role==='student'&&normalizeGradeCY30(u.grade)===normalizeGradeCY30(g.grade)&&normalizeSectionCY30(u.section)===normalizeSectionCY30(g.section)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const students=(db.users||[]).filter(u=>u.role==='student' &&
+    normalizeGradeCY30(u.grade)===normalizeGradeCY30(g.grade) &&
+    normalizeSectionCY30(u.section)===normalizeSectionCY30(g.section))
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
   const selected=new Set((g.memberUsers||[]).map(String));
-  modalBody.classList.add('wide');
-  modalBody.innerHTML=`<h2>👥 Integrantes: ${escClass(g.name)}</h2>
-    <p class="muted">Selecciona directamente a los estudiantes de <b>${escClass(g.grade)} ${escClass(g.section)}</b> que formarán parte de este grupo de recuperación. Al guardar, los seleccionados quedarán habilitados para Recuperación Crea.</p>
-    <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe"><b>${students.length} estudiante(s) del aula</b><div class="muted" style="margin-top:5px">Marca o desmarca y luego pulsa “Guardar integrantes”. No necesitas entrar uno por uno a sus evaluaciones.</div></div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:7px;margin-top:12px">${students.map(u=>{const institutional=creaInstitutionalParticipant31(u);return `<label style="display:flex;align-items:center;gap:8px;padding:9px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;opacity:${institutional?'0.62':'1'}"><input class="creaRecGroupMemberEdit31" type="checkbox" value="${escClass(u.u)}" ${selected.has(String(u.u))?'checked':''} ${institutional?'disabled':''}> ${escClass(u.name)}${institutional?' <span class="muted">· ✅ Participó institucional — no disponible para recuperación</span>':''}</label>`;}).join('')||'<span class="muted">No hay estudiantes registrados en este grado/sección.</span>'}</div>
-    <div class="actions" style="margin-top:15px"><button onclick="saveCreaRecoveryGroupMembers31('${escClass(g.id)}')">💾 Guardar integrantes</button><button class="secondary" onclick="openCreaRecoveryGroupManager31()">← Volver</button></div>`;
+  modalCard.classList.add('wide'); modalBody.classList.add('wide');
+  modalBody.innerHTML=`
+    <div class="recEditGroup31">
+      <div class="recEditHeader31">
+        <div><div class="recEditTitle31">👥 Administrar integrantes</div>
+        <div class="recEditProject31">📁 ${escClass(g.name)}</div>
+        <div class="recEditMeta31">${escClass(g.grade)} · ${escClass(g.section)} · modifica los integrantes sin crear otro grupo</div></div>
+        <button type="button" class="recEditClose31" onclick="openCreaRecoveryGroupManager31()">✕</button>
+      </div>
+      <div class="recEditNotice31">🔒 Los participantes de <b>Institucional, UGEL o DRE</b> y los estudiantes <b>Retirados / Suspendidos</b> aparecen bloqueados y no pueden agregarse. Si el estado cambia a <b>Activo</b>, podrán seleccionarse.</div>
+      <div class="recEditTools31">
+        <button type="button" onclick="recEditSelectAll31(true)">☑ Seleccionar todos</button>
+        <button type="button" class="secondary" onclick="recEditSelectAll31(false)">☐ Desmarcar todos</button>
+        <input id="recEditSearch31" type="search" placeholder="🔎 Buscar estudiante..." oninput="recEditFilter31()">
+        <span id="recEditCount31" class="recEditCount31">${selected.size} seleccionados</span>
+      </div>
+      <div class="recEditSummary31"><b>${students.length}</b> estudiantes de ${escClass(g.grade)} ${escClass(g.section)} · marca o desmarca directamente.</div>
+      <div id="recEditMembers31" class="recEditMembers31">
+        ${students.map(u=>{
+          const blocked=creaRecoveryBlockedParticipant31(u);
+          const blockedStatus=creaRecoveryStatusBlocked31(u);
+          const creaStages=creaRecoveryParticipationLabel31(u);
+          const checked=selected.has(String(u.u));
+          const reasons=[];
+          if(blockedStatus) reasons.push(`🚫 ${blockedStatus}`);
+          if(creaStages) reasons.push(`🏆 Crea y Emprende: ${creaStages}`);
+          const reasonText=reasons.join(' · ');
+          return `<label class="recEditMember31 ${blocked?'blocked':''}" data-name="${escClass(String(u.name||''))}">
+            <input class="recEditCheck31" type="checkbox" value="${escClass(u.u)}" ${checked?'checked':''} ${blocked?'disabled':''}>
+            <span class="recEditName31">${escClass(u.name)}</span>
+            ${reasonText?`<span class="recEditReason31" title="${escClass(reasonText)}">${escClass(reasonText)}</span>`:''}
+          </label>`;
+        }).join('') || '<div class="recEditEmpty31">No hay estudiantes registrados.</div>'}
+      </div>
+      <div class="recEditFooter31"><span id="recEditCountFooter31">${selected.size} seleccionados</span>
+        <div><button type="button" class="secondary" onclick="openCreaRecoveryGroupManager31()">Cancelar</button>
+        <button type="button" onclick="saveCreaRecoveryGroupMembers31('${escClass(g.id)}')">💾 Guardar integrantes</button></div>
+      </div>
+    </div>`;
   modal.classList.remove('hidden');
+  document.querySelectorAll('.recEditCheck31').forEach(cb=>cb.addEventListener('change',updateRecEditCount31));
+  updateRecEditCount31();
+}
+function updateRecEditCount31(){
+  const n=document.querySelectorAll('.recEditCheck31:checked').length;
+  const text=`${n} seleccionado${n===1?'':'s'}`;
+  const a=document.getElementById('recEditCount31'), b=document.getElementById('recEditCountFooter31');
+  if(a)a.textContent=text; if(b)b.textContent=text;
+}
+function recEditSelectAll31(select){
+  document.querySelectorAll('#recEditMembers31 .recEditMember31').forEach(card=>{
+    if(card.style.display==='none')return;
+    const cb=card.querySelector('.recEditCheck31'); if(cb&&!cb.disabled)cb.checked=!!select;
+  }); updateRecEditCount31();
+}
+function recEditFilter31(){
+  const q=String(document.getElementById('recEditSearch31')?.value||'').trim().toLocaleLowerCase('es');
+  document.querySelectorAll('#recEditMembers31 .recEditMember31').forEach(card=>{
+    const name=String(card.dataset.name||'').toLocaleLowerCase('es');
+    card.style.display=(!q||name.includes(q))?'flex':'none';
+  });
 }
 function saveCreaRecoveryGroupMembers31(groupId){
   ensureClassData();
-  const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
-  if(!g)return;
-  const members=[...document.querySelectorAll('.creaRecGroupMemberEdit31:checked')].map(x=>String(x.value)).filter(Boolean);
-  const institutionalUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaInstitutionalParticipant31(u)).map(u=>String(u.u)));
-  g.memberUsers=[...new Set(members)].filter(x=>!institutionalUsers.has(String(x)));
+  const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId)); if(!g)return;
+  const oldMembers=new Set((g.memberUsers||[]).map(String));
+  const members=[...document.querySelectorAll('.recEditCheck31:checked')].map(x=>String(x.value)).filter(Boolean);
+  const blockedUsers=new Set((db.users||[]).filter(u=>u.role==='student'&&creaRecoveryBlockedParticipant31(u)).map(u=>String(u.u)));
+  g.memberUsers=[...new Set(members)].filter(x=>!blockedUsers.has(String(x)));
   const memberSet=new Set(g.memberUsers);
-  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
-    if(memberSet.has(String(u.u)))u.creaRecovery=true;
-  });
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{if(memberSet.has(String(u.u)))u.creaRecovery=true;});
+  const stillGrouped=new Set();
+  (db.creaRecoveryGroups||[]).forEach(gr=>(gr.memberUsers||[]).forEach(uid=>stillGrouped.add(String(uid))));
+  oldMembers.forEach(uid=>{if(!stillGrouped.has(uid)){const u=(db.users||[]).find(x=>x.role==='student'&&String(x.u)===uid);if(u)u.creaRecovery=false;}});
   save();
   alert(`✅ Integrantes guardados: ${g.memberUsers.length}.`);
   openCreaRecoveryGroupManager31();
@@ -9398,10 +9749,46 @@ function deleteCreaRecoveryGroup31(groupId){
   const g=(db.creaRecoveryGroups||[]).find(x=>String(x.id)===String(groupId));
   if(!g)return;
   if(!confirm(`¿Eliminar el grupo de recuperación «${g.name}»?\nEsto no elimina estudiantes ni grupos de Crea y Emprende.`))return;
-  db.creaRecoveryGroups=(db.creaRecoveryGroups||[]).filter(x=>String(x.id)!==String(groupId));
-  (db.creaRecoveryEvaluations||[]).forEach(r=>{if(String(r.creaRecoveryGroupId)===String(groupId)){r.creaRecoveryGroupId='';r.creaRecoveryGroupName='';r.creaRecoveryMode='individual';}});
+
+  // Guardamos los integrantes del grupo que se va a eliminar.
+  const deletedMembers=new Set((g.memberUsers||[]).map(x=>String(x)));
+
+  // Eliminar únicamente el grupo de recuperación seleccionado.
+  db.creaRecoveryGroups=(db.creaRecoveryGroups||[]).filter(
+    x=>String(x.id)!==String(groupId)
+  );
+
+  // Quitar el vínculo de las evaluaciones que apuntaban a este grupo.
+  (db.creaRecoveryEvaluations||[]).forEach(r=>{
+    if(String(r.creaRecoveryGroupId)===String(groupId)){
+      r.creaRecoveryGroupId='';
+      r.creaRecoveryGroupName='';
+      r.creaRecoveryMode='individual';
+    }
+  });
+
+  // IMPORTANTE:
+  // Al crear/editar un grupo se marca al estudiante con creaRecovery=true.
+  // Antes, al eliminar el grupo, esa marca quedaba guardada y por eso
+  // el estudiante seguía apareciendo en "Recuperación Crea".
+  // Ahora se limpia solo si el estudiante ya no pertenece a ningún otro
+  // grupo de recuperación.
+  const stillGrouped=new Set();
+  (db.creaRecoveryGroups||[]).forEach(gr=>{
+    (gr.memberUsers||[]).forEach(id=>stillGrouped.add(String(id)));
+  });
+
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
+    const id=String(u.u||'');
+    if(deletedMembers.has(id) && !stillGrouped.has(id)){
+      u.creaRecovery=false;
+      delete u.creaRecoveryPortfolioMode;
+    }
+  });
+
   save();
   openCreaRecoveryGroupManager31();
+  render();
 }
 
 function openCreaRecoveryEval31(user){
@@ -9677,9 +10064,43 @@ function saveCreaRecoveryEval31(user){
     ? `✅ Recuperación de Crea y Emprende guardada.\nModalidad: ${recoveryMode==='grupal'?'Grupal · '+(r.creaRecoveryGroupName||'Grupo sin nombre'):'Individual'}\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: ${exposition.toFixed(2)} / 20\nProducto: ${productPresented?product.toFixed(2)+' / 20':'No presentado'}\n\nLos criterios del concurso que quedaron en blanco no participan en el promedio.\nEl Proyecto de recuperación tendrá máximo 14 puntos (B).`
     : `✅ Portafolio de recuperación guardado.\nPortafolio: ${portfolio.toFixed(2)} / 20\nExposición: Pendiente\nProducto: ${productPresented?product.toFixed(2)+' / 20':'Pendiente / opcional'}\n\nPuedes cerrar ahora y registrar la exposición después.\nLos criterios del concurso que quedaron en blanco no participan en el promedio.\nEl Proyecto de recuperación se calculará recién cuando completes la Exposición; Portafolio + Exposición son el mínimo requerido. Máximo 14 puntos (B).`);
 }
-function creaRecovery31(){
+
+/* ===== LIMPIEZA DE MARCAS ANTIGUAS DE RECUPERACIÓN CREA ===== */
+function cleanupStaleCreaRecoveryFlags31(){
   ensureClassData();
-  const allStudents=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true);
+  const currentGroups=Array.isArray(db.creaRecoveryGroups)?db.creaRecoveryGroups:[];
+  const grouped=new Set();
+  currentGroups.forEach(g=>{
+    (g.memberUsers||[]).forEach(id=>grouped.add(String(id)));
+  });
+
+  const evaluations=Array.isArray(db.creaRecoveryEvaluations)?db.creaRecoveryEvaluations:[];
+  const evalGrouped=new Set(
+    evaluations
+      .filter(r=>r && String(r.creaRecoveryMode||'')==='grupal' && String(r.creaRecoveryGroupId||''))
+      .map(r=>String(r.user||''))
+  );
+
+  let changed=false;
+  (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
+    const id=String(u.u||'');
+    if(u.creaRecovery===true && !grouped.has(id) && !evalGrouped.has(id)){
+      u.creaRecovery=false;
+      delete u.creaRecoveryPortfolioMode;
+      changed=true;
+    }
+  });
+
+  if(changed) save();
+}
+/* ===== FIN LIMPIEZA ===== */
+
+function creaRecovery31(){
+  cleanupStaleCreaRecoveryFlags31();
+  ensureClassData();
+  // Recuperación Crea solo muestra estudiantes actualmente habilitados.
+  // Retirados y Suspendidos quedan fuera; si vuelven a Activo, podrán aparecer.
+  const allStudents=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true&&!creaRecoveryStatusBlocked31(u));
   const gradeFilter=String(window.creaRecoveryGradeFilter31||'Todos');
   const sectionFilter=String(window.creaRecoverySectionFilter31||'Todas').toUpperCase();
   const students=allStudents.filter(u=>{
@@ -9705,7 +10126,7 @@ function creaRecovery31(){
     const portfolioModeLabel=portfolioMode==='concurso'?'🏆 Concurso':'📁 Manual';
     const recoveryMode=r.creaRecoveryMode==='grupal'?'👥 Grupal':'👤 Individual';
     const recoveryGroup=r.creaRecoveryMode==='grupal'?(r.creaRecoveryGroupName||'Grupo sin nombre'):'Sin grupo';
-    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')} · ${portfolioModeLabel}<br>${recoveryMode}${r.creaRecoveryMode==='grupal'?` · ${escClass(recoveryGroup)}`:''}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>${hasProduct?Number(r.product).toFixed(2):'No presentado'}</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b>${studentDisabilityBadge31(u)}<div class="muted">${escClass(u.grade||'')} · ${escClass(u.section||'')} · ${portfolioModeLabel}<br>${recoveryMode}${r.creaRecoveryMode==='grupal'?` · ${escClass(recoveryGroup)}`:''}</div></td><td>${r.portfolio!=null?Number(r.portfolio).toFixed(2):'—'}</td><td>${r.exposition!=null?Number(r.exposition).toFixed(2):'—'}</td><td>${hasProduct?Number(r.product).toFixed(2):'No presentado'}</td><td><b>${project===null?'—':project.toFixed(2)}</b></td><td><b>${final===null?'Pendiente':Number(final).toFixed(2)}</b></td><td>${lv}</td><td><button class="small" onclick="openCreaRecoveryEval31('${escClass(u.u)}')">${complete?'✏️ Modificar':'📝 Evaluar'}</button></td></tr>`;
   }).join('');
   return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🏆 Recuperación pedagógica — Crea y Emprende</h2><button class="secondary" onclick="openCreaRecoveryGroupManager31()">👥 Administrar grupos de recuperación</button></div><p class="muted" style="margin-top:10px">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio + Exposición son obligatorios</b>; <b>Producto es opcional</b> y solo se incorpora si realmente lo presentan.</p><div class="alert"><b>Regla:</b> Portafolio + Exposición son el mínimo. Sin Producto, Proyecto = Portafolio 30% + Exposición 40% normalizado sobre 70%. Con Producto, se incorpora 30%. El máximo es <b>14 puntos (B)</b>.</div><div class="card" style="margin-top:15px;background:#f8fafc"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label>Grado</label><select id="creaRecoveryGradeFilter31" onchange="window.creaRecoveryGradeFilter31=this.value; render();">${gradeOptions}</select></div><div><label>Sección</label><select id="creaRecoverySectionFilter31" onchange="window.creaRecoverySectionFilter31=this.value; render();">${sectionOptions}</select></div><div class="muted" style="padding-bottom:8px">Mostrando <b>${students.length}</b> de ${allStudents.length} estudiantes</div></div></div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto /20</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes para el filtro seleccionado.</td></tr>'}</table></div></div>`;
 }
@@ -9748,5 +10169,543 @@ ensureClassData();
 /* ===== FIN DETALLE DE NOTAS ===== */
 </script>
 
+
+<style id="creaRecoveryViewport31">
+/* ===== PANEL RECUPERACIÓN CREA — DISEÑO FINAL ===== */
+#modalCard.wide{
+  width:min(1160px,94vw) !important;
+  max-width:1160px !important;
+  height:min(700px,86vh) !important;
+  max-height:86vh !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+  border-radius:18px !important;
+  background:#f8fafc !important;
+  box-shadow:0 22px 65px rgba(15,23,42,.30) !important;
+}
+
+#modalCard.wide > #modalBody.wide{
+  width:100% !important;
+  height:100% !important;
+  max-width:none !important;
+  max-height:none !important;
+  padding:14px 16px !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+}
+
+#modalCard.wide .modal-close{
+  position:absolute !important;
+  top:10px !important;
+  right:10px !important;
+  z-index:1000 !important;
+  width:36px !important;
+  height:36px !important;
+  border-radius:50% !important;
+  background:#e2e8f0 !important;
+  color:#0f172a !important;
+  font-size:23px !important;
+  line-height:36px !important;
+  margin:0 !important;
+}
+
+#modalCard.wide .creaRecoveryHeader31{
+  background:linear-gradient(135deg,#173b8f,#2563eb,#3b82f6) !important;
+  color:#fff !important;
+  border-radius:12px !important;
+  padding:10px 48px 10px 14px !important;
+  margin:0 0 8px !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide .creaRecoveryTitle31{
+  font-size:19px !important;
+  line-height:1.2 !important;
+  font-weight:800 !important;
+}
+#modalCard.wide .creaRecoverySubtitle31{
+  font-size:10px !important;
+  opacity:.9 !important;
+  margin-top:2px !important;
+}
+
+#modalCard.wide #modalBody.wide > div{
+  height:100% !important;
+  min-height:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+
+#modalCard.wide #modalBody.wide > div > div[style*="grid-template-columns:minmax(0,1.45fr)"]{
+  display:grid !important;
+  grid-template-columns:minmax(0,1.45fr) minmax(320px,.8fr) !important;
+  gap:10px !important;
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+  margin-top:8px !important;
+}
+
+#modalCard.wide .card{
+  box-sizing:border-box !important;
+  border:1px solid #d8e2f0 !important;
+  border-radius:12px !important;
+  background:#fff !important;
+  box-shadow:0 3px 12px rgba(30,64,175,.07) !important;
+}
+
+#modalCard.wide #recGrpMembers31{
+  background:#eef4fb !important;
+  border-color:#d5e1ef !important;
+}
+
+#modalCard.wide #recGrpCustomList31{
+  overflow:auto !important;
+  min-height:0 !important;
+}
+
+#modalCard.wide #recGrpMembers31{
+  overflow:auto !important;
+  min-height:0 !important;
+}
+
+@media(max-width:900px){
+  #modalCard.wide{
+    width:96vw !important;
+    height:90vh !important;
+    max-height:90vh !important;
+  }
+  #modalCard.wide #modalBody.wide > div > div[style*="grid-template-columns:minmax(0,1.45fr)"]{
+    grid-template-columns:1fr !important;
+    overflow:auto !important;
+  }
+}
+</style>
+
+
+<style id="recoveryFinalFix32">
+/* ===== CORRECCIÓN FINAL: LA VENTANA DE RECUPERACIÓN DEBE ESTAR SOBRE EL MENÚ ===== */
+#modal{
+  z-index:99999 !important;
+}
+#modalCard.wide{
+  position:relative !important;
+  z-index:100000 !important;
+  width:min(1160px,94vw) !important;
+  max-width:1160px !important;
+  height:min(700px,86vh) !important;
+  max-height:86vh !important;
+  margin:0 auto !important;
+  padding:0 !important;
+  overflow:hidden !important;
+}
+#modalCard.wide #modalBody.wide{
+  width:100% !important;
+  height:100% !important;
+  box-sizing:border-box !important;
+  padding:14px 16px !important;
+  overflow:hidden !important;
+}
+
+/* Que se vean completos los controles superiores */
+#modalCard.wide #recGrpName31{
+  width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide #recGrpGrade31,
+#modalCard.wide #recGrpSection31{
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* Botones de selección claramente visibles */
+#modalCard.wide .recoverySelectTools32{
+  display:flex !important;
+  align-items:center !important;
+  gap:7px !important;
+  flex-wrap:nowrap !important;
+  margin:7px 0 !important;
+}
+#modalCard.wide .recoverySelectTools32 button{
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+  min-height:34px !important;
+}
+#modalCard.wide .recoverySelectTools32 input{
+  flex:1 1 auto !important;
+  min-width:150px !important;
+}
+
+/* Asegurar que los nombres de controles no sean recortados */
+#modalCard.wide .recoveryForm32{
+  grid-template-columns:90px 90px minmax(220px,1fr) !important;
+  min-width:0 !important;
+}
+#modalCard.wide .recoveryForm32 > div{
+  min-width:0 !important;
+}
+
+/* En pantallas pequeñas, permitir una distribución vertical */
+@media(max-width:900px){
+  #modalCard.wide{
+    width:96vw !important;
+    height:90vh !important;
+    max-height:90vh !important;
+  }
+  #modalCard.wide .recoverySelectTools32{
+    flex-wrap:wrap !important;
+  }
+}
+</style>
+
+
+<style id="recoveryProjectsVisible33">
+/* ===== NOMBRES DE PROYECTOS / GRUPOS: SIEMPRE VISIBLES ===== */
+#modalCard.wide #recGrpCustomList31{
+  display:block !important;
+  height:auto !important;
+  min-height:0 !important;
+  flex:1 1 auto !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  color:#172033 !important;
+  background:#fff !important;
+  padding:2px !important;
+}
+#modalCard.wide .recoveryProjectsList33{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:8px !important;
+  width:100% !important;
+}
+#modalCard.wide .recoveryProjectCard33{
+  display:block !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding:9px 10px !important;
+  border:1px solid #cbd5e1 !important;
+  border-left:4px solid #2563eb !important;
+  border-radius:9px !important;
+  background:#ffffff !important;
+  color:#172033 !important;
+  box-shadow:0 2px 7px rgba(15,23,42,.06) !important;
+}
+#modalCard.wide .recoveryProjectTop33{
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:flex-start !important;
+  gap:8px !important;
+}
+#modalCard.wide .recoveryProjectInfo33{
+  min-width:0 !important;
+  flex:1 1 auto !important;
+}
+#modalCard.wide .recoveryProjectName33{
+  display:block !important;
+  color:#173b8f !important;
+  font-size:14px !important;
+  line-height:1.25 !important;
+  font-weight:800 !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+#modalCard.wide .recoveryProjectMeta33{
+  display:block !important;
+  color:#64748b !important;
+  font-size:10px !important;
+  margin-top:3px !important;
+}
+#modalCard.wide .recoveryProjectActions33{
+  display:flex !important;
+  gap:4px !important;
+  flex:0 0 auto !important;
+}
+#modalCard.wide .recoveryProjectMembers33{
+  display:flex !important;
+  flex-wrap:wrap !important;
+  gap:4px !important;
+  margin-top:7px !important;
+}
+#modalCard.wide .recoveryProjectMembers33 span{
+  display:inline-block !important;
+  padding:3px 6px !important;
+  border-radius:5px !important;
+  background:#eff6ff !important;
+  color:#334155 !important;
+  font-size:9px !important;
+}
+#modalCard.wide .recoveryProjectMembers33 .more{
+  background:#dbeafe !important;
+  color:#1d4ed8 !important;
+  font-weight:700 !important;
+}
+#modalCard.wide .recoveryProjectEmpty33{
+  display:block !important;
+  padding:14px 8px !important;
+  color:#64748b !important;
+  font-size:11px !important;
+  text-align:center !important;
+}
+</style>
+
+
+<style id="recoveryProjectNames34">
+#modalCard.wide #recGrpCustomList31{
+  display:block !important;
+  position:relative !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  color:#0f172a !important;
+  background:#ffffff !important;
+  min-height:100px !important;
+  height:auto !important;
+  flex:1 1 auto !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  padding:5px !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide .recoveryProjectCard34{
+  display:block !important;
+  position:relative !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  width:100% !important;
+  box-sizing:border-box !important;
+  margin:0 0 8px !important;
+  padding:10px !important;
+  background:#f8fbff !important;
+  border:1px solid #bfdbfe !important;
+  border-left:5px solid #2563eb !important;
+  border-radius:9px !important;
+}
+#modalCard.wide .recoveryProjectTop34{
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:space-between !important;
+  gap:8px !important;
+}
+#modalCard.wide .recoveryProjectInfo34{
+  display:block !important;
+  min-width:0 !important;
+  flex:1 1 auto !important;
+}
+#modalCard.wide .recoveryProjectName34{
+  display:block !important;
+  visibility:visible !important;
+  color:#173b8f !important;
+  font-size:15px !important;
+  line-height:1.3 !important;
+  font-weight:800 !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+#modalCard.wide .recoveryProjectMeta34{
+  display:block !important;
+  color:#475569 !important;
+  font-size:11px !important;
+  margin-top:4px !important;
+}
+#modalCard.wide .recoveryProjectCount34{
+  display:block !important;
+  color:#64748b !important;
+  font-size:10px !important;
+  margin-top:3px !important;
+}
+#modalCard.wide .recoveryProjectActions34{
+  display:flex !important;
+  flex:0 0 auto !important;
+  gap:4px !important;
+}
+#modalCard.wide .recoveryProjectEmpty34{
+  display:block !important;
+  padding:20px 8px !important;
+  text-align:center !important;
+  color:#64748b !important;
+}
+</style>
+
+
+<style id="recoveryDirectVisible35">
+/* Panel derecho: los proyectos se escriben directamente dentro del HTML */
+#modalCard.wide #recGrpCustomList31{
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  color:#172033 !important;
+  background:#f8fafc !important;
+  border-radius:9px !important;
+  padding:7px !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide .recoveryProjectDirect35{
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+  border-left:5px solid #2563eb !important;
+  border-radius:9px !important;
+  padding:10px !important;
+  margin:0 0 8px !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide .recoveryProjectDirectName35{
+  display:block !important;
+  visibility:visible !important;
+  color:#173b8f !important;
+  font-size:15px !important;
+  line-height:1.35 !important;
+  font-weight:800 !important;
+  overflow-wrap:anywhere !important;
+}
+#modalCard.wide .recoveryProjectDirectMeta35{
+  display:block !important;
+  color:#64748b !important;
+  font-size:11px !important;
+  margin-top:4px !important;
+}
+#modalCard.wide .recoveryProjectDirectActions35{
+  display:flex !important;
+  gap:5px !important;
+  margin-top:7px !important;
+}
+#modalCard.wide .recoveryProjectEmpty35{
+  display:block !important;
+  padding:20px !important;
+  text-align:center !important;
+  color:#64748b !important;
+}
+</style>
+
+
+
+
+
+<style id="recoveryGroupProjectName37">
+#modalCard.wide .recoveryProjectDirect35{
+  position:relative !important;
+  display:block !important;
+  padding:11px 12px 10px 14px !important;
+  margin:0 0 9px !important;
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+  border-left:5px solid #2563eb !important;
+  border-radius:10px !important;
+  box-shadow:0 2px 6px rgba(15,23,42,.06) !important;
+}
+#modalCard.wide .recoveryProjectDirectName35{
+  display:block !important;
+  color:#1746a2 !important;
+  font-size:15px !important;
+  font-weight:800 !important;
+  line-height:1.35 !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+#modalCard.wide .recoveryProjectDirectMeta35{
+  display:block !important;
+  margin-top:5px !important;
+  color:#64748b !important;
+  font-size:11px !important;
+  font-weight:600 !important;
+}
+#modalCard.wide .recoveryProjectDirectActions35{
+  display:flex !important;
+  gap:6px !important;
+  margin-top:8px !important;
+}
+#modalCard.wide .recoveryProjectDirectActions35 button{
+  min-height:30px !important;
+}
+</style>
+
+
+<style id="recoveryCleanFinal38">
+#modalCard.wide #recGrpMembers31{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(150px,1fr)) !important;
+  gap:7px !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  align-content:start !important;
+  padding:7px !important;
+  background:#f4f8fc !important;
+}
+#modalCard.wide .creaRecManagerMemberCard36{
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+}
+#modalCard.wide .creaRecStudentName36{
+  max-width:100% !important;
+}
+#modalCard.wide #recGrpStudentSearch31{
+  min-width:180px !important;
+}
+#modalCard.wide #recGrpCustomList31{
+  padding:4px !important;
+}
+#modalCard.wide .recoveryProjectDirect35{
+  padding:10px 11px !important;
+  margin-bottom:8px !important;
+  background:#ffffff !important;
+  border:1px solid #cbd5e1 !important;
+  border-left:5px solid #2563eb !important;
+  border-radius:10px !important;
+}
+#modalCard.wide .recoveryProjectDirectName35{
+  color:#1746a2 !important;
+  font-size:14px !important;
+  line-height:1.3 !important;
+  font-weight:800 !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+#modalCard.wide .recoveryProjectDirectMeta35{
+  font-size:10.5px !important;
+  margin-top:4px !important;
+}
+#modalCard.wide .recoveryProjectDirectActions35{
+  display:flex !important;
+  gap:6px !important;
+  margin-top:7px !important;
+}
+#modalCard.wide .recoveryProjectDirectActions35 button{
+  cursor:pointer !important;
+}
+@media(max-width:1050px){
+  #modalCard.wide #recGrpMembers31{
+    grid-template-columns:repeat(2,minmax(145px,1fr)) !important;
+  }
+}
+@media(max-width:760px){
+  #modalCard.wide #recGrpMembers31{
+    grid-template-columns:1fr !important;
+  }
+}
+</style>
+
+
+<style id="recoveryGroupMemberEditor40">
+#modalCard.wide .recEditGroup31{height:100%;display:flex;flex-direction:column;min-height:0;box-sizing:border-box;background:#f8fafc}
+#modalCard.wide .recEditHeader31{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px 16px;background:linear-gradient(135deg,#173b8f,#2563eb,#3b82f6);color:#fff;border-radius:12px;margin-bottom:8px}
+#modalCard.wide .recEditTitle31{font-size:20px;font-weight:800;line-height:1.2}.recEditProject31{font-size:16px;font-weight:800;margin-top:5px;overflow-wrap:anywhere}.recEditMeta31{font-size:11px;opacity:.9;margin-top:3px}
+#modalCard.wide .recEditClose31{border:0!important;border-radius:8px!important;background:rgba(255,255,255,.18)!important;color:#fff!important;font-size:18px!important;padding:6px 10px!important;cursor:pointer}
+#modalCard.wide .recEditNotice31{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:9px;padding:8px 10px;font-size:11px;margin-bottom:8px}
+#modalCard.wide .recEditTools31{display:flex;align-items:center;gap:7px;flex-wrap:nowrap;margin-bottom:7px}#modalCard.wide .recEditTools31 button{white-space:nowrap;min-height:34px}#modalCard.wide #recEditSearch31{flex:1;min-width:180px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;box-sizing:border-box}#modalCard.wide .recEditCount31{font-size:11px;font-weight:800;color:#1746a2;white-space:nowrap}
+#modalCard.wide .recEditSummary31{font-size:11px;color:#64748b;margin-bottom:6px}
+#modalCard.wide .recEditMembers31{flex:1;min-height:0;overflow:auto;padding:8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;background:#eef4fb;border:1px solid #d5e1ef;border-radius:10px;align-content:start}
+#modalCard.wide .recEditMember31{display:flex;align-items:center;gap:7px;min-width:0;min-height:42px;padding:7px 8px;border:1px solid #d7e3f1;border-radius:8px;background:#fff;box-sizing:border-box;cursor:pointer;font-size:11px;line-height:1.2}#modalCard.wide .recEditMember31:hover{border-color:#60a5fa;background:#f8fbff}#modalCard.wide .recEditMember31.blocked{background:#fff1f2;border-color:#fecaca;opacity:.72;cursor:not-allowed}#modalCard.wide .recEditMember31 input{flex:0 0 auto;width:16px;height:16px;margin:0}#modalCard.wide .recEditName31{min-width:0;flex:1;font-weight:700;color:#172033;overflow-wrap:anywhere}.recEditLock31{flex:0 0 auto}.recEditEmpty31{grid-column:1/-1;text-align:center;padding:30px;color:#64748b}
+#modalCard.wide .recEditMember31{position:relative;align-items:flex-start;padding:8px 9px;min-height:56px}
+#modalCard.wide .recEditMember31 .recEditReason31{display:block;flex:0 0 auto;max-width:150px;font-size:9px;line-height:1.15;font-weight:800;color:#b45309;white-space:normal;text-align:right;overflow-wrap:anywhere}
+#modalCard.wide .recEditMember31.blocked .recEditReason31{color:#b91c1c}
+#modalCard.wide .recEditMember31:not(.blocked) .recEditReason31{color:#92400e}
+
+#modalCard.wide .recEditFooter31{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:8px}#modalCard.wide .recEditFooter31>span{font-size:11px;font-weight:800;color:#475569}#modalCard.wide .recEditFooter31>div{display:flex;gap:7px}
+@media(max-width:1050px){#modalCard.wide .recEditMembers31{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:800px){#modalCard.wide .recEditMembers31{grid-template-columns:repeat(2,minmax(0,1fr))}#modalCard.wide .recEditTools31{flex-wrap:wrap}}
+</style>
+<!-- Indicador ♿ integrado en asistencia, registro de clase, recuperacion Crea, evaluaciones por componentes, proyecto y evaluacion final. -->
 </body>
 </html>
