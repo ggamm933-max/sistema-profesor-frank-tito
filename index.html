@@ -676,12 +676,19 @@ function saveBimesterFinalSnapshot31(k){
         process=5;
         automaticProcess05=true;
       }
-      if(project!==null && process!==null){
+      // Respetar la excepción configurada por GRADO + SECCIÓN también al cerrar el bimestre.
+      // Si el estudiante está en una sección marcada como solo Proceso,
+      // el Proyecto se conserva como evidencia, pero NO participa en la nota final.
+      const processOnly=isProcessOnlyGrade30(u);
+      if(processOnly){
+        final=process!==null ? process : null;
+        level=final===null ? '—' : classLevel(final);
+      }else if(project!==null && process!==null){
         final=project*.70+process*.30;
         level=classLevel(final);
       }
     }
-    snap[u.u]={project,process,final,level,savedAt:Date.now(),automaticProject05,automaticProjectComponents,automaticProcess05,
+    snap[u.u]={project,process,processOnly:isProcessOnlyGrade30(u),final,level,savedAt:Date.now(),automaticProject05,automaticProjectComponents,automaticProcess05,
       projectComponents:{portfolio,product,exposition}};
   });
   db.bimesterFinals[k]=snap;
@@ -1083,7 +1090,7 @@ function grades(){
  }).join("");
  return `<div class="card">
    <h2>📊 Evaluación final</h2>
-   <p class="muted">Detalle de notas de cada estudiante. El cálculo usa el mismo motor de evaluación del sistema: <b>Proyecto 70 % + Proceso 30 %</b>. Los componentes desactivados no ingresan al promedio.</p>
+   <p class="muted">Detalle de notas de cada estudiante. El cálculo usa el mismo motor de evaluación. Normalmente: <b>Proyecto 70 % + Proceso 30 %</b>. Los grados configurados como <b>solo Proceso</b> usan <b>Proceso 100 %</b> y excluyen el Proyecto.</p>
    <div style="overflow:auto;margin-top:15px">
     <table>
       <tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Proyecto 70 %</th><th>Proceso 30 %</th><th>Final</th><th>Nivel</th><th>Acción</th></tr>
@@ -1645,14 +1652,16 @@ function openStudentGradeDetailLEGACY(user){
 
   const processOn=db.evaluationConfig?.processEnabled!==false && activeProcessComponents().length>0;
   const formula = d.final==null ? "Pendiente" :
-    (!processOn ? `${fmtGradeDetail30(d.project)} × 100 %` :
-      `${fmtGradeDetail30(d.project)} × 70 % + ${fmtGradeDetail30(d.process)} × 30 % = ${fmtGradeDetail30(d.final)}`);
+    (d.processOnly ? `Excepción del grado: ${fmtGradeDetail30(d.process)} × 100 % = ${fmtGradeDetail30(d.final)}` :
+      (!processOn ? `${fmtGradeDetail30(d.project)} × 100 %` :
+        `${fmtGradeDetail30(d.project)} × 70 % + ${fmtGradeDetail30(d.process)} × 30 % = ${fmtGradeDetail30(d.final)}`));
 
   detailBody.innerHTML=`
     <h2>🔎 Detalle de notas</h2>
     <div class="card" style="background:#f8fafc;margin-bottom:15px">
       <h3 style="margin-bottom:6px">${escClass(st.name||st.u)}</h3>
       <div class="muted">${escClass(st.grade||"")} · Sección ${escClass(st.section||"")}</div>
+      ${d.processOnly?`<div class="badge ok" style="margin-top:8px">🎯 Excepción aplicada: solo Proceso (100 %)</div>`:''}
     </div>
 
     <div class="card" style="margin-bottom:15px">
@@ -4431,8 +4440,17 @@ function ensureClassData(){
   if(!Array.isArray(db.creaExpositionScores))db.creaExpositionScores=[];
   if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7};
-  if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true}};
+  if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true},processOnlyGrades:[]};
   if(typeof db.evaluationConfig.processEnabled!=='boolean')db.evaluationConfig.processEnabled=true;
+  if(!Array.isArray(db.evaluationConfig.processOnlyGrades))db.evaluationConfig.processOnlyGrades=[];
+  db.evaluationConfig.processOnlyGrades=db.evaluationConfig.processOnlyGrades.map(normalizeGradeCY30).filter(Boolean);
+  if(!Array.isArray(db.evaluationConfig.processOnlyClasses))db.evaluationConfig.processOnlyClasses=[];
+  db.evaluationConfig.processOnlyClasses=db.evaluationConfig.processOnlyClasses.map(x=>{
+    const parts=String(x||'').split('|');
+    const g=normalizeGradeCY30(parts[0]);
+    const sec=normalizeSectionCY30(parts[1]||'');
+    return g&&sec?`${g}|${sec}`:'';
+  }).filter(Boolean);
   const _ec=db.evaluationConfig.components||{};
   ['class','activities','participation','behavior','uniform','notebook','folder','exam'].forEach(k=>{if(typeof _ec[k]!=='boolean')_ec[k]=true});
   db.evaluationConfig.components=_ec;
@@ -4674,6 +4692,22 @@ function processAvg(u){
   const totalW=vals.reduce((s,x)=>s+x.w,0);
   return totalW?vals.reduce((s,x)=>s+x.v*x.w,0)/totalW:null;
 }
+function isProcessOnlyGrade30(userOrGrade){
+  ensureClassData();
+  const isObj=typeof userOrGrade==='object' && userOrGrade!==null;
+  const grade=isObj ? userOrGrade?.grade : userOrGrade;
+  const section=isObj ? normalizeSectionCY30(userOrGrade?.section||userOrGrade?.seccion) : '';
+  const c=db.evaluationConfig||{};
+  const selectedClasses=Array.isArray(c.processOnlyClasses)?c.processOnlyClasses:[];
+  // Nueva configuración: grado + sección.
+  if(selectedClasses.length && isObj){
+    const key=`${normalizeGradeCY30(grade)}|${section}`;
+    return selectedClasses.some(x=>String(x).toLowerCase()===key.toLowerCase());
+  }
+  // Compatibilidad con la configuración anterior por grado.
+  const selectedGrades=Array.isArray(c.processOnlyGrades)?c.processOnlyGrades:[];
+  return selectedGrades.some(g=>normalizeGradeCY30(g)===normalizeGradeCY30(grade));
+}
 function finalGrade(u){
   ensureClassData();
   const user=(db.users||[]).find(x=>x.u===u)||{};
@@ -4687,7 +4721,16 @@ function finalGrade(u){
   const capRecovery=n=>(attendanceReconsidered||creaRecovery)&&Number.isFinite(Number(n))?Math.min(14,Number(n)):n;
   const p=projectAvg(u);
   const processOn=db.evaluationConfig.processEnabled!==false && activeProcessComponents().length>0;
+  const processOnly=isProcessOnlyGrade30(user);
   const pr=processOn?processAvg(u):null;
+
+  // Excepción por grado: el Proyecto queda fuera del cálculo y
+  // el Proceso pasa a representar el 100 % de la nota final.
+  if(processOnly){
+    if(!processOn || pr===null)return null;
+    return capRecovery(pr);
+  }
+
   if(p===null&&pr===null)return null;
   if(p!==null && !processOn)return capRecovery(p);
   if(p===null)return capRecovery(pr);
@@ -4697,7 +4740,8 @@ function finalGrade(u){
 
 function evaluationDetail(u){
   const p=projectAvg(u), pr=processAvg(u), f=finalGrade(u);
-  return {project:p,process:pr,final:f,level:f===null?'—':classLevel(f)};
+  const st=(db.users||[]).find(x=>x.u===u)||{};
+  return {project:p,process:pr,processOnly:isProcessOnlyGrade30(st),final:f,level:f===null?'—':classLevel(f)};
 }
 function saveAndRenderEval(){save();render()}
 
@@ -7213,31 +7257,63 @@ function saveExpositionScores(){
 
 /* ===== CONFIGURACIÓN DE PESOS ===== */
 function evaluationConfig(){
-  ensureClassData();const w=db.evaluationWeights,c=db.evaluationConfig,active=c.components||{};
+  ensureClassData();
+  const w=db.evaluationWeights,c=db.evaluationConfig,active=c.components||{};
+  // Nueva configuración: cada casilla representa un grado + sección.
+  // Si todavía existe una configuración antigua solo por grado, se muestran
+  // A y B marcadas para facilitar la migración.
+  const classSelected=new Set((c.processOnlyClasses||[]).map(x=>String(x).toLowerCase()));
+  const legacyGrades=new Set((c.processOnlyGrades||[]).map(normalizeGradeCY30));
+  const sections=['A','B'];
+  const classChecks=['1','2','3','4','5'].flatMap(g=>sections.map(sec=>{
+    const key=`${g}|${sec}`.toLowerCase();
+    const on=classSelected.size ? classSelected.has(key) : legacyGrades.has(g);
+    return `<label style="display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #dbeafe;border-radius:10px;background:${on?'#eff6ff':'#fff'};cursor:pointer">
+      <input type="checkbox" class="processOnlyClass30" value="${g}|${sec}" ${on?'checked':''}>
+      <b>${g}.º ${sec}</b>
+    </label>`;
+  })).join('');
   const row=(key,icon,label)=>`<tr><td>${icon} ${label}</td><td>${w[key]}%</td><td><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" class="evalCompToggle30" data-key="${key}" ${active[key]!==false?'checked':''}> <span>${active[key]!==false?'Activo':'Desactivado'}</span></label></td></tr>`;
   return `<div class="card"><h2>⚙️ Configuración de evaluación</h2>
   <p class="muted">Puedes desactivar componentes que no vayas a utilizar. <b>Lo desactivado no entra en el promedio.</b> Los pesos activos del Proceso se redistribuyen proporcionalmente dentro del 30 %.</p>
-  <div class="item" style="margin-top:15px"><div><b>🚀 Proyecto — 70 %</b><div class="muted">Portafolio + Producto + Exposición.</div></div><span class="badge">Siempre activo</span></div>
-  <div class="item" style="margin-top:10px"><div><b>📚 Proceso — 30 %</b><div class="muted">Si desactivas todo el Proceso, la nota final se calcula con el Proyecto al 100 %.</div></div><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="processEnabled30" ${c.processEnabled!==false?'checked':''}> <b>Usar Proceso 30 %</b></label></div>
+
+  <div class="card" style="margin-top:15px;background:#fff7ed;border:1px solid #fed7aa">
+    <h3 style="margin-bottom:6px">🎯 Excepción por grado y sección: solo Proceso</h3>
+    <p class="muted" style="margin-top:0">Selecciona exactamente el <b>grado y la sección</b> donde <b>NO se tomará la nota del Proyecto</b>. En los grupos seleccionados, la nota final será <b>Proceso = 100 %</b>. El Proyecto seguirá guardado como evidencia, pero no afectará la nota final.</p>
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin-top:12px">${classChecks}</div>
+    <div class="alert" style="margin-top:12px">Ahora puedes elegir, por ejemplo, <b>3.º A</b> sin afectar a <b>3.º B</b>. Marca ambos si la excepción debe aplicarse a las dos secciones.</div>
+  </div>
+
+  <div class="item" style="margin-top:15px"><div><b>🚀 Proyecto — 70 %</b><div class="muted">Portafolio + Producto + Exposición.</div></div><span class="badge">Normal</span></div>
+  <div class="item" style="margin-top:10px"><div><b>📚 Proceso — 30 %</b><div class="muted">En los grupos marcados arriba, el Proceso pasa automáticamente a 100 %.</div></div><label style="display:flex;align-items:center;gap:8px;margin:0"><input type="checkbox" id="processEnabled30" ${c.processEnabled!==false?'checked':''}> <b>Usar Proceso</b></label></div>
   <h3 style="margin-top:18px">Componentes del Proceso</h3><div style="overflow:auto"><table><tr><th>Componente</th><th>Peso base</th><th>Estado</th></tr>
   ${row('class','📝','Registro de clase')}${row('activities','💻','Desarrollo de actividades')}${row('participation','🙋','Participación')}${row('behavior','🧑‍🏫','Conducta')}${row('uniform','👕','Uniforme')}${row('notebook','📓','Cuaderno')}${row('folder','📁','Folder')}${row('exam','📋','Examen / Fichas')}</table></div>
   <div class="actions" style="margin-top:15px"><button onclick="saveEvaluationConfig30()">💾 Guardar configuración</button><button class="secondary" onclick="enableAllEvaluationComponents30()">↺ Activar todos</button></div>
-  <div id="evalConfigInfo30" class="card" style="margin-top:15px"><b>Cómo funcionará:</b><br>• Proyecto activo = 70 %.<br>• Proceso activo = 30 %.<br>• Si apagas un componente del Proceso, su peso se reparte entre los componentes activos.<br>• Si apagas todo el Proceso, <b>Proyecto = 100 %</b> y no se perjudica el promedio por componentes vacíos.</div></div>`;
+  <div id="evalConfigInfo30" class="card" style="margin-top:15px"><b>Cómo funcionará:</b><br>• Normal: Proyecto 70 % + Proceso 30 %.<br>• Selecciones de <b>grado + sección</b> marcadas en “solo Proceso”: Proceso 100 % y Proyecto 0 %.<br>• Si apagas un componente del Proceso, su peso se reparte entre los componentes activos.</div></div>`;
 }
 function saveEvaluationConfig30(){
   ensureClassData();
-  const c=db.evaluationConfig;c.processEnabled=document.getElementById('processEnabled30')?.checked!==false;c.components=c.components||{};
+  const c=db.evaluationConfig;
+  c.processEnabled=document.getElementById('processEnabled30')?.checked!==false;
+  c.components=c.components||{};
   document.querySelectorAll('.evalCompToggle30').forEach(x=>{c.components[x.dataset.key]=x.checked});
+  c.processOnlyClasses=[...document.querySelectorAll('.processOnlyClass30:checked')].map(x=>String(x.value));
+  // Al guardar la nueva configuración, la opción antigua "por grado" deja de
+  // gobernar para evitar que un grado completo siga afectado por accidente.
+  c.processOnlyGrades=[];
   const activos=activeProcessComponents().map(x=>x[0]);
   if(c.processEnabled && !activos.length){
-    alert('Has desactivado todos los componentes del Proceso. Se usará solamente el Proyecto al 100 %.');
+    alert('Has desactivado todos los componentes del Proceso. No se puede aplicar "solo Proceso" porque no habría componentes para calcular.');
     c.processEnabled=false;
     document.getElementById('processEnabled30').checked=false;
   }
   save();
+  const grupos=c.processOnlyClasses.length?c.processOnlyClasses.map(x=>{
+    const [g,sec]=x.split('|'); return `${g}.º ${sec}`;
+  }).join(', '):'ninguno';
   const texto=(!c.processEnabled)
-    ? 'Proceso desactivado. Proyecto = 100 %.\n\nLa configuración quedó guardada.'
-    : `Configuración guardada.\n\nProceso activo con ${activos.length} componente(s).\nLos desactivados no entran en el promedio.`;
+    ? 'Proceso desactivado. Se mantiene la configuración general del Proyecto.'
+    : `Configuración guardada.\n\nGrado/sección con SOLO PROCESO (100 %): ${grupos}.`;
   alert('✅ '+texto);
   render();
 }
