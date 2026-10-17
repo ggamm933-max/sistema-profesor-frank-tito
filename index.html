@@ -102,99 +102,6 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
   window.dispatchEvent(new Event("firebase-ready"));
 </script>
 
-
-<style id="print-registro-auxiliar-only">
-@media print {
-  /* Al imprimir, mostrar únicamente el Registro Auxiliar */
-  body * { visibility: hidden !important; }
-  .aux-register-page, .aux-register-page * { visibility: visible !important; }
-  .aux-register-page {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-  }
-  .aux-register-page .no-print { display: none !important; }
-  .aux-register-page h2 { margin-top: 0 !important; }
-  /* Encabezado de impresión compacto */
-  .aux-register-page .aux-print-header {
-    text-align: center !important;
-    margin: 0 0 6px !important;
-    padding: 0 !important;
-    line-height: 1.05 !important;
-  }
-  .aux-register-page .aux-print-header h1 {
-    font-size: 15px !important;
-    margin: 0 0 2px !important;
-    line-height: 1.05 !important;
-  }
-  .aux-register-page .aux-print-header h2 {
-    font-size: 12px !important;
-    margin: 0 0 3px !important;
-    line-height: 1.05 !important;
-  }
-  .aux-register-page .aux-print-header p {
-    font-size: 8px !important;
-    margin: 1px 0 !important;
-    line-height: 1.1 !important;
-  }
-  .aux-register-page .aux-register-table {
-    font-size: 8px !important;
-  }
-  /* En impresión no mostrar la fila secundaria de evidencias (Producto, Registro de clase, etc.).
-     En pantalla sí permanece visible y funcional. */
-  /* Mantener la segunda fila estructural del encabezado para que los rowspan no descuadren al primer estudiante.
-     Sus textos/bordes quedan invisibles en impresión. En pantalla permanece normal. */
-  .aux-register-page .aux-register-table tr.aux-evidence-header {
-    visibility: hidden !important;
-    height: 0 !important;
-    line-height: 0 !important;
-  }
-  .aux-register-page .aux-register-table tr.aux-evidence-header th {
-    visibility: hidden !important;
-    height: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    line-height: 0 !important;
-    font-size: 0 !important;
-  }
-  .aux-register-page .aux-register-table th {
-    font-size: 7.5px !important;
-    padding: 3px 2px !important;
-    line-height: 1.05 !important;
-    background: transparent !important;
-    color: #000 !important;
-  }
-  /* En pantalla las calificaciones son botones azules para poder abrir el detalle.
-     Al imprimir, deben verse únicamente como calificaciones normales, sin sombreado. */
-  .aux-register-page .aux-register-table button.aux-cap-btn,
-  .aux-register-page .aux-register-table td button {
-    background: transparent !important;
-    color: #000 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    min-width: 0 !important;
-    font: inherit !important;
-    font-weight: inherit !important;
-    text-decoration: none !important;
-  }
-  .aux-register-page .aux-register-table td {
-    font-size: 8px !important;
-    padding: 3px 2px !important;
-    line-height: 1.05 !important;
-  }
-  .aux-register-page .aux-print-note {
-    font-size: 7px !important;
-  }
-  @page { margin: 8mm; }
-}
-</style>
 </head>
 <body>
 <div id="login" class="login">
@@ -253,8 +160,87 @@ const seed = {
 let db=JSON.parse(localStorage.getItem("aulaEPT")||JSON.stringify(seed));
 if(!Array.isArray(db.classRecoveryLinks))db.classRecoveryLinks=[];
 let me=null, page="home";
+const AUTO_BACKUP_KEY = "aulaEPT_auto_backups_v2";
+const AUTO_BACKUP_LIMIT = 5;
+let autoBackupLastSignature = JSON.stringify(db);
+let autoBackupLastSavedDb = JSON.parse(JSON.stringify(db));
+let autoBackupWatchTimer = null;
+
+function dbSignature(obj=db){
+  try{return JSON.stringify(obj);}catch(e){return "";}
+}
+
+function createAutoBackup(reason="Cambio automático"){
+  try{
+    const current = JSON.parse(JSON.stringify(db));
+    const signature = dbSignature(current);
+    if(signature && signature === autoBackupLastSignature) return false;
+    let history = JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY) || "[]");
+    if(!Array.isArray(history)) history=[];
+    history.unshift({
+      id: Date.now(),
+      savedAt: new Date().toISOString(),
+      reason,
+      db: current
+    });
+    // Conservamos varias versiones, pero limitadas para no llenar el almacenamiento del navegador.
+    for(let limit=AUTO_BACKUP_LIMIT; limit>=1; limit--){
+      try{
+        localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(history.slice(0,limit)));
+        autoBackupLastSignature=signature;
+        return true;
+      }catch(e){
+        // Si el navegador no tiene espacio, reducimos la cantidad de copias y reintentamos.
+      }
+    }
+    console.error("Respaldo automático: almacenamiento insuficiente");
+  }catch(error){
+    console.error("Respaldo automático: no se pudo crear", error);
+  }
+  return false;
+}
+
+function getAutoBackups(){
+  try{
+    const x=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"[]");
+    return Array.isArray(x)?x:[];
+  }catch(e){ return []; }
+}
+
+// RESPALDO AUTOMÁTICO REAL: detecta cambios aunque el usuario no pulse Guardar.
+// Guarda la versión ANTERIOR al detectar un cambio, para que una modificación
+// accidental o una sincronización posterior pueda recuperarse.
+function startAutomaticBackupWatcher(){
+  if(autoBackupWatchTimer) clearInterval(autoBackupWatchTimer);
+  autoBackupLastSignature=dbSignature();
+  autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+  autoBackupWatchTimer=setInterval(()=>{
+    const currentSignature=dbSignature();
+    if(currentSignature && currentSignature!==autoBackupLastSignature){
+      try{
+        const previous=autoBackupLastSavedDb;
+        const history=JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)||"[]");
+        if(Array.isArray(history)){
+          history.unshift({
+            id:Date.now(),
+            savedAt:new Date().toISOString(),
+            reason:"Antes del cambio detectado automáticamente",
+            db:JSON.parse(JSON.stringify(previous))
+          });
+          localStorage.setItem(AUTO_BACKUP_KEY,JSON.stringify(history.slice(0,AUTO_BACKUP_LIMIT)));
+        }
+      }catch(e){ console.error("Respaldo automático: no se pudo guardar la versión anterior",e); }
+      autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+      autoBackupLastSignature=currentSignature;
+    }
+  },1000);
+}
+
 function save(){
+  // Guardado manual opcional. El respaldo automático NO depende de este botón.
   localStorage.setItem("aulaEPT",JSON.stringify(db));
+  autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+  autoBackupLastSignature=dbSignature();
   if(typeof saveToFirebase === "function") saveToFirebase();
 }
 
@@ -281,11 +267,9 @@ async function loadFromFirebase(){
     );
     if(snap.exists() && snap.data().data){
       db = snap.data().data;
-      // Reparar inmediatamente después de cargar Firebase. Esto evita que los
-      // datos antiguos vuelvan a mostrarse por una sincronización posterior.
-      const repaired = (typeof repairSessionClassLinks30 === 'function') ? repairSessionClassLinks30() : false;
       localStorage.setItem("aulaEPT", JSON.stringify(db));
-      if(repaired){ try{ await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"), {data:db, updatedAt:Date.now()}); }catch(e){} }
+      autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+      autoBackupLastSignature=dbSignature(db);
       if(typeof render === "function") render();
       return true;
     }
@@ -303,14 +287,21 @@ function startFirebaseSync(){
     if(typeof firebaseUnsubscribe === "function") firebaseUnsubscribe();
     firebaseUnsubscribe=window.firebaseOnSnapshot(
       window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-      async (snap)=>{
+      (snap)=>{
         if(snap.exists() && snap.data().data){
-          db=snap.data().data;
-          // Cada actualización de Firebase vuelve a pasar por la reparación,
-          // porque otro dispositivo puede devolver la versión antigua.
-          const repairedSnap=(typeof repairSessionClassLinks30 === 'function') ? repairSessionClassLinks30() : false;
+          const incoming=snap.data().data;
+          const incomingSignature=dbSignature(incoming);
+          const currentSignature=dbSignature(db);
+          // Antes de aceptar una versión diferente desde Firebase, protegemos
+          // la versión local actual para que una sincronización no destruya datos
+          // sin dejar una copia recuperable.
+          if(incomingSignature && incomingSignature!==currentSignature){
+            createAutoBackup("Antes de sincronización Firebase");
+          }
+          db=incoming;
           localStorage.setItem("aulaEPT",JSON.stringify(db));
-          if(repairedSnap){ try{ await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"), {data:db, updatedAt:Date.now()}); }catch(e){} }
+          autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+          autoBackupLastSignature=incomingSignature;
           // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
           // No reconstruimos el cuadro de texto porque eso hacía que el cursor
           // saltara, el modal se moviera y el usuario perdiera la posición al escribir.
@@ -442,201 +433,12 @@ function ensureBioPlasticoMembers31(){
   return changed;
 }
 
-
-/* ===== INTEGRIDAD REFERENCIAL DE SESIONES =====
-   Una sesión es la fuente de verdad. Si se elimina, no deben quedar
-   registros de clase, evaluaciones, recuperaciones, exposiciones ni
-   componentes apuntando a esa sesión. Los registros sin sesión que son
-   recuperaciones independientes (p. ej. Cuaderno) se conservan.
-*/
-function purgeOrphanSessionData30(){
-  const valid=new Set((db.sessions||[]).map(s=>String(s.id)));
-  let changed=false;
-  const beforeCR=(db.classRecords||[]).length;
-  if(Array.isArray(db.classRecords)) db.classRecords=db.classRecords.filter(r=>r&&r.session!=null&&r.session!==''&&valid.has(String(r.session)));
-  if(db.classRecords.length!==beforeCR) changed=true;
-  const classIds=new Set((db.classRecords||[]).map(r=>String(r.id)));
-  if(Array.isArray(db.classEvaluations)){
-    const before=db.classEvaluations.length;
-    db.classEvaluations=db.classEvaluations.filter(e=>!e.classId || classIds.has(String(e.classId)));
-    if(db.classEvaluations.length!==before) changed=true;
-  }
-  if(Array.isArray(db.classRecoveries)){
-    const before=db.classRecoveries.length;
-    db.classRecoveries=db.classRecoveries.filter(r=>!r.classId || classIds.has(String(r.classId)));
-    if(db.classRecoveries.length!==before) changed=true;
-  }
-  ['activitiesGrades','participations','behaviorGrades','uniformGrades','notebookGrades','folderGrades','examGrades'].forEach(key=>{
-    if(!Array.isArray(db[key])) return;
-    const before=db[key].length;
-    db[key]=db[key].filter(r=>{
-      const sid=r?.sessionId ?? r?.session ?? '';
-      return !sid || valid.has(String(sid));
-    });
-    if(db[key].length!==before) changed=true;
-  });
-  if(db.expositionRubric&&Array.isArray(db.expositionRubric.scores)){
-    const before=db.expositionRubric.scores.length;
-    db.expositionRubric.scores=db.expositionRubric.scores.filter(r=>!r?.sessionId || valid.has(String(r.sessionId)));
-    if(db.expositionRubric.scores.length!==before) changed=true;
-  }
-  return changed;
-}
-
-function cleanupSessionReferences30(sessionId){
-  const sid=String(sessionId);
-  const classIds=new Set();
-  if(Array.isArray(db.classRecords)){
-    db.classRecords.forEach(r=>{if(String(r?.session||'')===sid && r.id!=null) classIds.add(String(r.id));});
-    db.classRecords=db.classRecords.filter(r=>String(r?.session||'')!==sid);
-  }
-  if(Array.isArray(db.classEvaluations)) db.classEvaluations=db.classEvaluations.filter(e=>!classIds.has(String(e?.classId||'')) && String(e?.sessionId||'')!==sid);
-  if(Array.isArray(db.classRecoveries)) db.classRecoveries=db.classRecoveries.filter(r=>!classIds.has(String(r?.classId||'')) && String(r?.sessionId||'')!==sid);
-  if(Array.isArray(db.classRecoveryLinks)) db.classRecoveryLinks=db.classRecoveryLinks.filter(r=>!classIds.has(String(r?.sourceClassId||''))&&!classIds.has(String(r?.targetClassId||'')) && String(r?.sessionId||'')!==sid);
-  ['activitiesGrades','participations','behaviorGrades','uniformGrades','notebookGrades','folderGrades','examGrades'].forEach(key=>{
-    if(Array.isArray(db[key])) db[key]=db[key].filter(r=>String(r?.sessionId ?? r?.session ?? '')!==sid);
-  });
-  if(db.expositionRubric&&Array.isArray(db.expositionRubric.scores)) db.expositionRubric.scores=db.expositionRubric.scores.filter(r=>String(r?.sessionId||'')!==sid);
-  // Una sesión de recuperación que dependía de esta sesión también debe desaparecer.
-  const childIds=new Set((db.sessions||[]).filter(s=>String(s?.recoveryOfSession||'')===sid).map(s=>String(s.id)));
-  if(childIds.size){
-    db.sessions=db.sessions.filter(s=>!childIds.has(String(s.id)));
-    if(Array.isArray(db.materials)) db.materials=db.materials.filter(m=>!childIds.has(String(m?.session||'')));
-    if(Array.isArray(db.activities)) db.activities=db.activities.filter(a=>!childIds.has(String(a?.session||'')));
-    const childClassIds=new Set();
-    if(Array.isArray(db.classRecords)){
-      db.classRecords.forEach(r=>{if(childIds.has(String(r?.session||''))&&r.id!=null)childClassIds.add(String(r.id));});
-      db.classRecords=db.classRecords.filter(r=>!childIds.has(String(r?.session||'')));
-    }
-    if(Array.isArray(db.classEvaluations)) db.classEvaluations=db.classEvaluations.filter(e=>!childClassIds.has(String(e?.classId||'')));
-    if(Array.isArray(db.classRecoveries)) db.classRecoveries=db.classRecoveries.filter(r=>!childClassIds.has(String(r?.classId||'')));
-    if(db.expositionRubric&&Array.isArray(db.expositionRubric.scores)) db.expositionRubric.scores=db.expositionRubric.scores.filter(r=>!childIds.has(String(r?.sessionId||'')));
-  }
-}
-
 window.addEventListener("firebase-ready", async ()=>{
   const exists = await loadFromFirebase();
   const changed = ensureBioPlasticoMembers31();
-  const repaired = repairSessionClassLinks30();
-  const fixedSession5Date = forceSession5Date2026_09_23();
-  const orphanCleanup = purgeOrphanSessionData30();
-  const syncedClosedProcess = syncClosedProcessSnapshots30();
-  if(!exists || changed || repaired || fixedSession5Date || orphanCleanup || syncedClosedProcess) await saveToFirebase();
+  if(!exists || changed) await saveToFirebase();
   startFirebaseSync();
 });
-
-/* ===== REPARACIÓN DE VÍNCULO SESIÓN ↔ REGISTRO DE CLASE =====
-   Corrige registros antiguos de sesiones que quedaron guardados sin sessionId
-   o con una fecha vieja. La sesión es la fuente de verdad para fecha, título y número.
-*/
-function forceSession5Date2026_09_23(){
-  if(!Array.isArray(db.sessions)) return false;
-  let changed=false;
-  (db.sessions||[]).forEach(s=>{
-    if(String(s.grade)==='1.º' && String(s.section||'')==='A' && Number(s.number||0)===5){
-      if(String(s.date||'').slice(0,10)!=='2026-09-23'){s.date='2026-09-23';changed=true;}
-      if(s.dateByGradeSection && typeof s.dateByGradeSection==='object' && s.dateByGradeSection['1.º|A']!=='2026-09-23'){s.dateByGradeSection['1.º|A']='2026-09-23';changed=true;}
-    }
-  });
-  (db.classRecords||[]).forEach(r=>{
-    if(String(r.grade||'')==='1.º' && String(r.section||'')==='A' && (Number(r.sessionNumber||0)===5 || String(r.session||'').includes('5'))){
-      if(String(r.date||'').slice(0,10)!=='2026-09-23'){r.date='2026-09-23';changed=true;}
-    }
-  });
-  return changed;
-}
-
-function repairSessionClassLinks30(){
-  if(!Array.isArray(db.sessions)||!Array.isArray(db.classRecords)) return false;
-  let changed=false;
-  const norm=v=>String(v??'').trim().toUpperCase().replace(/\s+/g,' ');
-
-  // 1) Todo registro ya vinculado a una sesión adopta la fecha/título actuales
-  // de esa sesión para evitar que una fecha antigua (p. ej. 2026-09-02) se repita.
-  db.classRecords.forEach(r=>{
-    if(!r.session) return;
-    const ses=(db.sessions||[]).find(s=>String(s.id)===String(r.session));
-    if(!ses) return;
-    const d=sessionDateForGradeSection(ses,r.grade,r.section)||ses.date||'';
-    if(d && String(r.date||'')!==String(d)){r.date=d;changed=true;}
-    if(String(r.title||'')!==String(ses.title||'')){r.title=ses.title||r.title||'';changed=true;}
-    if(String(r.unit||'')!==String(ses.unit||'')){r.unit=ses.unit;changed=true;}
-    if(String(r.sessionNumber||'')!==String(ses.number||'')){r.sessionNumber=ses.number||'';changed=true;}
-    if(String(r.sessionTitle||'')!==String(ses.title||'')){r.sessionTitle=ses.title||'';changed=true;}
-  });
-
-  // 1.5) Eliminar el registro antiguo del 02/09/2026 de 1.º A.
-  // Quedó guardado como recuperación/sesión 1 y no corresponde al registro
-  // actual de clase. Debe desaparecer también de los detalles y promedios.
-  const staleIds=new Set();
-  const beforeOrphans=(db.classRecords||[]).length;
-  (db.classRecords||[]).forEach(r=>{
-    const isStale=String(r.grade||'')==='1.º' && String(r.section||'')==='A' && String(r.date||'').slice(0,10)==='2026-09-02';
-    if(isStale && r.id) staleIds.add(String(r.id));
-  });
-  db.classRecords=(db.classRecords||[]).filter(r=>!(String(r.grade||'')==='1.º' && String(r.section||'')==='A' && String(r.date||'').slice(0,10)==='2026-09-02'));
-  if(db.classRecords.length!==beforeOrphans) changed=true;
-
-  // Quitar también las notas/referencias asociadas al registro eliminado.
-  if(staleIds.size && Array.isArray(db.classEvaluations)){
-    const before=db.classEvaluations.length;
-    db.classEvaluations=db.classEvaluations.filter(x=>!staleIds.has(String(x.classId||'')));
-    if(db.classEvaluations.length!==before) changed=true;
-  }
-  if(staleIds.size && Array.isArray(db.classRecoveries)){
-    const before=db.classRecoveries.length;
-    db.classRecoveries=db.classRecoveries.filter(x=>!staleIds.has(String(x.classId||'')));
-    if(db.classRecoveries.length!==before) changed=true;
-  }
-  if(staleIds.size && Array.isArray(db.classRecoveryLinks)){
-    const before=db.classRecoveryLinks.length;
-    db.classRecoveryLinks=db.classRecoveryLinks.filter(x=>!staleIds.has(String(x.sourceClassId||''))&&!staleIds.has(String(x.targetClassId||'')));
-    if(db.classRecoveryLinks.length!==before) changed=true;
-  }
-
-  // 1.6) Limpiar también las notas de recuperación/evaluación asociadas al
-  // antiguo registro MEJORAMOS del 02/09/2026 en 1.º A. Estas notas eran las
-  // que seguían apareciendo como "Origen: Recuperación" aunque el registro
-  // de clase ya no debía mostrarlas.
-  const oldClassIds=new Set();
-  // Los registros ya fueron filtrados arriba; por eso buscamos los ids en las
-  // estructuras auxiliares antes de eliminar sus referencias.
-  // Se conservan las demás recuperaciones y evaluaciones del sistema.
-  if(Array.isArray(db.classRecoveries)){
-    const before=db.classRecoveries.length;
-    db.classRecoveries=db.classRecoveries.filter(r=>!(String(r.date||'').slice(0,10)==='2026-09-02' && norm(r.title)==='MEJORAMOS' && String(r.grade||'')==='1.º' && String(r.section||'')==='A'));
-    if(db.classRecoveries.length!==before) changed=true;
-  }
-  if(Array.isArray(db.classEvaluations)){
-    const before=db.classEvaluations.length;
-    db.classEvaluations=db.classEvaluations.filter(r=>!(String(r.date||'').slice(0,10)==='2026-09-02' && norm(r.title)==='MEJORAMOS' && String(r.grade||'')==='1.º' && String(r.section||'')==='A'));
-    if(db.classEvaluations.length!==before) changed=true;
-  }
-
-  // 2) Para 1.º A, reparar específicamente las sesiones 5 y 6 que ya existen.
-  // Si hay un registro antiguo con el mismo título, se enlaza a esa sesión.
-  // Si no existe, se crea el registro vacío para que aparezca en Registro de clase.
-  const targets=(db.sessions||[]).filter(s=>String(s.grade)==='1.º' && String(s.section||'')==='A' && [5,6].includes(Number(s.number||0)) && s.sessionType!=='recovery');
-  targets.forEach(ses=>{
-    const d=sessionDateForGradeSection(ses,'1.º','A')||ses.date||'';
-    let rec=db.classRecords.find(r=>String(r.session||'')===String(ses.id)&&String(r.grade||'')==='1.º'&&String(r.section||'')==='A');
-    if(!rec){
-      rec=db.classRecords.find(r=>!r.session && String(r.grade||'')==='1.º' && String(r.section||'')==='A' && norm(r.title)===norm(ses.title));
-      if(rec){
-        rec.session=ses.id;rec.unit=ses.unit;rec.sessionNumber=ses.number||'';rec.sessionTitle=ses.title||'';rec.date=d||rec.date;changed=true;
-      }
-    }
-    if(!rec){
-      rec={id:'class_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),date:d||ses.date||'',title:ses.title||'',purpose:ses.description||'',criteria:'',grade:'1.º',section:'A',activity:'',session:ses.id,unit:ses.unit,sessionNumber:ses.number||'',sessionTitle:ses.title||'',createdAt:Date.now()};
-      db.classRecords.push(rec);changed=true;
-    }
-    // Si el registro ya existía pero conservaba la fecha antigua, corregirla.
-    if(d && String(rec.date||'')!==String(d)){rec.date=d;changed=true;}
-    if(String(rec.title||'')!==String(ses.title||'')){rec.title=ses.title||rec.title||'';changed=true;}
-  });
-
-  return changed;
-}
 
 function refreshDB29(){
  try{
@@ -934,61 +736,6 @@ function removeAutomaticExposition05_31(bimesterKey){
   return before-db.expositionRubric.scores.length;
 }
 
-// Recuperación Crea y Emprende: al cerrar el bimestre, Portafolio y Exposición
-// son evidencias obligatorias. Si alguna sigue pendiente, se registra 05 automático.
-// El Producto es opcional y por eso NO recibe 05 por este cierre.
-function convertPendingCreaRecovery05_31(bimesterKey){
-  ensureClassData();
-  const bs=getBimesterClose30(), b=bs[bimesterKey]||{};
-  if(!b.start||!b.end) return 0;
-  if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
-  const students=(db.users||[]).filter(u=>u.role==='student'&&u.creaRecovery===true&&!studentIsRetired32(u));
-  let count=0;
-  students.forEach(st=>{
-    let r=db.creaRecoveryEvaluations.find(x=>String(x.user)===String(st.u));
-    if(!r){
-      r={id:'crec_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),user:st.u};
-      db.creaRecoveryEvaluations.push(r);
-    }
-    ['portfolio','exposition'].forEach(field=>{
-      const v=r[field];
-      const valid=v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
-      if(valid)return;
-      r[field]=5;
-      r[field+'AutomaticClose05']=true;
-      r[field+'Bimester']=bimesterKey;
-      r.updatedAt=Date.now();
-      count++;
-    });
-  });
-  return count;
-}
-
-function removeAutomaticCreaRecovery05_31(bimesterKey){
-  if(!Array.isArray(db.creaRecoveryEvaluations))return 0;
-  let removed=0;
-  db.creaRecoveryEvaluations.forEach(r=>{
-    if(!r)return;
-    ['portfolio','exposition'].forEach(field=>{
-      if(r[field+'AutomaticClose05']===true && r[field+'Bimester']===bimesterKey){
-        delete r[field];
-        delete r[field+'AutomaticClose05'];
-        delete r[field+'Bimester'];
-        r.updatedAt=Date.now();
-        removed++;
-      }
-    });
-  });
-  // Eliminar únicamente registros que fueron creados por el cierre y quedaron vacíos.
-  const before=db.creaRecoveryEvaluations.length;
-  db.creaRecoveryEvaluations=db.creaRecoveryEvaluations.filter(r=>{
-    if(!r)return false;
-    const keys=Object.keys(r).filter(k=>!['id','user','updatedAt'].includes(k));
-    return keys.length>0;
-  });
-  return removed+(before-db.creaRecoveryEvaluations.length);
-}
-
 function saveBimesterFinalSnapshot31(k){
   ensureClassData();
   if(!db.bimesterFinals||typeof db.bimesterFinals!=='object')db.bimesterFinals={};
@@ -1038,37 +785,6 @@ function saveBimesterFinalSnapshot31(k){
   });
   db.bimesterFinals[k]=snap;
 }
-function syncClosedProcessSnapshots30(){
-  ensureClassData();
-  if(!db.bimesterFinals || typeof db.bimesterFinals!=='object') return false;
-  const bs=getBimesterClose30();
-  let changed=false;
-  ['III','IV'].forEach(k=>{
-    if(!bs[k]?.closed || !db.bimesterFinals[k]) return;
-    (db.users||[]).filter(u=>u.role==='student').forEach(u=>{
-      const snap=db.bimesterFinals[k][u.u];
-      if(!snap) return;
-      const currentProcess=processAvg(u.u);
-      if(currentProcess===null || !Number.isFinite(Number(currentProcess))) return;
-      const old=Number(snap.process);
-      if(!Number.isFinite(old) || Math.abs(old-Number(currentProcess))>0.001){
-        snap.process=Number(currentProcess);
-        const p=Number(snap.project);
-        const processOnly=isProcessOnlyGrade30(u);
-        snap.processOnly=processOnly;
-        if(processOnly){
-          snap.final=Number(currentProcess);
-        }else if(Number.isFinite(p)){
-          snap.final=p*.70+Number(currentProcess)*.30;
-        }
-        snap.level=snap.final===null||!Number.isFinite(Number(snap.final))?'—':classLevel(Number(snap.final));
-        snap.processSyncedAt=Date.now();
-        changed=true;
-      }
-    });
-  });
-  return changed;
-}
 function clearBimesterFinalSnapshot31(k){
   if(db.bimesterFinals&&typeof db.bimesterFinals==='object')delete db.bimesterFinals[k];
 }
@@ -1081,10 +797,9 @@ function closeBimester30(k){
       db.classRecoveries=(db.classRecoveries||[]).filter(r=>!(r && r.automaticClose05===true && r.bimester===k));
       const removed=before-db.classRecoveries.length;
       const removedExpo=removeAutomaticExposition05_31(k);
-      const removedCreaRecovery=removeAutomaticCreaRecovery05_31(k);
       const removedNotebook=removeAutomaticNotebook05_31(k);
       clearBimesterFinalSnapshot31(k);
-      b.closed=false;b.converted=0;save();alert(`🔓 ${k} Bimestre reabierto.\n\n${removed} 05 automático(s) de recuperación de sesiones eliminado(s).\n${removedCreaRecovery} 05 automático(s) de Recuperación Crea y Emprende eliminado(s).\nLas notas manuales y de recuperación se conservaron.\n${removedNotebook} 05 de Cuaderno automático(s) eliminado(s).\n\n📊 La evaluación final vuelve a estar disponible para modificar.`);render();
+      b.closed=false;b.converted=0;save();alert(`🔓 ${k} Bimestre reabierto.\n\n${removed} 05 automático(s) generado(s) por este cierre eliminado(s).\nLas notas manuales y de recuperación se conservaron.\n${removedNotebook} 05 de Cuaderno automático(s) eliminado(s).\n\n📊 La evaluación final vuelve a estar disponible para modificar.`);render();
     }
     return;
   }
@@ -1096,14 +811,13 @@ Las recuperaciones pendientes se convertirán automáticamente en 05. En el Proy
 La evaluación final quedará registrada.`))return;
   const n=convertPendingRecoveriesToZero30(k);
   const nExpo=convertPendingExpositionTo05_31(k);
-  const nCreaRecovery=convertPendingCreaRecovery05_31(k);
   const nNotebook=convertPendingNotebook05_31(k);
   saveBimesterFinalSnapshot31(k);
   b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
   if(k==='III'){
     bs.IV.enabled=true;
   }
-  save();alert(`🔒 ${k} Bimestre cerrado.\n\n${n} pendiente(s) de recuperación + ${nCreaRecovery} evidencia(s) de Recuperación Crea y Emprende + ${nNotebook} nota(s) de Cuaderno → 05.\n${nExpo} nota(s) de exposición → 05.\n\n📊 La evaluación final fue registrada automáticamente para este cierre.${k==='III'?'\n\n🟢 IV Bimestre habilitado. Coloca su fecha de cierre manualmente.':''}`);render();
+  save();alert(`🔒 ${k} Bimestre cerrado.\n\n${n} pendiente(s) de recuperación + ${nNotebook} nota(s) de Cuaderno → 05.\n${nExpo} nota(s) de exposición → 05.\n\n📊 La evaluación final fue registrada automáticamente para este cierre.${k==='III'?'\n\n🟢 IV Bimestre habilitado. Coloca su fecha de cierre manualmente.':''}`);render();
 }
 function checkBimesterClosures30(show){
   const bs=getBimesterClose30(),today=todayLocal30(),done=[];
@@ -1118,11 +832,10 @@ function checkBimesterClosures30(show){
     if(b.enabled&&b.date&&today>=b.date){
       const n=convertPendingRecoveriesToZero30(k);
       const nExpo=convertPendingExpositionTo05_31(k);
-      const nCreaRecovery=convertPendingCreaRecovery05_31(k);
       const nNotebook=convertPendingNotebook05_31(k);
       b.closed=true;b.closedAt=new Date().toISOString();b.converted=n;
       if(k==='III') bs.IV.enabled=true;
-      done.push(`${k} Bimestre: ${n} recuperación(es) + ${nCreaRecovery} evidencia(s) de Recuperación Crea y Emprende + ${nNotebook} nota(s) de Cuaderno + ${nExpo} nota(s) de exposición → 05`);
+      done.push(`${k} Bimestre: ${n} recuperación(es) + ${nNotebook} nota(s) de Cuaderno + ${nExpo} nota(s) de exposición → 05`);
     }
   });
   if(done.length){save();if(show)alert('🔒 Cierre procesado:\n\n'+done.join('\n'));}
@@ -1572,10 +1285,6 @@ function getStudentClassDetail30(u){
   const recovs=Array.isArray(db.classRecoveries)?db.classRecoveries:[];
   const result=[];const seen=new Set();
   records.filter(r=>r&&r.id).forEach(r=>{
-    const stu=(db.users||[]).find(x=>x.role==='student'&&String(x.u)===String(u));
-    // No mostrar en el detalle ningún registro antiguo del 02/09/2026
-    // de 1.º A; esa fecha ya no corresponde al Registro de clase actual.
-    if(stu && String(stu.grade||'')==='1.º' && String(stu.section||'')==='A' && String(r.date||'').slice(0,10)==='2026-09-02') return;
     if(isRecoverySourceRecord30(r)) return;
     const sessionRecovery=sessionRecoveryResult30(u,r);
     if(sessionRecovery&&sessionRecovery.note!==null){
@@ -1725,7 +1434,7 @@ function renderDetalleMenuTabV3(tab,user,st,overlay){
       ${arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escClass(x.date||"—")}</td><td>${escClass(x.title||x.activity||"—")}</td><td><b>${grade(x.grade)}</b></td></tr>`).join("")||'<tr><td colspan="4">No hay notas.</td></tr>'}</table></div>`;
     return;
   }
-  const comps=[["class","📝 Registro de clase",classAvg],["activities","💻 Actividades",activitiesAvg],["participation","🙋 Participación",participationAvg],["behavior","🧑‍🏫 Conducta",behaviorAvg],["uniform","👕 Uniforme",uniformAvg],["notebook","📓 Cuaderno",notebookAvg],["folder","📁 Folder",folderAvg],["exam","📋 Examen",examAvg],["exposition","🎤 Exposición de sesión",expositionRubricAvg]];
+  const comps=[["class","📝 Registro de clase",classAvg],["activities","💻 Actividades",activitiesAvg],["participation","🙋 Participación",participationAvg],["behavior","🧑‍🏫 Conducta",behaviorAvg],["uniform","👕 Uniforme",uniformAvg],["notebook","📓 Cuaderno",notebookAvg],["folder","📁 Folder",folderAvg],["exam","📋 Examen",examAvg]];
   box.innerHTML=`<div class="card"><h3>📋 Evaluaciones del proceso</h3><table><tr><th>Componente</th><th>Promedio</th></tr>${comps.map(([k,l,fn])=>`<tr><td>${l}</td><td><b>${grade(fn(user))}</b></td></tr>`).join("")}</table></div>`;
 }
 
@@ -4495,19 +4204,49 @@ function reports(){
 
 function backup(){
  if(me.role!=="teacher")return `<div class="card"><h2>💾 Respaldo</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
+ const auto=getAutoBackups();
+ const autoRows=auto.length?auto.map((b,i)=>`<tr><td>${i+1}</td><td>${new Date(b.savedAt).toLocaleString('es-PE')}</td><td>${b.reason||'Guardado automático'}</td><td><button onclick="restoreAutoBackup28(${i})">Restaurar</button></td><td><button class="secondary" onclick="downloadAutoBackup28(${i})">Descargar</button></td></tr>`).join(''):`<tr><td colspan="5">Todavía no hay copias automáticas.</td></tr>`;
  return `<div class="card">
   <h2>💾 Respaldo y restauración</h2>
-  <p class="muted">Como estamos trabajando inicialmente con un HTML local, esta función permite guardar una copia de tus datos antes de cambiar de computadora o actualizar el sistema.</p>
-  <div class="item" style="margin-top:18px"><div><b>⬇️ Exportar datos</b><div class="muted">Descarga estudiantes, actividades, entregas, notas, asistencia e incidentes.</div></div><button onclick="exportBackup28()">Descargar respaldo</button></div>
-  <div class="item" style="margin-top:10px"><div><b>⬆️ Importar respaldo</b><div class="muted">Restaura una copia que hayas descargado anteriormente.</div></div><button onclick="document.getElementById('backupFile28').click()">Elegir archivo</button></div>
+  <p class="muted">El sistema detecta los cambios automáticamente y conserva hasta ${AUTO_BACKUP_LIMIT} copias internas. No necesitas pulsar Guardar para crear el respaldo.</p>
+  <div class="item" style="margin-top:18px"><div><b>🛡️ Respaldo automático</b><div class="muted">Se conserva una versión anterior para poder recuperarla si una modificación sobrescribe datos.</div></div><button onclick="createManualAutoBackup28()">Crear respaldo ahora</button></div>
+  <div class="item" style="margin-top:10px"><div><b>⬇️ Exportar datos</b><div class="muted">Descarga una copia completa en un archivo JSON.</div></div><button onclick="exportBackup28()">Descargar respaldo</button></div>
+  <div class="item" style="margin-top:10px"><div><b>⬆️ Importar respaldo</b><div class="muted">Restaura una copia descargada anteriormente.</div></div><button onclick="document.getElementById('backupFile28').click()">Elegir archivo</button></div>
   <input id="backupFile28" type="file" accept=".json,application/json" style="display:none" onchange="importBackup28(this)">
+  <div style="overflow:auto;margin-top:18px"><table><tr><th>#</th><th>Fecha</th><th>Tipo</th><th>Restaurar</th><th>Descargar</th></tr>${autoRows}</table></div>
   <div class="item" style="margin-top:10px"><div><b>🧹 Limpiar sistema</b><div class="muted">Elimina los datos de prueba y conserva solamente la cuenta del profesor.</div></div><button class="secondary" onclick="clearTestData28()">Limpiar datos de prueba</button></div>
  </div>`;
 }
-function exportBackup28(){
- const payload={version:"2.8",exportedAt:new Date().toISOString(),db:db};
+function createManualAutoBackup28(){
+ createAutoBackup("Respaldo manual");
+ alert("✅ Respaldo automático creado.");
+ render();
+}
+function downloadAutoBackup28(index){
+ const item=getAutoBackups()[index];
+ if(!item)return alert("No se encontró ese respaldo.");
+ const payload={version:"auto-1",exportedAt:item.savedAt,reason:item.reason,db:item.db};
  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
- const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Aula_EPT_2026_respaldo_"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(a.href);
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="Aula_EPT_2026_auto_"+item.savedAt.replace(/[:.]/g,"-").slice(0,19)+".json";
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function restoreAutoBackup28(index){
+ const item=getAutoBackups()[index];
+ if(!item)return alert("No se encontró ese respaldo.");
+ if(!confirm("⚠️ Se reemplazarán los datos actuales por esta copia automática. ¿Deseas continuar?"))return;
+ db=JSON.parse(JSON.stringify(item.db));
+ localStorage.setItem("aulaEPT",JSON.stringify(db));
+ if(typeof saveToFirebase === "function") saveToFirebase();
+ alert("✅ Respaldo automático restaurado.");
+ render();
+}
+function exportBackup28(){
+ const payload={version:"auto-2",exportedAt:new Date().toISOString(),db:db};
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Aula_EPT_2026_respaldo_"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function importBackup28(input){
  const file=input.files&&input.files[0];if(!file)return;
@@ -4517,7 +4256,10 @@ function importBackup28(input){
    const obj=JSON.parse(reader.result);
    if(!obj.db||typeof obj.db!=="object")throw new Error("Formato inválido");
    if(!confirm("Esto reemplazará los datos actuales de este navegador por el respaldo seleccionado. ¿Continuar?"))return;
-   db=obj.db;save();alert("Respaldo restaurado correctamente.");render();
+   createAutoBackup("Antes de importar respaldo");
+   db=obj.db;localStorage.setItem("aulaEPT",JSON.stringify(db));
+   if(typeof saveToFirebase === "function") saveToFirebase();
+   alert("Respaldo restaurado correctamente.");render();
   }catch(e){alert("No se pudo restaurar el respaldo. Verifica que sea un archivo generado por Aula EPT.");}
  };
  reader.readAsText(file);
@@ -4824,7 +4566,7 @@ function ensureClassData(){
   if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7,exposition:4};
   if(db.evaluationWeights.exposition==null)db.evaluationWeights.exposition=4;
-  if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true},processOnlyGrades:[]};
+  if(!db.evaluationConfig||typeof db.evaluationConfig!=='object')db.evaluationConfig={processEnabled:true,components:{class:true,activities:true,participation:true,behavior:true,uniform:true,notebook:true,folder:true,exam:true,exposition:true},processOnlyGrades:[]};
   if(typeof db.evaluationConfig.processEnabled!=='boolean')db.evaluationConfig.processEnabled=true;
   if(!Array.isArray(db.evaluationConfig.processOnlyGrades))db.evaluationConfig.processOnlyGrades=[];
   db.evaluationConfig.processOnlyGrades=db.evaluationConfig.processOnlyGrades.map(normalizeGradeCY30).filter(Boolean);
@@ -4951,14 +4693,10 @@ function classAvg(u){
       return;
     }
     if(ev){const n=Number(ev.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}return;}
-    const rr=recoveries.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&x.automaticClose05!==true);
-    // Un 05 generado AUTOMÁTICAMENTE al cerrar el bimestre no es una
-    // evaluación realizada por el docente. Se conserva como evidencia del
-    // cierre, pero NO entra al promedio del Proceso. Un 05 manual sí cuenta.
+    const rr=recoveries.find(x=>String(x.classId)===String(r.id)&&x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!=='');
     if(rr){const n=Number(rr.grade);if(Number.isFinite(n)){values.push(n);seen.add(String(r.id));}}
   });
-  // Las evaluaciones sin un Registro de clase válido no se consideran.
-  // Así ningún dato huérfano puede alterar el promedio del Proceso.
+  evals.filter(x=>x.user===u&&x.grade!==null&&x.grade!==undefined&&x.grade!==''&&!seen.has(String(x.classId))&&!classRecoveryLinkForSource30(u,x.classId)&&!isRecoverySourceRecord30(classRecordById(x.classId))).forEach(x=>{const n=Number(x.grade);if(Number.isFinite(n))values.push(n)});
   return avgNums(values);
 }
 
@@ -6653,12 +6391,8 @@ function projectWeeklyRecord(user,week){
 }
 function expositionRubricAvg(user){
   ensureClassData();
-  // Un 05 colocado AUTOMÁTICAMENTE al cerrar el bimestre no significa que
-  // la Exposición de sesión haya sido evaluada por el docente. No debe entrar
-  // al promedio del Proceso 30 %. Solo cuentan las exposiciones realmente
-  // calificadas (manuales). Si el docente registra manualmente un 05, sí cuenta.
   const vals=(db.expositionRubric.scores||[])
-    .filter(x=>x.user===user&&x.week!==undefined&&x.week!==null&&x.automaticClose05!==true)
+    .filter(x=>x.user===user&&x.week!==undefined&&x.week!==null)
     .map(x=>Number(x.score)).filter(Number.isFinite);
   return avgNums(vals);
 }
@@ -8776,7 +8510,7 @@ function buildNav(){
   nav.innerHTML=top.map(b).join('')+
     `<div class="nav-group-title">📊 EVALUACIÓN</div>`+
     `<div class="nav-flyout-wrap"><button class="nav-group-toggle" type="button">📊 <span>Evaluación</span></button>`+
-    `<div id="evalMenu" class="nav-sub">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['projectWork','🛠️','Trabajo de proyecto'])}${b(['registro','✅','Registro de clase'])}${b(['expositionSession','🎤','Exposición de sesión'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}${b(['registroAuxiliar','📒','Registro Auxiliar'])}</div></div>`+
+    `<div id="evalMenu" class="nav-sub">${b(['grades','📊','Evaluación final'])}${b(['project','🚀','Proyecto 70 %'])}${b(['projectWork','🛠️','Trabajo de proyecto'])}${b(['registro','✅','Registro de clase'])}${b(['activitiesGrades','💻','Actividades evaluadas'])}${b(['participations','🙋','Participación'])}${b(['behavior','🧑‍🏫','Conducta'])}${b(['uniform','👕','Uniforme'])}${b(['notebook','📓','Cuaderno'])}${b(['folder','📁','Folder'])}${b(['exam','📋','Examen / Fichas'])}</div></div>`+
     `<div class="nav-flyout-wrap"><button class="nav-group-toggle" type="button">☰ <span>Más opciones</span></button>`+
     `<div id="moreMenu" class="nav-sub">${extra.filter(a=>!['grades'].includes(a[0])).map(b).join('')}</div></div>`;
 }
@@ -9631,12 +9365,11 @@ function saveEditedSession(id){
 }
 function deleteSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id); if(!x)return;
-  if(!confirm(`¿Eliminar la Sesión ${x.number}: ${x.title}?\n\nSe eliminará la sesión y toda la información que dependa de ella (registro de clase, evaluaciones, recuperaciones, exposiciones, actividades y materiales). No quedarán registros huérfanos.`))return;
-  cleanupSessionReferences30(id);
-  db.sessions=db.sessions.filter(a=>String(a.id)!==String(id));
-  if(db.materials)db.materials=db.materials.filter(m=>String(m?.session||'')!==String(id));
-  if(db.activities)db.activities=db.activities.filter(a=>String(a?.session||'')!==String(id));
-  purgeOrphanSessionData30();
+  if(!confirm(`¿Eliminar la Sesión ${x.number}: ${x.title}?\n\nSe eliminarán sus materiales y actividades vinculadas. Los registros de clase históricos se conservarán.`))return;
+  db.sessions=db.sessions.filter(a=>a.id!==id);
+  if(db.materials)db.materials=db.materials.filter(m=>m.session!==id);
+  if(db.activities)db.activities=db.activities.filter(a=>a.session!==id);
+  if(db.classRecords)db.classRecords.forEach(r=>{if(String(r.session)===String(id))r.session='';});
   save();
   const g=(String(x.grade)==='1.º'||String(x.grade)==='2.º')?`${x.grade} ${x.section||'A'}`:(String(x.grade)==='3.º-5.º'?'3.º-5.º':x.grade);
   openUnit(x.unit,g);
@@ -10599,104 +10332,11 @@ function creaRecovery31(){
   }).join('');
   return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0">🏆 Recuperación pedagógica — Crea y Emprende</h2><button class="secondary" onclick="openCreaRecoveryGroupManager31()">👥 Administrar grupos de recuperación</button></div><p class="muted" style="margin-top:10px">Estudiantes que no participaron en la etapa institucional y desarrollan posteriormente el proyecto en aula. <b>Portafolio + Exposición son obligatorios</b>; <b>Producto es opcional</b> y solo se incorpora si realmente lo presentan.</p><div class="alert"><b>Regla:</b> Portafolio + Exposición son el mínimo. Sin Producto, Proyecto = Portafolio 30% + Exposición 40% normalizado sobre 70%. Con Producto, se incorpora 30%. El máximo es <b>14 puntos (B)</b>.</div><div class="card" style="margin-top:15px;background:#f8fafc"><div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><div><label>Grado</label><select id="creaRecoveryGradeFilter31" onchange="window.creaRecoveryGradeFilter31=this.value; render();">${gradeOptions}</select></div><div><label>Sección</label><select id="creaRecoverySectionFilter31" onchange="window.creaRecoverySectionFilter31=this.value; render();">${sectionOptions}</select></div><div class="muted" style="padding-bottom:8px">Mostrando <b>${students.length}</b> de ${allStudents.length} estudiantes</div></div></div><div style="overflow:auto;margin-top:15px"><table><tr><th>#</th><th>Estudiante</th><th>Portafolio /20</th><th>Exposición /20</th><th>Producto /20</th><th>Proyecto recup.</th><th>Final</th><th>Nivel</th><th></th></tr>${rows||'<tr><td colspan="9">No hay estudiantes para el filtro seleccionado.</td></tr>'}</table></div></div>`;
 }
-function expositionSessionPage(){
-  if(me.role!=='teacher')return `<div class="card"><h2>🎤 Exposición de sesión</h2><p class="muted">Solo para el docente.</p></div>`;
-  return `<div class="card"><h2>🎤 Exposición de sesión — Proceso 30 %</h2><p class="muted">Esta es la exposición realizada durante una sesión de aprendizaje. Es independiente de la Exposición Crea y Emprende del Proyecto 70 %.</p><div class="item"><div><b>🎤 Evaluación de exposición de sesión</b><div class="muted">Peso base dentro del Proceso: <b>4</b>. Los pesos activos del Proceso se redistribuyen proporcionalmente dentro del 30 %.</div></div><button onclick="openSessionExpositionEvaluation30()">📝 Evaluar sesión</button></div><div class="item" style="margin-top:10px"><div><b>📚 Historial de exposiciones</b><div class="muted">Las evaluaciones guardadas por sesión se mantienen separadas.</div></div><button class="secondary" onclick="openExpositionHistory30()">Ver historial</button></div></div>`;
-}
-/* ===== REGISTRO AUXILIAR EPT 2026 ===== */
-let auxRegGradeFilter2026='Todos';
-let auxRegSectionFilter2026='Todas';
-let auxRegDisplayMode2026=localStorage.getItem('auxRegDisplayMode2026')||'both';
-function auxRegSetDisplayMode2026(mode){auxRegDisplayMode2026=mode;localStorage.setItem('auxRegDisplayMode2026',mode);render();}
-function auxRegGradeOptions2026(){return ['Todos','1.º','2.º','3.º','4.º','5.º'];}
-function auxRegStudents2026(){
-  return (db.users||[]).filter(u=>String(u.role||'').toLowerCase()==='student'||String(u.role||'').toLowerCase()==='estudiante')
-    .filter(u=>(auxRegGradeFilter2026==='Todos'||normalizeStudentGrade23(u.grade||u.grado)===normalizeStudentGrade23(auxRegGradeFilter2026))
-      &&(auxRegSectionFilter2026==='Todas'||normalizeStudentSection23(u.section||u.seccion)===normalizeStudentSection23(auxRegSectionFilter2026)))
-    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
-}
-function auxRegCapNote2026(u,type){
-  const p=projectRecord(u.u)||{};
-  if(type==='product')return p.product;
-  if(type==='class')return classAvg(u.u);
-  if(type==='exposition'){
-    const cfg=db.evaluationConfig?.components||{};
-    return cfg.exposition===false ? null : expositionRubricAvg(u.u);
-  }
-  if(type==='portfolio')return p.portfolio;
-  return null;
-}
-function auxRegFmt2026(v){return v===null||v===undefined||v===''||!Number.isFinite(Number(v))?'—':Number(v).toFixed(2)}
-function auxRegLevel2026(v){if(v===null||v===undefined||v===''||!Number.isFinite(Number(v)))return '—';const n=Number(v);return n>=18?'AD':n>=15?'A':n>=11?'B':'C'}
-function auxRegCell2026(v){const n=auxRegFmt2026(v),l=auxRegLevel2026(v);if(n==='—')return '—';if(auxRegDisplayMode2026==='level')return `<b>${l}</b>`;if(auxRegDisplayMode2026==='number')return `<b>${n}</b>`;return `${n} <b>${l}</b>`}
-function registroAuxiliar(){
-  if(me.role!=='teacher')return `<div class="card"><h2>📒 Registro Auxiliar</h2><p class="muted">Solo para el docente.</p></div>`;
-  ensureClassData();
-  const students=auxRegStudents2026();
-  const gradeOpts=auxRegGradeOptions2026().map(g=>`<option value="${g}" ${auxRegGradeFilter2026===g?'selected':''}>${g==='Todos'?'Todos los grados':g}</option>`).join('');
-  const sectionOpts=['Todas','A','B'].map(g=>`<option value="${g}" ${auxRegSectionFilter2026===g?'selected':''}>${g==='Todas'?'Todas las secciones':'Sección '+g}</option>`).join('');
-  const rows=students.map((u,i)=>{
-    // Si el bimestre está cerrado, el Registro Auxiliar debe mostrar el mismo
-    // resultado congelado que Evaluación final, incluidos los 05 automáticos.
-    const activeBim=(()=>{const bs=getBimesterClose30();if(bs.IV?.closed)return 'IV';if(bs.III?.closed)return 'III';return '';})();
-    const snap=activeBim&&db.bimesterFinals?.[activeBim]?.[u.u];
-    const p=projectRecord(u.u)||{};
-    const pc=snap?.projectComponents||{};
-    const product=(snap&&pc.product!==undefined&&pc.product!==null)?Number(pc.product):p.product;
-    const exposition=(snap&&pc.exposition!==undefined&&pc.exposition!==null)?Number(pc.exposition):p.exposition;
-    const portfolio=(snap&&pc.portfolio!==undefined&&pc.portfolio!==null)?Number(pc.portfolio):p.portfolio;
-    const a=avgNums([product,exposition].filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))));
-    const b=snap?.automaticProcess05 ? 5 : classAvg(u.u);
-    const expositionEnabled=db.evaluationConfig?.components?.exposition!==false;
-    const c=expositionEnabled?expositionRubricAvg(u.u):null;
-    const d=portfolio;
-    const f=snap?.final!==undefined&&snap?.final!==null?Number(snap.final):finalGrade(u.u);
-    return `<tr><td>${i+1}</td><td><b>${escClass(u.name||u.u)}</b><div class="muted">${escClass(u.grade||'—')} · ${escClass(u.section||'—')}</div></td>
-      <td><button class="small aux-cap-btn" onclick="openAuxDetail30('${escClass(u.u)}','crea')">${auxRegCell2026(a)}</button></td>
-      <td><button class="small aux-cap-btn" onclick="openAuxDetail30('${escClass(u.u)}','technical')">${auxRegCell2026(b)}</button></td>
-      <td><button class="small aux-cap-btn" onclick="openAuxDetail30('${escClass(u.u)}','team')">${auxRegCell2026(c)}</button></td>
-      <td><button class="small aux-cap-btn" onclick="openAuxDetail30('${escClass(u.u)}','results')">${auxRegCell2026(d)}</button></td>
-      <td><b>${auxRegCell2026(f)}</b></td></tr>`;
-  }).join('');
-  return `<div class="card aux-register-page"><div class="no-print" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap"><div><h2>📒 Registro Auxiliar — EPT</h2><p class="muted">Resumen por capacidades. Haz clic en una calificación para ver sus evidencias y detalles.</p></div><button onclick="window.print()">🖨️ Imprimir</button></div>
-  <div class="no-print grid3" style="margin-top:15px"><div><label>Grado</label><select onchange="auxRegGradeFilter2026=this.value;render()">${gradeOpts}</select></div><div><label>Sección</label><select onchange="auxRegSectionFilter2026=this.value;render()">${sectionOpts}</select></div><div class="item" style="margin:0"><b>Estudiantes:</b> ${students.length}</div></div>
-  <div class="no-print" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px"><b>Mostrar calificaciones:</b><button class="small ${auxRegDisplayMode2026==='both'?'primary':''}" onclick="auxRegSetDisplayMode2026('both')">🔢 Número + letra</button><button class="small ${auxRegDisplayMode2026==='number'?'primary':''}" onclick="auxRegSetDisplayMode2026('number')">🔢 Solo números</button><button class="small ${auxRegDisplayMode2026==='level'?'primary':''}" onclick="auxRegSetDisplayMode2026('level')">🔤 Solo letras AD/A/B/C</button></div>
-  <div id="auxRegisterPrintArea" style="margin-top:18px"><div class="aux-print-header"><h1>REGISTRO AUXILIAR DE EVALUACIÓN</h1><h2>EDUCACIÓN PARA EL TRABAJO</h2><p><b>Competencia:</b> Gestiona proyectos de emprendimiento económico o social</p><p><b>Docente:</b> Frank Carlos Tito Chávez &nbsp;&nbsp; <b>Año:</b> 2026</p><p><b>Grado:</b> ${auxRegGradeFilter2026==='Todos'?'Todos':escClass(auxRegGradeFilter2026)} &nbsp;&nbsp; <b>Sección:</b> ${auxRegSectionFilter2026==='Todas'?'Todas':escClass(auxRegSectionFilter2026)}</p></div>
-  <div style="overflow:auto"><table class="aux-register-table"><tr><th rowspan="2">N.º</th><th rowspan="2">Apellidos y nombres</th><th>Crea propuestas de valor</th><th>Aplica habilidades técnicas</th><th>Trabaja cooperativamente para lograr objetivos y metas</th><th>Evalúa los resultados del proyecto de emprendimiento</th><th rowspan="2">Calificación final</th></tr><tr class="aux-evidence-header"><th>Producto + Exposición CREA Y EMPRENDE</th><th>Registro de clase</th><th>Exposición de sesión</th><th>Portafolio</th></tr>${rows||'<tr><td colspan="7" style="text-align:center;padding:20px">No hay estudiantes para el filtro seleccionado.</td></tr>'}</table></div><p class="aux-print-note">* Puedes elegir mostrar números, letras o ambos. El detalle de cada evidencia permanece disponible al hacer clic en la calificación.</p></div></div>`;
-}
-
-function openAuxDetail30(user,key){
-  ensureClassData(); const st=(db.users||[]).find(x=>x.u===user); if(!st)return;
-  const p=projectRecord(user)||{}; const g=x=>x==null?'—':Number(x).toFixed(2); const L=x=>x==null?'—':classLevel(x);
-  let title='',html='';
-  if(key==='crea'){
-    title='Crea propuestas de valor';
-    html=`<table><tr><th>Evidencia</th><th>Nota</th></tr><tr><td>Producto — Proyecto 70 %</td><td><b>${g(p.product)}</b></td></tr><tr><td>Exposición CREA Y EMPRENDE — Proyecto 70 %</td><td><b>${g(p.exposition)}</b></td></tr><tr><td><b>Resumen de capacidad</b></td><td><b>${g(avgNums([p.product,p.exposition].filter(v=>v!=null)))} ${L(avgNums([p.product,p.exposition].filter(v=>v!=null)))}</b></td></tr></table>`;
-  }else if(key==='technical'){
-    title='Aplica habilidades técnicas';
-    const arr=getStudentClassDetail30(user)||[];
-    html=`<p class="muted">Registro de clase — Proceso 30 % · peso base 4.</p><table><tr><th>#</th><th>Fecha</th><th>Sesión</th><th>Actividad</th><th>Nota</th></tr>${arr.map((x,i)=>`<tr><td>${i+1}</td><td>${escClass(x.date||'—')}</td><td>${escClass(x.session||'—')}</td><td>${escClass(x.title||'—')}</td><td><b>${g(x.note)}</b></td></tr>`).join('')||'<tr><td colspan="5">No hay registros.</td></tr>'}</table>`;
-  }else if(key==='team'){
-    title='Trabaja cooperativamente para lograr objetivos y metas';
-    const expositionEnabled=db.evaluationConfig?.components?.exposition!==false;
-    if(!expositionEnabled){
-      html=`<p class="muted">Exposición de sesión está desactivada en la configuración del Proceso.</p><table><tr><th>Evidencia</th><th>Estado</th></tr><tr><td>Exposición de sesión — Proceso 30 %</td><td><b>Desactivada</b></td></tr></table>`;
-    }else{
-    const vals=(db.expositionRubric.scores||[]).filter(x=>x.user===user&&x.week!==undefined&&x.week!==null); const by={}; vals.forEach(x=>{const k=String(x.sessionId||x.week||'');(by[k]||(by[k]=[])).push(Number(x.score))});
-    html=`<p class="muted">Exposición de sesión — Proceso 30 % · peso base 4. Independiente de la Exposición CREA Y EMPRENDE.</p><table><tr><th>Sesión</th><th>Nota</th></tr>${Object.entries(by).map(([k,v])=>`<tr><td>${escClass(k)}</td><td><b>${g(avgNums(v))}</b></td></tr>`).join('')||'<tr><td colspan="2">No hay exposiciones de sesión registradas.</td></tr>'}</table>`;
-    }
-  }else{
-    title='Evalúa los resultados del proyecto de emprendimiento';
-    html=`<table><tr><th>Evidencia</th><th>Nota</th></tr><tr><td>Portafolio — Proyecto 70 %</td><td><b>${g(p.portfolio)}</b></td></tr><tr><td><b>Resumen de capacidad</b></td><td><b>${g(p.portfolio)} ${L(p.portfolio)}</b></td></tr></table>`;
-  }
-  modalBody.classList.remove('wide'); modalBody.innerHTML=`<h2>📒 ${title}</h2><p><b>Estudiante:</b> ${escClass(st.name||user)}</p><div style="overflow:auto">${html}</div><div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal()">Cerrar</button></div>`; modal.classList.remove('hidden');
-}
-
 function render(){
-  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','recoveries','creaRecovery','incidents','reports','backup','grades','creaEmprende','projectWork','expositionSession','registroAuxiliar'].includes(page)) page='home';
-  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',creaRecovery:'🏆 Recuperación Crea',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',expositionSession:'🎤 Exposición de sesión',registroAuxiliar:'📒 Registro Auxiliar',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',recoveries:'Recuperaciones',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
+  if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','recoveries','creaRecovery','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
+  const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',creaRecovery:'🏆 Recuperación Crea',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',recoveries:'Recuperaciones',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,creaRecovery:creaRecovery31,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,expositionSession:expositionSessionPage,registroAuxiliar,submissions,chat,grades,tracking,attendance,recoveries:recoveries31,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,creaRecovery:creaRecovery31,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,submissions,chat,grades,tracking,attendance,recoveries:recoveries31,incidents,reports,bimesterClose:renderBimesterClose30,backup,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
@@ -10729,6 +10369,9 @@ ensureClassData();
   },true);
 })();
 /* ===== FIN DETALLE DE NOTAS ===== */
+
+// Inicia el respaldo automático real al cargar el sistema.
+try{ startAutomaticBackupWatcher(); }catch(e){ console.error("Respaldo automático: no se pudo iniciar",e); }
 </script>
 
 
