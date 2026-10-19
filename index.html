@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+<!DOCTYP
+     ${componentCriteriaBlock(arrName,rec)}E html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -55,7 +56,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 
 .cyTableWrap{width:100%;overflow:visible;position:relative}.cyTable{min-width:1050px}.cyTable th,.cyTable td{vertical-align:top}.cyTable input,.cyTable select{min-width:140px}.cyTable th:first-child{min-width:210px}.cyTable select:focus,.cyTable input:focus{position:relative;z-index:20}
 .chat-messages-fixed{height:300px;overflow-y:auto;overflow-x:hidden;border:1px solid #ddd;border-radius:10px;padding:12px;background:#f8fafc;overscroll-behavior:contain;scroll-behavior:auto;margin-bottom:8px}.modal-card:has(.chat-messages-fixed){overflow:hidden}.modal-card:has(.chat-messages-fixed) #chatText22{display:block;width:100%;box-sizing:border-box;resize:none;min-height:72px;max-height:72px;overflow-y:auto;margin:0 0 8px}.modal-card:has(.chat-messages-fixed) .actions{flex-shrink:0}
-.modal-card.wide{width:min(1100px,100%)}
+.modal-card.wide{width:min(1100px,100%)}.modal-card.expoEvalModal30{width:min(1320px,96vw);max-height:94vh}.modal-card.expoEvalModal30 #expoTable30{max-height:62vh;overflow:auto}
 .projectMainModal .card{box-shadow:none;background:#f8fafc}
 .projectMainModal .grid3 .card{border:1px solid var(--line)}
 @media(max-width:900px){.modal-card.wide{width:100%}}
@@ -304,6 +305,98 @@ textarea { border-color:#cbd5e1; }
 /* Selectores de evaluación */
 select { border-color:#cbd5e1; }
 select:focus, textarea:focus, input:focus { border-color:#60a5fa !important; box-shadow:0 0 0 2px rgba(96,165,250,.18) !important; outline:none; }
+<style id="guia-observacion-modelo30">
+.guideTable30 textarea.ogObs30,.guideTable30 textarea.ogSupport30{width:100%;min-width:160px;min-height:48px;padding:6px;font-size:10px;resize:vertical;box-sizing:border-box}
+.guideTable30 .ogGradeInput30{width:78px;min-width:78px;padding:6px;font-size:11px}
+.guideTable30 th{vertical-align:middle!important;text-align:center}
+.guideTable30 td{vertical-align:middle!important}
+</style>
+
+<style id="fichaEvaluacion30Styles">
+.fesTable30 th small{display:block;font-weight:500;line-height:1.15;font-size:10px;margin-top:5px;text-align:left}.fesLevelsHead30{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:7px;font-size:10px}.fesLevelsHead30 span{text-align:center;border-top:1px solid #94a3b8;padding-top:3px}.fesCell30{min-width:92px;text-align:center}.fesChoice30{display:inline-flex;align-items:center;justify-content:center;margin:2px 3px;cursor:pointer}.fesChoice30 input{display:none}.fesChoice30 span{display:inline-flex;align-items:center;justify-content:center;width:28px;height:24px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;font-size:11px;font-weight:700}.fesChoice30 input:checked+span{background:#dbeafe;border-color:#2563eb;color:#1e3a8a;box-shadow:0 0 0 1px #2563eb}.fesProject30{min-width:170px;width:170px;padding:8px;border:1px solid #cbd5e1;border-radius:7px}.fesTop30{background:#f8fafc;border:1px solid #cbd5e1;padding:12px 14px;margin-bottom:8px}.fesTop30 h3{margin:0 0 6px;color:#1e3a8a}
+</style>
+<style id="expoEvalCleanLayout40">
+/* ===== Evaluación de exposición: diseño compacto, sin desplazamiento horizontal ===== */
+#modalCard.wide.expoEvalModal30{
+  width:min(1180px,94vw) !important;
+  max-width:1180px !important;
+  height:min(94vh,900px) !important;
+  max-height:94vh !important;
+  min-height:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide.expoEvalModal30 #modalBody.wide{
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none !important;
+  padding:16px 20px 22px !important;
+  box-sizing:border-box !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  display:block !important;
+}
+#modalCard.wide.expoEvalModal30 #modalBody.wide > *{height:auto !important;min-height:0 !important;max-height:none !important;flex:none !important}
+#modalCard.wide.expoEvalModal30 .grid3{display:grid !important;grid-template-columns:repeat(3,minmax(0,1fr)) !important;gap:10px !important;margin-bottom:10px !important}
+#modalCard.wide.expoEvalModal30 h2{margin:0 0 8px !important;font-size:21px !important}
+#modalCard.wide.expoEvalModal30 .muted{margin:5px 0 !important}
+#modalCard.wide.expoEvalModal30 #expoSessionInfo30{padding:8px 10px !important;margin-bottom:10px !important;height:auto !important}
+#modalCard.wide.expoEvalModal30 #expoTable30{width:100% !important;max-height:none !important;height:auto !important;overflow:visible !important}
+.expoControls30{background:#f8fafc;border:1px solid #dbe4f0;border-radius:12px;padding:11px 13px;margin:8px 0 12px}
+.expoControls30 h3{margin:0 0 9px;font-size:15px;color:#17365d}
+.expoBlockChecks30{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.expoBlockChecks30 label,.expoMaterialMode30 label{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600}
+.expoMaterialMode30{margin-top:9px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:13px}
+.expoStudents30{display:flex;flex-direction:column;gap:10px;width:100%;overflow:visible}
+.expoStudentCard30{display:grid;grid-template-columns:235px minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;border:1px solid #dbe4f0;border-radius:12px;background:#fff;overflow:hidden;width:100%;box-sizing:border-box}
+.expoStudentHead30{grid-column:1;grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:flex-start;gap:9px;align-items:flex-start;background:#f1f5f9;padding:11px 10px;border-right:1px solid #e2e8f0;border-bottom:0;min-width:0;box-sizing:border-box}
+.expoStudentHead30 small{display:block;color:#64748b;font-size:10px;margin-top:3px;line-height:1.3}
+.expoAutoStatus30{font-size:11px;font-weight:700;text-align:left;line-height:1.3}
+.expoBlocks30{grid-column:2;grid-row:1;padding:9px 9px 5px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:stretch;min-width:0;box-sizing:border-box}
+.expoBlockCard30{border:1px solid #dbeafe;border-radius:9px;background:#fbfdff;overflow:hidden;min-width:0;box-sizing:border-box}
+.expoBlockTitle30{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;padding:7px 8px;background:#eef5ff;color:#17365d;font-size:11px;line-height:1.2;min-height:38px;box-sizing:border-box}
+.expoBlockAvg30{white-space:nowrap;font-size:10px}
+.expoCriteriaList30{display:flex;flex-direction:column;padding:3px 8px 6px;min-width:0}
+.expoCriterionRow30{display:grid;grid-template-columns:minmax(0,1fr) 54px;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid #edf1f6;min-width:0}
+.expoCriterionName30{font-size:10px;line-height:1.2;color:#334155;min-width:0;overflow-wrap:anywhere}
+.expoBlockScope30{font-size:9px;color:#64748b;padding:2px 8px 0;font-weight:700}
+.expoGroupBanner30{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#eaf2ff;border:1px solid #cbdcf7;border-radius:10px;padding:7px 10px;margin-top:2px;color:#17365d;font-size:12px}
+.expoGroupBanner30 span{font-size:10px;color:#64748b;font-weight:600}
+.expoScore30{width:52px !important;height:28px !important;padding:2px 4px !important;text-align:center;border:1px solid #cbd5e1;border-radius:7px;box-sizing:border-box}
+.expoFinalBar30{grid-column:2;grid-row:2;display:flex;justify-content:space-between;align-items:center;margin:0 9px 9px;padding:7px 10px;background:#eef2ff;border-top:1px solid #dbe4f0;border-radius:8px;font-size:12px;box-sizing:border-box}
+.expoFinal30{font-size:15px;color:#17365d}
+.expoGroupCard30{border:1px solid #dbe4f0;border-radius:12px;background:#fff;overflow:hidden;width:100%;box-sizing:border-box}
+.expoGroupGrid30{display:grid;grid-template-columns:210px minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr);gap:8px;padding:8px;align-items:start}
+.expoGroupMembers30{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:8px;min-height:100%;box-sizing:border-box}
+.expoMemberLine30{font-size:10px;line-height:1.25;padding:6px 2px;border-bottom:1px solid #e5e7eb}
+.expoGroupBlockWrap30{display:contents}
+.expoGroupOralWrap30{display:flex;flex-direction:column;gap:7px;min-width:0}
+.expoOralGroupTitle30{border:1px solid #dbeafe;border-radius:9px;background:#eef5ff;color:#17365d;font-size:11px;font-weight:700;padding:8px}
+.expoGroupOralWrap30 .expoStudentCard30{display:grid;grid-template-columns:145px minmax(0,1fr);grid-template-rows:auto auto;border:1px solid #dbe4f0;border-radius:9px;background:#fff;overflow:hidden}
+.expoGroupOralWrap30 .expoStudentHead30{grid-column:1;grid-row:1 / span 2;border-right:1px solid #e2e8f0;border-bottom:0;padding:8px;background:#f8fafc}
+.expoGroupOralWrap30 .expoBlocks30{grid-column:2;grid-row:1;padding:5px;display:block}
+.expoGroupOralWrap30 .expoFinalBar30{grid-column:2;grid-row:2;margin:0 5px 5px;padding:5px 7px;font-size:10px}
+.expoGroupOralWrap30 .expoBlockTitle30{min-height:30px;padding:6px 7px}
+.expoGroupOralWrap30 .expoCriterionRow30{padding:4px 0}
+@media(max-width:1150px){.expoGroupGrid30{grid-template-columns:180px repeat(2,minmax(0,1fr));}.expoGroupOralWrap30{grid-column:1 / -1;}.expoGroupMembers30{grid-row:1 / span 2}}
+@media(max-width:850px){.expoGroupGrid30{grid-template-columns:1fr}.expoGroupMembers30{grid-row:auto}.expoGroupOralWrap30{grid-column:auto}.expoGroupOralWrap30 .expoStudentCard30{grid-template-columns:1fr;grid-template-rows:auto auto auto}.expoGroupOralWrap30 .expoStudentHead30{grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid #e2e8f0}.expoGroupOralWrap30 .expoBlocks30{grid-column:1;grid-row:2}.expoGroupOralWrap30 .expoFinalBar30{grid-column:1;grid-row:3}}
+
+@media(max-width:1100px){
+  .expoStudentCard30{grid-template-columns:210px minmax(0,1fr)}
+  .expoBlocks30{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:850px){
+  #modalCard.wide.expoEvalModal30{width:96vw !important;height:94vh !important}
+  #modalCard.wide.expoEvalModal30 #modalBody.wide{padding:12px !important}
+  #modalCard.wide.expoEvalModal30 .grid3{grid-template-columns:1fr !important}
+  .expoStudentCard30{grid-template-columns:1fr;grid-template-rows:auto auto auto}
+  .expoStudentHead30{grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid #e2e8f0;min-height:0}
+  .expoBlocks30{grid-column:1;grid-row:2;grid-template-columns:1fr}
+  .expoFinalBar30{grid-column:1;grid-row:3}
+  .expoAutoStatus30{text-align:left}
+}
 </style>
 </head>
 <body>
@@ -706,18 +799,15 @@ function bimesterOfRecord31(rec){
   return 'III';
 }
 function ivRecordIsNew31(rec){
-  // El IV Bimestre empieza el 19/10/2026. Evita que registros antiguos
-  // que hayan quedado etiquetados accidentalmente como IV vuelvan a aparecer.
+  // Si el docente creó/guardó explícitamente el registro dentro del IV
+  // Bimestre, la etiqueta de período es la fuente de verdad. No lo ocultamos
+  // por la fecha de la sesión (puede estar preparando el IV antes del 19/10).
   if(!rec) return false;
-  const start='2026-10-19';
+  if(String(rec.bimester||'').toUpperCase()==='IV') return true;
   const d=String(rec.date||rec.sessionDate||'').slice(0,10);
-  if(d) return d>=start;
+  if(d && d>='2026-10-19') return true;
   const ts=Number(rec.createdAt||rec.savedAt||rec.updatedAt||rec.importedAt||0);
-  if(ts) return ts>=Date.parse('2026-10-19T00:00:00-05:00');
-  // En IV no se muestran registros antiguos que solo hayan quedado
-  // etiquetados como IV sin fecha ni sello de creación. Un registro nuevo
-  // del IV debe tener fecha del período o sello posterior al 19/10/2026.
-  return false;
+  return !!(ts && ts>=Date.parse('2026-10-19T00:00:00-05:00'));
 }
 function isActiveBimesterRecord31(rec){
   const k=activeBimester31();
@@ -807,12 +897,9 @@ function tagExistingRecordsByBimester31(){
     if(!Array.isArray(db[name]))return;
     db[name].forEach(r=>{
       if(!r) return;
-      // Nunca considerar como IV un registro anterior al 19/10/2026.
-      // Esto corrige etiquetas IV antiguas sin borrar ningún dato.
-      const d=String(r.date||r.sessionDate||'').slice(0,10);
-      if(r.bimester==='IV' && d && d<'2026-10-19') r.bimester='III';
-      const ts=Number(r.createdAt||r.savedAt||r.updatedAt||r.importedAt||0);
-      if(r.bimester==='IV' && !d && ts && ts<Date.parse('2026-10-19T00:00:00-05:00')) r.bimester='III';
+      // Si el registro ya tiene un bimestre explícito, respetarlo.
+      // Esto permite preparar el IV Bimestre antes de su fecha oficial de inicio
+      // sin que el sistema lo mueva automáticamente al III.
       if(!r.bimester) r.bimester=bimesterOfRecord31(r)||defaultKey;
     });
   };
@@ -2638,7 +2725,7 @@ function courses(){
    <div style="font-size:34px">📚</div>
    <h2 style="margin:8px 0">Educación para el Trabajo</h2>
    <p class="muted">Computación e Informática · Aula Virtual EPT 2026</p>
-   ${me.role==="teacher"?`<button onclick="addUnit(1)">＋ Agregar unidad</button>`:""}
+   ${me.role==="teacher"?`<div class="actions" style="margin-top:10px"><button onclick="addUnit(1)">＋ Agregar unidad</button></div>`:""}
  </div>
  <div class="list">
  ${((db.units||[]).filter(u=>u.course===1 && bimesterOfUnit31(u)===activeBimester31()).sort((a,b)=>a.number-b.number)).map(u=>`
@@ -2767,6 +2854,7 @@ function courses(){
    <div style="font-size:34px">📚</div>
    <h2 style="margin:8px 0">Educación para el Trabajo</h2>
    <p class="muted">Computación e Informática · Aula Virtual EPT 2026</p>
+   <p class="muted" style="margin:6px 0 0">📌 Para reprogramar una clase: entra a <b>Ver sesiones</b>, selecciona el grupo y abre la sesión que no se realizó.</p>
    ${me.role==="teacher"?`<button onclick="addUnit(1)">＋ Agregar unidad</button>`:""}
  </div>
  <div>
@@ -2777,7 +2865,7 @@ function courses(){
       <div class="muted">${u.description||""}</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button onclick="openUnit(${u.id})">Ver unidad</button>
+      <button onclick="openUnit(${u.id})">📖 Ver sesiones</button>
       ${me.role==="teacher"?`<button class="secondary" onclick="editUnit(${u.id})">✏️ Editar</button>`:""}
     </div>
    </div>`).join("") || `<div class="card"><h3>No hay unidades todavía</h3></div>`}
@@ -2828,7 +2916,8 @@ function openUnit(id){
    <h3>📖 Sesiones de aprendizaje</h3>
    ${me.role==="teacher"?`<button onclick="addSession(${id})">＋ Agregar sesión</button>`:""}
  </div>
- <div class="list" style="margin-top:12px">
+ ${(()=>{const pending=ses.filter(z=>z.status==='No realizada'); return pending.length?`<div class="alert" style="margin:10px 0"><b>⏸️ Hay ${pending.length} sesión(es) pendiente(s) de reprogramar.</b><br>La siguiente clase debe recuperar primero la sesión pendiente. ${pending.map(z=>`<button class="secondary small" style="margin:5px 5px 0 0" onclick="openRescheduleSession30(${z.id})">🔄 Reprogramar Sesión ${escClass(z.number)}</button>`).join('')}</div>`:''})()}
+  <div class="list" style="margin-top:12px">
  ${ses.map(x=>`<div class="item">
    <div><span class="badge">${x.status||"Programada"}</span>
    <h3 style="margin:7px 0">Sesión ${x.number}: ${x.title}</h3>
@@ -2898,7 +2987,8 @@ function addSession(unitId){
    Puedes compartir una sesión entre varios grupos. <b>2.º A y 2.º B siempre se seleccionan por separado.</b>
  </p>
  <label>Fecha</label><input id="sesF" type="date">
- <label>Estado</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option></select>
+ <label>Estado de la clase</label><select id="sesS"><option>Programada</option><option>En desarrollo</option><option>Finalizada</option><option>No realizada</option><option>Reprogramada</option></select>
+  <div class="card" style="margin-top:10px;background:#fff7ed"><b>Si no se realizó la clase:</b> selecciona <b>No realizada</b>, guarda la sesión y luego usa <b>🔄 Reprogramar</b> para indicar el motivo y la nueva fecha. La sesión conserva el mismo número.</div>
  <div class="actions" style="margin-top:15px"><button onclick="saveSession(${unitId})">Guardar sesión</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
  modal.classList.remove("hidden");
 }
@@ -5367,6 +5457,7 @@ function ensureClassData(){
   if(!db.expositionRubric||typeof db.expositionRubric!=='object')db.expositionRubric={criteria:[],scores:[]};
   if(!Array.isArray(db.expositionRubric.criteria))db.expositionRubric.criteria=[];
   if(!Array.isArray(db.expositionRubric.scores))db.expositionRubric.scores=[];
+  if(!db.expositionRubric.evaluationConfigs || typeof db.expositionRubric.evaluationConfigs!=='object') db.expositionRubric.evaluationConfigs={};
   if(!Array.isArray(db.creaExpositionScores))db.creaExpositionScores=[];
   if(!Array.isArray(db.creaRecoveryEvaluations))db.creaRecoveryEvaluations=[];
   if(!db.evaluationWeights)db.evaluationWeights={class:4,activities:4,participation:4,behavior:3,uniform:2,notebook:3,folder:3,exam:7,exposition:4};
@@ -5529,7 +5620,11 @@ function classAvg(u){
 }
 
 function activitiesAvg(u){return componentAvg(db.activitiesGrades,u)}
-function participationAvg(u){return componentAvg(db.participations,u)}
+function participationAvg(u){
+  const vals=(db.participations||[]).filter(x=>x.user===u && x.grade!==null && x.grade!==undefined && x.grade!=='' && !x.recordId ? false : false);
+  const scores=(db.participations||[]).filter(x=>x.user===u && x.grade!==null && x.grade!==undefined && x.grade!=='').map(x=>Number(x.grade)).filter(Number.isFinite).sort((a,b)=>b-a).slice(0,3);
+  return scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : null;
+}
 function behaviorAvg(u){return componentAvg(db.behaviorGrades,u)}
 function uniformAvg(u){return componentAvg(db.uniformGrades,u)}
 function folderAvg(u){return componentAvg(db.folderGrades,u)}
@@ -6036,6 +6131,208 @@ function addClassCriterion30(){
   box.appendChild(row);
   row.querySelector('input')?.focus();
 }
+function ensureAdaptationConfig30(){
+  if(!Array.isArray(db.adaptationStudents30)) db.adaptationStudents30=[];
+  if(!db.adaptationProfiles30 || typeof db.adaptationProfiles30!=='object' || Array.isArray(db.adaptationProfiles30)) db.adaptationProfiles30={};
+}
+function adaptationConfigSync30(){
+  window._adaptationConfigTemp30=new Set([...(window._adaptationConfigTemp30||[])].map(String));
+  document.querySelectorAll('.adaptGlobalStudent30').forEach(el=>{
+    if(el.checked) window._adaptationConfigTemp30.add(String(el.value));
+    else window._adaptationConfigTemp30.delete(String(el.value));
+  });
+}
+function adaptationConfigToggle30(uid,checked){
+  if(!window._adaptationConfigTemp30) window._adaptationConfigTemp30=new Set(db.adaptationStudents30||[]);
+  if(checked) window._adaptationConfigTemp30.add(String(uid));
+  else window._adaptationConfigTemp30.delete(String(uid));
+  const count=document.getElementById('adaptConfigCount30');
+  if(count) count.textContent=`${window._adaptationConfigTemp30.size} estudiante(s) seleccionado(s)`;
+}
+function normalizeAdaptGrade30(v){
+  const t=String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  const m=t.match(/(?:^|\D)([1-5])(?:\D|$)/);
+  return m?m[1]:(/^[1-5]/.test(t)?t.charAt(0):t);
+}
+function normalizeAdaptSection30(v){
+  const t=String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+  if(t==='A'||t==='B')return t;
+  const m=t.match(/(?:^|[^A-Z])([AB])(?:$|[^A-Z])/);
+  return m?m[1]:t;
+}
+function adaptStudentGrade30(u){
+  return normalizeAdaptGrade30(u?.grade ?? u?.grado ?? u?.courseGrade ?? u?.classGrade ?? '');
+}
+function adaptStudentSection30(u){
+  return normalizeAdaptSection30(u?.section ?? u?.seccion ?? u?.courseSection ?? u?.classSection ?? '');
+}
+function adaptStudentActive30(u){
+  if(!u)return false;
+  // Respetar tanto el estado guardado como los estados académicos calculados del sistema.
+  try{ if(typeof studentIsRetired31==='function' && studentIsRetired31(u)) return false; }catch(e){}
+  try{ if(typeof studentIsSuspended31==='function' && studentIsSuspended31(u)) return false; }catch(e){}
+  const st=String(u.status ?? u.estado ?? 'Activo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  return !['retirado','retirada','suspendido','suspendida','suspension'].includes(st);
+}
+function filterAdaptationConfig30(){
+  const grade=normalizeAdaptGrade30(document.getElementById('adaptConfigGrade30')?.value||'');
+  const section=normalizeAdaptSection30(document.getElementById('adaptConfigSection30')?.value||'');
+  let visible=0;
+  document.querySelectorAll('.adaptGlobalStudent30').forEach(el=>{
+    const card=el.closest('.adaptStudentCard30');
+    if(!card)return;
+    // Volver a normalizar los datos del alumno al filtrar para aceptar 2.º, 2°, 2do, etc.
+    const cardGrade=normalizeAdaptGrade30(el.dataset.grade||card.dataset.grade||'');
+    const cardSection=normalizeAdaptSection30(el.dataset.section||card.dataset.section||'');
+    const ok=(!grade||cardGrade===grade)&&(!section||cardSection===section);
+    card.style.display=ok?'flex':'none';
+    if(ok)visible++;
+  });
+  const empty=document.getElementById('adaptConfigEmpty30');
+  if(empty) empty.style.display=visible?'none':'block';
+}
+function renderAdaptationStudentList30(){
+  const box=document.getElementById('adaptConfigStudentList30'); if(!box)return;
+  const students=(db.users||[]).filter(u=>(u.role==='student'||u.role==='estudiante')&&adaptStudentActive30(u)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const selected=window._adaptationConfigTemp30||new Set(db.adaptationStudents30||[]);
+  box.innerHTML=students.map(st=>{
+    const uid=st.u||st.id, grade=adaptStudentGrade30(st), section=adaptStudentSection30(st);
+    const checked=selected.has(String(uid));
+    const labelGrade=String(st.grade||''); const labelSection=String(st.section||'');
+    return `<label class="adaptStudentCard30" data-grade="${escClass(grade)}" data-section="${escClass(section)}" style="display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer">
+      <input type="checkbox" class="adaptGlobalStudent30" value="${escClass(uid)}" ${checked?'checked':''} onchange="adaptationConfigToggle30('${escClass(uid)}',this.checked)">
+      <span><b>${escClass(st.name||'')}</b><br><small class="muted">${escClass(labelGrade)} ${escClass(labelSection)}</small></span>
+    </label>`;
+  }).join('')||'<p class="muted">No hay estudiantes registrados.</p>';
+  const count=document.getElementById('adaptConfigCount30'); if(count) count.textContent=`${selected.size} estudiante(s) seleccionado(s)`;
+  filterAdaptationConfig30();
+}
+function adaptationProfileLoad30(uid){
+  ensureAdaptationConfig30();
+  const p=db.adaptationProfiles30[String(uid)]||{};
+  const types=['📝 Ficha impresa adaptada','🖥️ Apoyo para uso de computadora','⏱️ Tiempo adicional','✍️ Menor cantidad de escritura','🖼️ Apoyo visual','🗣️ Respuesta oral','👥 Trabajo con apoyo','✏️ Otra adaptación'];
+  document.querySelectorAll('.adaptGlobalType30').forEach(el=>el.checked=Array.isArray(p.types)&&p.types.includes(el.value));
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||''};
+  set('adaptGlobalDesc30',p.description); set('adaptGlobalEvidence30',p.evidence); set('adaptGlobalCriterion30',p.criterion); set('adaptGlobalObservation30',p.observation);
+}
+function adaptationProfileStudentChange30(){
+  const uid=document.getElementById('adaptProfileStudent30')?.value||'';
+  const box=document.getElementById('adaptProfileBox30');
+  if(box) box.style.display=uid?'block':'none';
+  if(uid) adaptationProfileLoad30(uid);
+}
+function adaptationProfileRead30(){
+  return {
+    types:[...document.querySelectorAll('.adaptGlobalType30:checked')].map(el=>el.value),
+    description:document.getElementById('adaptGlobalDesc30')?.value||'',
+    evidence:document.getElementById('adaptGlobalEvidence30')?.value||'',
+    criterion:document.getElementById('adaptGlobalCriterion30')?.value||'',
+    observation:document.getElementById('adaptGlobalObservation30')?.value||''
+  };
+}
+function adaptationProfileSave30(){
+  ensureAdaptationConfig30();
+  const uid=document.getElementById('adaptProfileStudent30')?.value||'';
+  if(!uid)return;
+  db.adaptationProfiles30[String(uid)]=adaptationProfileRead30();
+}
+function openAdaptationConfig30(){
+  ensureAdaptationConfig30();
+  window._adaptationConfigTemp30=new Set(db.adaptationStudents30.map(String));
+  const students=(db.users||[]).filter(u=>(u.role==='student'||u.role==='estudiante')&&adaptStudentActive30(u)).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  modalBody.innerHTML=`<h2>♿ Configurar adaptaciones</h2>
+  <p class="muted">Configura una sola vez qué estudiantes requieren adaptación y cómo será su apoyo. Después quedará disponible automáticamente en las sesiones; no tendrás que volver a elegirlos en cada sesión.</p>
+  <div class="card" style="background:#f8fbff;border:1px solid #dbeafe">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div><label><b>🎓 Grado</b></label><select id="adaptConfigGrade30" onchange="filterAdaptationConfig30()"><option value="">Todos los grados</option><option>1.º</option><option>2.º</option><option>3.º</option><option>4.º</option><option>5.º</option></select></div>
+      <div><label><b>🔹 Sección</b></label><select id="adaptConfigSection30" onchange="filterAdaptationConfig30()"><option value="">Todas las secciones</option><option>A</option><option>B</option></select></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px"><b>Estudiantes</b><span id="adaptConfigCount30" class="badge" style="background:#ede9fe;color:#5b21b6">0 estudiante(s) seleccionado(s)</span></div>
+    <div id="adaptConfigStudentList30" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px;max-height:34vh;overflow:auto;padding:4px"></div>
+    <p id="adaptConfigEmpty30" class="muted" style="display:none;margin:10px 0">No hay estudiantes que coincidan con el filtro.</p>
+  </div>
+  <div class="card" style="margin-top:12px;background:#faf5ff;border:1px solid #ddd6fe">
+    <b>🛠️ Adaptación que recibirá el estudiante</b>
+    <div class="muted" style="margin:4px 0 10px">Selecciona un estudiante de los configurados y registra su adaptación una sola vez.</div>
+    <select id="adaptProfileStudent30" onchange="adaptationProfileStudentChange30()"><option value="">Seleccionar estudiante configurado...</option>${students.filter(st=>window._adaptationConfigTemp30.has(String(st.u||st.id))).map(st=>{const uid=st.u||st.id;return `<option value="${escClass(uid)}">${escClass(st.name||'')} — ${escClass(st.grade||'')} ${escClass(st.section||'')}</option>`}).join('')}</select>
+    <div id="adaptProfileBox30" style="display:none;margin-top:10px">
+      <label><b>Tipo de adaptación</b></label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;padding:10px;border:1px solid #dbeafe;border-radius:10px;background:#fff">${['📝 Ficha impresa adaptada','🖥️ Apoyo para uso de computadora','⏱️ Tiempo adicional','✍️ Menor cantidad de escritura','🖼️ Apoyo visual','🗣️ Respuesta oral','👥 Trabajo con apoyo','✏️ Otra adaptación'].map(t=>`<label style="display:flex;align-items:center;gap:7px;margin:0"><input type="checkbox" class="adaptGlobalType30" value="${escClass(t)}"> ${escClass(t)}</label>`).join('')}</div>
+      <label style="margin-top:10px">¿Qué hará diferente?</label><textarea id="adaptGlobalDesc30" placeholder="Ej.: trabajará con una ficha impresa porque escribe lentamente y tiene dificultad para manejar la computadora."></textarea>
+      <label>Evidencia adaptada</label><textarea id="adaptGlobalEvidence30" placeholder="Ej.: ficha resuelta, respuestas orales, apoyo visual, etc."></textarea>
+      <label>Criterio adaptado</label><textarea id="adaptGlobalCriterion30" placeholder="Indica cómo se evidenciará el aprendizaje con la adaptación."></textarea>
+      <label>Observación</label><textarea id="adaptGlobalObservation30" placeholder="Observaciones adicionales."></textarea>
+    </div>
+  </div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveAdaptationConfig30()">💾 Guardar configuración</button><button class="secondary" onclick="closeModal()">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+  renderAdaptationStudentList30();
+}
+function saveAdaptationConfig30(){
+  ensureAdaptationConfig30();
+  adaptationProfileSave30();
+  adaptationConfigSync30();
+  db.adaptationStudents30=[...(window._adaptationConfigTemp30||new Set())].map(String);
+  save(); closeModal(); render();
+}
+function configuredAdaptationStudents30(x){
+  ensureAdaptationConfig30();
+  return sessionAdaptationStudents30(x).filter(u=>db.adaptationStudents30.includes(String(u.u||u.id)));
+}
+function sessionAdaptationStudents30(x){
+  const all=(db.users||[]).filter(u=>(u.role==='student'||u.role==='estudiante')&&adaptStudentActive30(u));
+  const targetGrade=normalizeAdaptGrade30(x.grade);
+  const targetSection=normalizeAdaptSection30(x.section);
+  if(String(x.grade)==='3.º-5.º') return all.filter(u=>['3','4','5'].includes(normalizeAdaptGrade30(u.grade)));
+  return all.filter(u=>adaptStudentGrade30(u)===targetGrade && (!x.section || adaptStudentSection30(u)===targetSection));
+}
+function openSessionAdaptation30(sessionId, adaptationId='', presetStudentId=''){
+  const x=(db.sessions||[]).find(a=>String(a.id)===String(sessionId)); if(!x)return;
+  const arr=Array.isArray(x.adaptations)?x.adaptations:[];
+  const current=adaptationId ? arr.find(a=>String(a.id)===String(adaptationId)) : null;
+  const students=sessionAdaptationStudents30(x).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const configured=configuredAdaptationStudents30(x);
+  const selectedId=current?.studentId||presetStudentId||'';
+  const types=['📝 Ficha impresa adaptada','🖥️ Apoyo para uso de computadora','⏱️ Tiempo adicional','✍️ Menor cantidad de escritura','🖼️ Apoyo visual','🗣️ Respuesta oral','👥 Trabajo con apoyo','✏️ Otra adaptación'];
+  modalBody.innerHTML=`<h2>♿ ${current?'Editar':'Agregar'} adaptación</h2>
+  <div class="card" style="background:#f5f3ff;border:1px solid #ddd6fe"><b>Sesión ${escClass(x.number)}: ${escClass(x.title)}</b><br><span class="muted">La adaptación se registra para un estudiante dentro de esta sesión. No crea otra sesión.</span></div>
+  <label><b>Estudiante</b></label>
+  ${configured.length?`<div class="card" style="background:#f8fbff;border:1px solid #dbeafe;margin-top:6px"><div class="muted" style="margin-bottom:8px">Estos estudiantes ya están configurados para recibir adaptación:</div><div style="display:flex;gap:8px;flex-wrap:wrap">${configured.map(st=>{const uid=st.u||st.id;return `<button type="button" class="small ${String(selectedId)===String(uid)?'primary':''}" onclick="openSessionAdaptation30(${sessionId},'','${escClass(uid)}')">${escClass(st.name||'')}</button>`}).join('')}</div></div>`:''}
+  <select id="adaptStudent30"><option value="">Seleccionar estudiante...</option>${students.map(st=>{const uid=st.u||st.id;return `<option value="${escClass(uid)}" ${String(selectedId)===String(uid)?'selected':''}>${escClass(st.name||'')}</option>`}).join('')}</select>
+  <label style="margin-top:12px"><b>Tipo de adaptación aplicada</b></label>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;padding:10px;border:1px solid #dbeafe;border-radius:10px;background:#f8fbff">${types.map(t=>`<label style="display:flex;align-items:center;gap:7px;margin:0"><input type="checkbox" class="adaptType30" value="${escClass(t)}" ${current&&Array.isArray(current.types)&&current.types.includes(t)?'checked':''}> ${escClass(t)}</label>`).join('')}</div>
+  <label style="margin-top:12px">¿Qué hizo diferente este estudiante?</label><textarea id="adaptDesc30" placeholder="Ej.: Realizó la actividad mediante una ficha impresa con opciones de respuesta porque escribe lentamente y tiene dificultad para manejar la computadora.">${escClass(current?.description||'')}</textarea>
+  <label>Evidencia adaptada</label><textarea id="adaptEvidence30" placeholder="Ej.: Completó una ficha visual en lugar de elaborar todo el trabajo en computadora.">${escClass(current?.evidence||'')}</textarea>
+  <label>Criterio adaptado</label><textarea id="adaptCriterion30" placeholder="Indica cómo se evidenciará el aprendizaje con la adaptación.">${escClass(current?.criterion||'')}</textarea>
+  <label>Observación</label><textarea id="adaptObservation30" placeholder="Observaciones adicionales.">${escClass(current?.observation||'')}</textarea>
+  <div class="actions" style="margin-top:15px"><button onclick="saveSessionAdaptation30(${sessionId},'${escClass(adaptationId)}')">💾 Guardar adaptación</button><button class="secondary" onclick="viewSession(${sessionId})">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveSessionAdaptation30(sessionId, adaptationId=''){
+  const x=(db.sessions||[]).find(a=>String(a.id)===String(sessionId)); if(!x)return;
+  if(!Array.isArray(x.adaptations))x.adaptations=[];
+  const studentId=document.getElementById('adaptStudent30')?.value||'';
+  const types=[...document.querySelectorAll('.adaptType30:checked')].map(e=>e.value);
+  const description=document.getElementById('adaptDesc30')?.value.trim()||'';
+  const evidence=document.getElementById('adaptEvidence30')?.value.trim()||'';
+  const criterion=document.getElementById('adaptCriterion30')?.value.trim()||'';
+  const observation=document.getElementById('adaptObservation30')?.value.trim()||'';
+  if(!studentId){alert('Selecciona el estudiante.');return}
+  if(!types.length){alert('Selecciona al menos un tipo de adaptación.');return}
+  if(!description){alert('Describe qué hizo diferente este estudiante.');return}
+  const st=(db.users||[]).find(u=>String(u.u||u.id)===String(studentId));
+  const existing=adaptationId?x.adaptations.find(a=>String(a.id)===String(adaptationId)):null;
+  const data={id:existing?.id||('adp_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),studentId,studentName:st?.name||'',types,description,evidence,criterion,observation,updatedAt:new Date().toISOString()};
+  if(existing)Object.assign(existing,data);else x.adaptations.push(data);
+  save();viewSession(sessionId);
+}
+function deleteSessionAdaptation30(sessionId, adaptationId){
+  const x=(db.sessions||[]).find(a=>String(a.id)===String(sessionId)); if(!x||!Array.isArray(x.adaptations))return;
+  if(!confirm('¿Eliminar esta adaptación?'))return;
+  x.adaptations=x.adaptations.filter(a=>String(a.id)!==String(adaptationId));
+  save();viewSession(sessionId);
+}
+
 function newClassRecord30(){
   const instruments=['Lista de cotejo','Escala de valoración','Guía de observación','Rúbrica','Ficha de evaluación','Prueba escrita','Otro'];
   modalBody.innerHTML=`<h2>＋ Nueva clase</h2>
@@ -6332,18 +6629,31 @@ function saveObservationGuide30(classId,user,criterion,value,observation){
     ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
     db.classEvaluations.push(ev);
   }
-  if(!ev.observationGuide)ev.observationGuide={scores:{},observations:{}};
-  if(!ev.observationGuide.scores)ev.observationGuide.scores={};
+  if(!ev.observationGuide)ev.observationGuide={observations:{},support:''};
   if(!ev.observationGuide.observations)ev.observationGuide.observations={};
-  if(value==='') delete ev.observationGuide.scores[criterion];
-  else ev.observationGuide.scores[criterion]=Number(value);
-  if(observation!==undefined) ev.observationGuide.observations[criterion]=observation;
-  const vals=Object.values(ev.observationGuide.scores).map(Number).filter(Number.isFinite);
-  const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
-  ev.grade=avg===null?'':Math.round((avg/4)*20*100)/100;
+  if(observation!==undefined)ev.observationGuide.observations[criterion]=observation;
   ev.updatedAt=Date.now();
   save();
 }
+function saveObservationGuideManual30(classId,user,grade,support){
+  ensureClassData();
+  let ev=classEvalRecord(classId,user);
+  if(!ev){
+    ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
+    db.classEvaluations.push(ev);
+  }
+  const n=String(grade??'').trim();
+  if(n==='') ev.grade='';
+  else {
+    const v=Math.max(0,Math.min(20,Number(n)));
+    ev.grade=Number.isFinite(v)?v:'';
+  }
+  if(!ev.observationGuide)ev.observationGuide={observations:{},support:''};
+  ev.observationGuide.support=String(support??'');
+  ev.updatedAt=Date.now();
+  save();
+}
+
 function renderObservationGuide30(box,rec,students){
   const criteria=Array.isArray(rec.criteriaSelected)?rec.criteriaSelected.filter(Boolean):[];
   const crits=criteria.length?criteria:['Criterio de observación'];
@@ -6352,24 +6662,14 @@ function renderObservationGuide30(box,rec,students){
     const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
     const ev=classEvalRecord(rec.id,u.u)||{};
     const og=ev.observationGuide||{};
-    const scores=og.scores||{};
     const observations=og.observations||{};
-    const vals=crits.map(c=>Number(scores[c])).filter(n=>Number.isFinite(n));
-    const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
-    const grade=forced?5:(avg===null?(ev.grade??''):Math.round((avg/4)*20*100)/100);
+    const support=og.support||'';
+    const grade=forced?5:(ev.grade!==undefined&&ev.grade!==null&&ev.grade!==''?Number(ev.grade):'');
     const level=forced?'C':(grade===''?'—':classLevel(grade));
     const cells=crits.map(c=>{
-      const v=String(scores[c]??'');
       const obs=observations[c]||'';
-      return `<td class="ogCell30">
-        <select class="ogScore30" data-user="${escClass(u.u)}" data-criterion="${escClass(c)}" ${forced?'disabled':''}>
-          <option value="">—</option>
-          <option value="4" ${v==='4'?'selected':''}>LOGRADO · 4</option>
-          <option value="3" ${v==='3'?'selected':''}>EN PROCESO · 3</option>
-          <option value="2" ${v==='2'?'selected':''}>EN INICIO · 2</option>
-          <option value="1" ${v==='1'?'selected':''}>NO EVIDENCIADO · 1</option>
-        </select>
-        <input class="ogObs30" data-user="${escClass(u.u)}" data-criterion="${escClass(c)}" value="${escClass(obs)}" placeholder="Observación" ${forced?'disabled':''}>
+      return `<td class="ogCell30" style="min-width:190px">
+        <textarea class="ogObs30" data-user="${escClass(u.u)}" data-criterion="${escClass(c)}" rows="2" placeholder="Observación" ${forced?'disabled':''}>${escClass(obs)}</textarea>
       </td>`;
     }).join('');
     return `<tr>
@@ -6377,44 +6677,53 @@ function renderObservationGuide30(box,rec,students){
       <td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
       <td>${forced?'<span class="badge bad">No evaluable</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
       ${cells}
-      <td class="ogAvg30" data-user="${escClass(u.u)}">${avg===null?'—':avg.toFixed(2)}</td>
-      <td class="ogGrade30" data-user="${escClass(u.u)}">${grade===''?'—':grade}</td>
+      <td style="min-width:180px"><textarea class="ogSupport30" data-user="${escClass(u.u)}" rows="2" placeholder="Apoyo requerido" ${forced?'disabled':''}>${escClass(support)}</textarea></td>
+      <td style="min-width:95px"><input class="ogGradeInput30" data-user="${escClass(u.u)}" type="number" min="0" max="20" step="0.01" value="${grade===''?'':escClass(grade)}" placeholder="0–20" ${forced?'disabled':''}></td>
       <td class="ogLevel30" data-user="${escClass(u.u)}">${level}</td>
     </tr>`;
   }).join('');
-  const header=crits.map(c=>`<th>${escClass(c)}<br><span style="font-size:10px;font-weight:500">Nivel + observación</span></th>`).join('');
+  const header=crits.map(c=>`<th style="min-width:190px">${escClass(c)}</th>`).join('');
   box.innerHTML=`<div class="guideEvalWrap30">
-    <div class="card" style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;padding:12px 14px;margin-bottom:8px">
-      <h3 style="margin:0 0 6px;color:#1e3a8a">👀 Guía de observación <span class="muted" style="font-size:11px;font-weight:400">· registra lo observado por criterio</span></h3>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">
-        <span class="badge ok">LOGRADO · 4</span><span class="badge" style="background:#dbeafe;color:#1e3a8a">EN PROCESO · 3</span><span class="badge warn">EN INICIO · 2</span><span class="badge bad">NO EVIDENCIADO · 1</span>
-      </div>
-      <div class="scaleHelp30">Escribe una observación breve en cada criterio. El promedio de los niveles seleccionados se convierte automáticamente a 0–20.</div>
+    <div class="card" style="background:#f8fafc;border:1px solid #cbd5e1;padding:12px 14px;margin-bottom:8px">
+      <h3 style="margin:0 0 6px;color:#1e3a8a">👀 Guía de observación <span class="muted" style="font-size:11px;font-weight:400">· registra lo observado y el apoyo requerido</span></h3>
+      <div class="scaleHelp30">Los criterios se muestran como indicadores observables. Escribe la observación correspondiente y, si aplica, el apoyo requerido. La <b>nota 0–20 se registra directamente</b>; no se usan niveles 4–3–2–1 dentro de la guía.</div>
     </div>
-    <div class="scaleTableWrap30"><table class="scaleTable30 guideTable30"><thead><tr><th>N.º</th><th>APELLIDOS Y NOMBRES</th><th>ASISTENCIA</th>${header}<th>PROMEDIO</th><th>NOTA 0–20</th><th>NIVEL</th></tr></thead><tbody>${rows||'<tr><td colspan="20">No hay estudiantes.</td></tr>'}</tbody></table></div>
+    <div class="scaleTableWrap30"><table class="scaleTable30 guideTable30"><thead><tr><th>N.º</th><th>APELLIDOS Y NOMBRES</th><th>ASISTENCIA</th>${header}<th style="min-width:180px">APOYO REQUERIDO</th><th>NOTA 0–20</th><th>NIVEL</th></tr></thead><tbody>${rows||'<tr><td colspan="20">No hay estudiantes.</td></tr>'}</tbody></table></div>
   </div>`;
-  box.querySelectorAll('.ogScore30').forEach(sel=>sel.onchange=()=>{
-    const uid=sel.dataset.user, c=sel.dataset.criterion;
-    const inp=box.querySelector(`.ogObs30[data-user="${CSS.escape(uid)}"][data-criterion="${CSS.escape(c)}"]`);
-    saveObservationGuide30(rec.id,uid,c,sel.value,inp?inp.value:undefined);
-    updateGuideRow30(box,uid);
-  });
   box.querySelectorAll('.ogObs30').forEach(inp=>{
     inp.onchange=()=>{
       const uid=inp.dataset.user,c=inp.dataset.criterion;
-      const sel=box.querySelector(`.ogScore30[data-user="${CSS.escape(uid)}"][data-criterion="${CSS.escape(c)}"]`);
-      saveObservationGuide30(rec.id,uid,c,sel?sel.value:'',inp.value);
+      const support=box.querySelector(`.ogSupport30[data-user="${CSS.escape(uid)}"]`);
+      saveObservationGuide30(rec.id,uid,c,inp.value);
+      if(support)saveObservationGuideManual30(rec.id,uid,undefined,support.value);
+    };
+  });
+  box.querySelectorAll('.ogSupport30').forEach(inp=>{
+    inp.onchange=()=>{
+      const uid=inp.dataset.user;
+      const gradeInput=box.querySelector(`.ogGradeInput30[data-user="${CSS.escape(uid)}"]`);
+      saveObservationGuideManual30(rec.id,uid,gradeInput?gradeInput.value:'',inp.value);
+      const level=box.querySelector(`.ogLevel30[data-user="${CSS.escape(uid)}"]`);
+      const n=Number(gradeInput?.value);
+      if(level)level.textContent=Number.isFinite(n)?classLevel(n):'—';
+    };
+  });
+  box.querySelectorAll('.ogGradeInput30').forEach(inp=>{
+    inp.onchange=()=>{
+      const uid=inp.dataset.user;
+      const support=box.querySelector(`.ogSupport30[data-user="${CSS.escape(uid)}"]`);
+      saveObservationGuideManual30(rec.id,uid,inp.value,support?support.value:'');
+      const n=Number(inp.value);
+      const level=box.querySelector(`.ogLevel30[data-user="${CSS.escape(uid)}"]`);
+      if(level)level.textContent=Number.isFinite(n)&&inp.value!==''?classLevel(n):'—';
     };
   });
 }
 function updateGuideRow30(box,uid){
-  const vals=[...box.querySelectorAll(`.ogScore30[data-user="${CSS.escape(uid)}"]`)].map(x=>Number(x.value)).filter(Number.isFinite);
-  const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
-  const grade=avg===null?'':Math.round((avg/4)*20*100)/100;
-  const a=box.querySelector(`.ogAvg30[data-user="${CSS.escape(uid)}"]`),g=box.querySelector(`.ogGrade30[data-user="${CSS.escape(uid)}"]`),l=box.querySelector(`.ogLevel30[data-user="${CSS.escape(uid)}"]`);
-  if(a)a.textContent=avg===null?'—':avg.toFixed(2);
-  if(g)g.textContent=grade===''?'—':grade;
-  if(l)l.textContent=grade===''?'—':classLevel(grade);
+  const inp=box.querySelector(`.ogGradeInput30[data-user="${CSS.escape(uid)}"]`);
+  const level=box.querySelector(`.ogLevel30[data-user="${CSS.escape(uid)}"]`);
+  const n=Number(inp?.value);
+  if(level)level.textContent=Number.isFinite(n)&&inp?.value!==''?classLevel(n):'—';
 }
 
 function renderScaleValuation30(box,rec,students){
@@ -6462,6 +6771,184 @@ function renderScaleValuation30(box,rec,students){
   });
 }
 
+
+function saveEvaluationSheet30(classId,user,criterion,value,projectName){
+  ensureClassData();
+  let ev=classEvalRecord(classId,user);
+  if(!ev){
+    ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
+    db.classEvaluations.push(ev);
+  }
+  if(!ev.evaluationSheet)ev.evaluationSheet={scores:{},projectName:''};
+  if(!ev.evaluationSheet.scores)ev.evaluationSheet.scores={};
+  if(projectName!==undefined)ev.evaluationSheet.projectName=String(projectName);
+  if(value==='') delete ev.evaluationSheet.scores[criterion];
+  else ev.evaluationSheet.scores[criterion]=String(value);
+
+  const map={AD:18,A:15,B:11,C:5};
+  const vals=Object.values(ev.evaluationSheet.scores).map(v=>map[String(v)]).filter(Number.isFinite);
+  if(vals.length){
+    ev.grade=Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*100)/100;
+  }else{
+    ev.grade='';
+  }
+  ev.updatedAt=Date.now();
+  save();
+}
+
+function renderEvaluationSheet30(box,rec,students){
+  // Los criterios de la ficha NO son fijos: se toman de los criterios
+  // que el docente configuró manualmente en la sesión de aprendizaje.
+  const rawCriteria=Array.isArray(rec.criteriaSelected)?rec.criteriaSelected.filter(Boolean):[];
+  const criteria=rawCriteria.map((text,i)=>({id:`Criterio ${String(i+1).padStart(2,'0')}`,text:String(text)}));
+  const levels=['AD','A','B','C'];
+  const rows=students.map((u,i)=>{
+    const retired=studentIsRetired32(u), suspended=studentIsSuspended32(u), forced=retired||suspended;
+    const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
+    const ev=classEvalRecord(rec.id,u.u)||{};
+    const fs=ev.evaluationSheet||{};
+    const scores=fs.scores||{};
+    const vals=Object.values(scores).map(v=>({AD:18,A:15,B:11,C:5}[String(v)])).filter(Number.isFinite);
+    const grade=forced?5:(vals.length?Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*100)/100:'');
+    const level=forced?'C':(grade===''?'—':classLevel(grade));
+    const project=fs.projectName||'';
+    const cells=criteria.map(c=>{
+      const v=String(scores[c.id]||'');
+      return levels.map(l=>`<td class="fesCell30 fesOptionCell30"><label class="fesChoice30" title="${l}"><input type="radio" name="fes_${escClass(rec.id)}_${escClass(u.u)}_${escClass(c.id)}" data-user="${escClass(u.u)}" data-criterion="${escClass(c.id)}" value="${l}" ${v===l?'checked':''} ${forced?'disabled':''}><span>${l}</span></label></td>`).join('');
+    }).join('');
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td>
+      <td><input class="fesProject30" data-user="${escClass(u.u)}" value="${escClass(project)}" placeholder="Nombre del proyecto" ${forced?'disabled':''}></td>
+      <td>${forced?'<span class="badge bad">No evaluable</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>
+      ${cells}
+      <td class="fesGrade30" data-user="${escClass(u.u)}">${grade===''?'—':grade}</td>
+      <td class="fesLevel30" data-user="${escClass(u.u)}">${level}</td>
+    </tr>`;
+  }).join('');
+  const head=criteria.map(c=>`<th colspan="4"><div>${escClass(c.id)}</div><small>${escClass(c.text)}</small><div class="fesLevelsHead30"><span>AD</span><span>A</span><span>B</span><span>C</span></div></th>`).join('');
+  const emptyMessage=criteria.length?'':`<tr><td colspan="20"><div class="card" style="margin:8px;padding:12px"><b>⚠️ No hay criterios configurados para esta sesión.</b><br><span class="muted">Regresa a la sesión de aprendizaje y escribe manualmente los criterios de evaluación. La ficha los mostrará aquí.</span></div></td></tr>`;
+  box.innerHTML=`<div class="fesWrap30">
+    <div class="card fesTop30">
+      <h3>📋 Ficha de evaluación</h3>
+      <div class="scaleHelp30">Los criterios se toman <b>exactamente de los criterios que tú registraste manualmente en esta sesión</b>. En cada criterio se marca <b>una sola opción: AD, A, B o C</b>. La ficha conserva cada criterio por separado y calcula una calificación 0–20 de referencia.</div>
+    </div>
+    <div class="scaleTableWrap30"><table class="scaleTable30 fesTable30"><thead><tr><th>N.º</th><th>APELLIDOS Y NOMBRES</th><th>PROYECTO DE EMPRENDIMIENTO</th><th>ASISTENCIA</th>${head}<th>NOTA 0–20</th><th>NIVEL</th></tr></thead><tbody>${rows||emptyMessage}</tbody></table></div>
+  </div>`;
+  box.querySelectorAll('.fesProject30').forEach(inp=>inp.onchange=()=>{
+    const uid=inp.dataset.user;
+    const checked=box.querySelector(`input.fesChoice30[data-user="${CSS.escape(uid)}"]:checked`);
+    saveEvaluationSheet30(rec.id,uid,checked?checked.dataset.criterion:'',checked?checked.value:'',inp.value);
+  });
+  box.querySelectorAll('.fesChoice30 input').forEach(inp=>inp.onchange=()=>{
+    const uid=inp.dataset.user;
+    const project=box.querySelector(`.fesProject30[data-user="${CSS.escape(uid)}"]`);
+    saveEvaluationSheet30(rec.id,uid,inp.dataset.criterion,inp.value,project?project.value:'');
+    const ev=classEvalRecord(rec.id,uid)||{};
+    const scores=ev.evaluationSheet?.scores||{};
+    const map={AD:18,A:15,B:11,C:5};
+    const vals=Object.values(scores).map(v=>map[String(v)]).filter(Number.isFinite);
+    const grade=vals.length?Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*100)/100:'';
+    const g=box.querySelector(`.fesGrade30[data-user="${CSS.escape(uid)}"]`),l=box.querySelector(`.fesLevel30[data-user="${CSS.escape(uid)}"]`);
+    if(g)g.textContent=grade===''?'—':grade;
+    if(l)l.textContent=grade===''?'—':classLevel(grade);
+  });
+}
+
+function saveWrittenTest30(classId,user,grade){
+  ensureClassData();
+  let ev=classEvalRecord(classId,user);
+  if(!ev){
+    ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
+    db.classEvaluations.push(ev);
+  }
+  ev.grade=grade===''?'':Math.max(0,Math.min(20,Number(grade)));
+  ev.status=ev.grade===''?'':'Evaluado';
+  ev.updatedAt=Date.now(); save();
+}
+function saveWrittenAnswer30(classId,user,qIndex,value){
+  ensureClassData();
+  let ev=classEvalRecord(classId,user);
+  if(!ev){
+    ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
+    db.classEvaluations.push(ev);
+  }
+  if(!ev.writtenAnswers || typeof ev.writtenAnswers!=='object') ev.writtenAnswers={};
+  ev.writtenAnswers[String(qIndex)]=value||'';
+  ev.updatedAt=Date.now(); save();
+}
+function renderWrittenTest30(box,rec,students){
+  // En la prueba escrita se evalúa UN estudiante a la vez.
+  // Se selecciona al estudiante y luego se muestran todas sus preguntas
+  // con un desplegable de alternativas para cada pregunta.
+  const linkedSession=(db.sessions||[]).find(s=>String(s.id)===String(rec.session));
+  const questions=Array.isArray(rec.writtenQuestions)&&rec.writtenQuestions.length
+    ? rec.writtenQuestions.filter(Boolean)
+    : (Array.isArray(linkedSession?.writtenQuestions)?linkedSession.writtenQuestions.filter(Boolean):[]);
+  const normalizedQuestions=questions.map(normalizeWrittenQuestion30);
+
+  const selectedUid=window._writtenSelectedStudent30 || '';
+  const selectedStudent=students.find(u=>String(u.u)===String(selectedUid));
+  const studentOptions=students.map(u=>`<option value="${escClass(u.u)}" ${String(u.u)===String(selectedUid)?'selected':''}>${escClass(u.name)}</option>`).join('');
+
+  let content='';
+  if(!selectedStudent){
+    content=`<div class="muted" style="padding:18px;text-align:center">Selecciona un estudiante para registrar sus respuestas y su nota.</div>`;
+  }else{
+    const u=selectedStudent;
+    const retired=studentIsRetired32(u), suspended=studentIsSuspended32(u), forced=retired||suspended;
+    const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
+    const ev=classEvalRecord(rec.id,u.u)||{};
+    const grade=forced?5:(ev.grade!==''&&ev.grade!==null&&ev.grade!==undefined?Number(ev.grade):'');
+    const level=forced?'C':(grade===''?'—':classLevel(grade));
+    const answers=normalizedQuestions.length ? normalizedQuestions.map((z,i)=>{
+      const opts=z.options.map((o,j)=>({letter:String.fromCharCode(65+j),text:o})).filter(x=>x.text);
+      const saved=ev?.writtenAnswers?.[String(i)]||'';
+      if(z.type==='open') return `<div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(260px,360px);gap:14px;align-items:start;padding:12px 0;border-bottom:1px solid #e5e7eb">
+        <div><b>${i+1}. ${escClass(z.text)}</b><div class="muted" style="font-size:.85rem;margin-top:4px">Respuesta abierta</div></div>
+        <textarea class="writtenAnswerOpen30" data-q="${i}" rows="3" placeholder="Escribe la respuesta del estudiante…" ${forced?'disabled':''}>${escClass(saved)}</textarea>
+      </div>`;
+      const optionsHtml=opts.length
+        ? `<option value="">Seleccionar alternativa…</option>${opts.map(o=>`<option value="${escClass(o.letter)}" ${saved===o.letter?'selected':''}>${o.letter}) ${escClass(o.text)}</option>`).join('')}`
+        : `<option value="">Sin alternativas registradas</option>`;
+      return `<div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(260px,360px);gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #e5e7eb">
+        <div><b>${i+1}. ${escClass(z.text)}</b></div>
+        <select class="writtenAnswer30" data-q="${i}" style="width:100%" ${forced?'disabled':''}>${optionsHtml}</select>
+      </div>`;
+    }).join('') : `<div class="muted" style="padding:12px 0">No hay preguntas registradas. Puedes agregarlas desde Modificar sesión.</div>`;
+
+    content=`<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap">
+        <div><h3 style="margin:0 0 4px">👨‍🎓 ${escClass(u.name)}</h3><div class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')} · ${att?escClass(attendanceStatusLabel(att)):'Sin asistencia registrada'}</div></div>
+        <div style="display:flex;align-items:center;gap:10px"><label><b>Nota 0–20</b></label><input class="writtenGrade30" type="number" min="0" max="20" step="0.1" data-user="${escClass(u.u)}" value="${grade===''?'':escClass(grade)}" placeholder="0–20" ${forced?'disabled':''} style="width:90px"><b class="writtenLevel30" data-user="${escClass(u.u)}">${level}</b></div>
+      </div>
+    </div>
+    <div class="card"><div style="font-weight:700;margin-bottom:6px">Preguntas y alternativas</div>${answers}</div>`;
+  }
+
+  box.innerHTML=`<div class="card" style="margin-bottom:12px">
+    <h3 style="margin:0 0 6px">📝 Prueba escrita</h3>
+    <div class="muted">Selecciona un estudiante. Se mostrarán únicamente sus preguntas y, al lado de cada pregunta, el menú desplegable para registrar la alternativa elegida. La nota 0–20 se coloca manualmente.</div>
+    <div style="margin-top:12px;max-width:520px"><label style="display:block;font-weight:700;margin-bottom:6px">Estudiante</label><select id="writtenStudent30" style="width:100%"><option value="">Seleccionar estudiante…</option>${studentOptions}</select></div>
+  </div>${content}`;
+
+  const studentSelect=box.querySelector('#writtenStudent30');
+  if(studentSelect) studentSelect.onchange=()=>{ window._writtenSelectedStudent30=studentSelect.value||''; renderWrittenTest30(box,rec,students); };
+
+  box.querySelectorAll('.writtenAnswer30').forEach(sel=>sel.onchange=()=>{
+    if(!selectedStudent) return;
+    saveWrittenAnswer30(rec.id,selectedStudent.u,sel.dataset.q,sel.value);
+  });
+  box.querySelectorAll('.writtenAnswerOpen30').forEach(inp=>inp.onchange=()=>{
+    if(!selectedStudent) return;
+    saveWrittenAnswer30(rec.id,selectedStudent.u,inp.dataset.q,inp.value);
+  });
+  box.querySelectorAll('.writtenGrade30').forEach(inp=>inp.onchange=()=>{
+    const uid=inp.dataset.user; const val=inp.value; saveWrittenTest30(rec.id,uid,val);
+    const g=val===''?'':Number(val); const l=box.querySelector(`.writtenLevel30[data-user="${CSS.escape(uid)}"]`); if(l)l.textContent=g===''?'—':classLevel(g);
+  });
+}
+
 function renderClass30(){
   const box=document.getElementById('ceTable30'); if(!box)return;
   ensureClassData();
@@ -6504,6 +6991,14 @@ function renderClass30(){
   }
   if(effectiveInstrument30==='Guía de observación') {
     renderObservationGuide30(box,rec,students);
+    return;
+  }
+  if(effectiveInstrument30==='Ficha de evaluación') {
+    renderEvaluationSheet30(box,rec,students);
+    return;
+  }
+  if(effectiveInstrument30==='Prueba escrita') {
+    renderWrittenTest30(box,rec,students);
     return;
   }
 
@@ -6689,18 +7184,28 @@ function saveClassEval30(){
 }
 
 /* ===== ACTIVIDADES / PARTICIPACIÓN / CONDUCTA / UNIFORME / CUADERNO / FOLDER ===== */
+const componentFilterState30={};
+function setComponentFilterState30(arrName,field,value){
+  componentFilterState30[arrName]=componentFilterState30[arrName]||{grade:'Todos',section:'Todas'};
+  componentFilterState30[arrName][field]=value;
+  // Actualiza el listado inmediatamente con los valores actuales de ambos filtros.
+  // No requiere cambiar el filtro una segunda vez.
+  requestAnimationFrame(()=>filterSimpleComponentRecords(arrName));
+}
+
 function simpleComponentPanel(title,emoji,key,arrName){
   ensureClassData();
   const arr=(db[arrName]||[]);
   const gid=`cmpFilterGrade_${arrName}`;
   const sid=`cmpFilterSec_${arrName}`;
   const lid=`cmpRecords_${arrName}`;
+  const state=componentFilterState30[arrName]||{grade:'Todos',section:'Todas'};
 
   return `<div>${bimesterSwitcher31()}<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div>
         <h2>${emoji} ${title}</h2>
-        <p class="muted">Cada registro queda acumulado y se promedia automáticamente.</p>
+        <p class="muted">${arrName==='participations'?'Sorteo sin repetir hasta completar la ronda. Las voluntarias también se registran. Se consideran las 3 mejores participaciones del bimestre.':'Cada registro queda acumulado y se promedia automáticamente.'}</p>
       </div>
       <button onclick="newComponentRecord('${key}','${arrName}','${escClass(title)}')">＋ Nuevo registro</button>
     </div>
@@ -6708,17 +7213,17 @@ function simpleComponentPanel(title,emoji,key,arrName){
     <div class="grid3" style="margin-top:20px;gap:16px">
       <div>
         <label>🎓 Grado</label>
-        <select id="${gid}" onchange="filterSimpleComponentRecords('${arrName}')">
-          <option>Todos</option>
-          ${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option>${x}</option>`).join('')}
+        <select id="${gid}" onchange="setComponentFilterState30('${arrName}','grade',this.value)">
+          <option ${state.grade==='Todos'?'selected':''}>Todos</option>
+          ${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option ${state.grade===x?'selected':''}>${x}</option>`).join('')}
         </select>
       </div>
       <div>
         <label>🔤 Sección</label>
-        <select id="${sid}" onchange="filterSimpleComponentRecords('${arrName}')">
-          <option>Todas</option>
-          <option>A</option>
-          <option>B</option>
+        <select id="${sid}" onchange="setComponentFilterState30('${arrName}','section',this.value)">
+          <option ${state.section==='Todas'?'selected':''}>Todas</option>
+          <option ${state.section==='A'?'selected':''}>A</option>
+          <option ${state.section==='B'?'selected':''}>B</option>
         </select>
       </div>
       <div>
@@ -6728,7 +7233,7 @@ function simpleComponentPanel(title,emoji,key,arrName){
     </div>
 
     <div id="${lid}" class="list" style="margin-top:15px">
-      ${renderSimpleComponentRecords(arrName,title,key,'Todos','Todas')}
+      ${renderSimpleComponentRecords(arrName,title,key,state.grade,state.section)}
     </div>
   </div></div>`;
 }
@@ -6801,8 +7306,14 @@ function renderSimpleComponentRecords(arrName,title,key,gradeFilter,sectionFilte
     if(!isActiveBimesterRecord31(r)) return false;
 
     const scope=recordScope(arrName,r);
-    if((gradeFilter!=='Todos' && scope.grade!==gradeFilter) ||
-       (sectionFilter!=='Todas' && scope.section!==sectionFilter)) return false;
+    // Para los registros nuevos, el grado/sección guardados en el propio registro
+    // son la fuente principal. Si faltan, usamos recordScope como respaldo.
+    const recordGrade=normalizeRecordGrade(r.grade)||normalizeRecordGrade(scope.grade);
+    const recordSection=normalizeRecordSection(r.section)||normalizeRecordSection(scope.section);
+    const normalizedFilterGrade=normalizeRecordGrade(gradeFilter);
+    const normalizedFilterSection=normalizeRecordSection(sectionFilter);
+    if(gradeFilter!=='Todos' && recordGrade!==normalizedFilterGrade) return false;
+    if(sectionFilter!=='Todas' && recordSection!==normalizedFilterSection) return false;
 
     // Un solo registro por sesión + grado + sección.
     // Esto evita que una misma evaluación aparezca repetida varias veces.
@@ -6861,6 +7372,29 @@ function filterSimpleComponentRecords(arrName){
 }
 
 
+
+function componentInstrumentOptions(arrName){
+  const map={participations:['Guía de observación'],behaviorGrades:['Guía de observación'],uniformGrades:['Lista de cotejo'],folderGrades:['Lista de cotejo'],examGrades:['Prueba escrita','Lista de cotejo']};
+  return map[arrName]||['Lista de cotejo','Escala de valoración','Guía de observación','Rúbrica','Ficha de evaluación','Prueba escrita','Otro'];
+}
+function componentDefaultInstrument(arrName){
+  return {participations:'Guía de observación',behaviorGrades:'Guía de observación',uniformGrades:'Lista de cotejo',folderGrades:'Lista de cotejo',examGrades:'Prueba escrita'}[arrName]||'Lista de cotejo';
+}
+function addComponentCriterionField(value='',wrapId='componentCriteriaWrap',className='componentCriterionInput'){
+  const wrap=document.getElementById(wrapId); if(!wrap)return;
+  const div=document.createElement('div'); div.style.cssText='display:flex;gap:8px;align-items:center;margin-top:7px';
+  div.innerHTML=`<input class="${className}" value="${escClass(value)}" placeholder="Escribe el criterio de evaluación" style="flex:1"><button type="button" class="secondary" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(div);
+}
+function getComponentCriteriaFromForm(){return [...document.querySelectorAll('#componentCriteriaWrap .componentCriterionInput')].map(x=>x.value.trim()).filter(Boolean);}
+function addEditComponentCriterionField(value=''){addComponentCriterionField(value,'editComponentCriteriaWrap','editComponentCriterionInput');}
+function getEditComponentCriteriaFromForm(){return [...document.querySelectorAll('#editComponentCriteriaWrap .editComponentCriterionInput')].map(x=>x.value.trim()).filter(Boolean);}
+function componentCriteriaBlock(arrName,rec){
+  const supported=['participations','behaviorGrades','uniformGrades','folderGrades','examGrades']; if(!supported.includes(arrName))return '';
+  const instrument=rec?.instrument||componentDefaultInstrument(arrName), criteria=Array.isArray(rec?.criteria)?rec.criteria.filter(Boolean):[];
+  return `<div class="card" style="margin:12px 0;padding:12px;background:#f8fafc;border:1px solid #dbeafe"><div><b>📋 Instrumento:</b> ${escClass(instrument)}</div><div style="margin-top:8px"><b>📝 Criterios de evaluación:</b></div>${criteria.length?`<ul style="margin:6px 0 0 20px">${criteria.map(c=>`<li>${escClass(c)}</li>`).join('')}</ul>`:'<div class="muted" style="margin-top:5px">Sin criterios registrados.</div>'}</div>`;
+}
+
 function newComponentRecord(key,arrName,title){
   ensureClassData();
   const today=todayLocal30();
@@ -6908,17 +7442,30 @@ function newComponentRecord(key,arrName,title){
       <input id="cmpTitle" value="${escClass(title)}" readonly>
     </div>
 
+    ${['participations','behaviorGrades','uniformGrades','folderGrades','examGrades'].includes(arrName)?`
+    <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
+      <label>📋 Instrumento de evaluación</label>
+      <select id="componentInstrument">${componentInstrumentOptions(arrName).map(x=>`<option value="${escClass(x)}" ${componentDefaultInstrument(arrName)===x?'selected':''}>${escClass(x)}</option>`).join('')}</select>
+      <p class="muted" style="margin-top:6px">Tú eliges el instrumento y escribes manualmente los criterios que revisarás.</p>
+      <div style="margin-top:12px"><label>📝 Criterios de evaluación</label><div id="componentCriteriaWrap"></div>
+        <button type="button" class="secondary" style="margin-top:8px" onclick="addComponentCriterionField()">＋ Agregar criterio</button>
+      </div>
+    </div>`:''}
+
     ${arrName==='notebookGrades'?`
     <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
-      <label>📚 Tipo de revisión de cuaderno</label>
-      <select id="notebookReviewType" onchange="loadNotebookRecoveryOptions()">
-        <option value="normal">📝 Revisión normal</option>
-        <option value="recovery">🔄 Recuperación</option>
-      </select>
-      <div id="notebookRecoveryWrap" style="display:none;margin-top:10px">
-        <label>Recupera a</label>
-        <select id="notebookRecoveryOf"><option value="">Primero selecciona grado, sección y sesión</option></select>
-        <p class="muted" style="margin-top:5px">La nota de recuperación mejora la revisión vinculada; no se cuenta como una revisión adicional.</p>
+      <label>📋 Instrumento de evaluación</label>
+      <select id="notebookInstrument"><option value="Lista de cotejo">☑️ Lista de cotejo</option></select>
+      <p class="muted" style="margin-top:6px">Tú escribes manualmente los criterios que revisarás en el cuaderno.</p>
+      <div style="margin-top:12px"><label>📝 Criterios de la lista de cotejo</label><div id="notebookCriteriaWrap"></div>
+        <button type="button" class="secondary" style="margin-top:8px" onclick="addNotebookCriterionField()">＋ Agregar criterio</button>
+      </div>
+      <div style="margin-top:14px"><label>📚 Tipo de revisión de cuaderno</label>
+        <select id="notebookReviewType" onchange="loadNotebookRecoveryOptions()"><option value="normal">📝 Revisión normal</option><option value="recovery">🔄 Recuperación</option></select>
+        <div id="notebookRecoveryWrap" style="display:none;margin-top:10px"><label>Recupera a</label>
+          <select id="notebookRecoveryOf"><option value="">Primero selecciona grado, sección y sesión</option></select>
+          <p class="muted" style="margin-top:5px">La nota de recuperación mejora la revisión vinculada; no se cuenta como una revisión adicional.</p>
+        </div>
       </div>
     </div>`:''}
 
@@ -6928,7 +7475,17 @@ function newComponentRecord(key,arrName,title){
     </div>`;
 
   modal.classList.remove('hidden');
+  if(['participations','behaviorGrades','uniformGrades','folderGrades','examGrades'].includes(arrName)) addComponentCriterionField();
+  if(arrName==='notebookGrades') addNotebookCriterionField('Tiene carátula');
 }
+
+function addNotebookCriterionField(value=''){
+  const wrap=document.getElementById('notebookCriteriaWrap'); if(!wrap)return;
+  const div=document.createElement('div'); div.className='notebookCriterionField'; div.style.cssText='display:flex;gap:8px;align-items:center;margin-top:7px';
+  div.innerHTML=`<input class="notebookCriterionInput" value="${escClass(value)}" placeholder="Ej.: Tiene carátula" style="flex:1"><button type="button" class="secondary" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(div);
+}
+function getNotebookCriteriaFromForm(){return [...document.querySelectorAll('#notebookCriteriaWrap .notebookCriterionInput')].map(x=>x.value.trim()).filter(Boolean);}
 
 function loadComponentSessions(){
   const grade=document.getElementById('cmpGrade')?.value||'';
@@ -7049,9 +7606,19 @@ function saveComponentRecord(key,arrName){
     sessionNumber:ses?.number||'',
     sessionTitle:ses?.title||'',
     unit:ses?.unit||'',
-    bimester:activeBimester31()
+    bimester:activeBimester31(),
+    createdAt:Date.now(),
+    updatedAt:Date.now()
   };
+  if(['participations','behaviorGrades','uniformGrades','folderGrades','examGrades'].includes(arrName)){
+    r.instrument=document.getElementById('componentInstrument')?.value||componentDefaultInstrument(arrName);
+    r.criteria=getComponentCriteriaFromForm();
+    if(!r.criteria.length){alert('Agrega al menos un criterio de evaluación.');return;}
+  }
   if(isNotebook){
+    r.instrument=document.getElementById('notebookInstrument')?.value||'Lista de cotejo';
+    r.criteria=getNotebookCriteriaFromForm();
+    if(!r.criteria.length){ alert('Agrega al menos un criterio de la lista de cotejo.'); return; }
     r.recordType=reviewType;
     r.type=reviewType;
     r.recoveryOf=isRecovery?(document.getElementById('notebookRecoveryOf')?.value||''):'';
@@ -7062,6 +7629,9 @@ function saveComponentRecord(key,arrName){
   }
 
   db[arrName].push(r);
+  // Después de crear un registro, deja el filtro de ese componente
+  // apuntando automáticamente al grado y sección recién registrados.
+  componentFilterState30[arrName]={grade:normalizeRecordGrade(grade)||'Todos',section:normalizeRecordSection(section)||'Todas'};
   save();
   closeModal();
   render();
@@ -7106,8 +7676,25 @@ function editComponentRecord(key,arrName,id){
       <p class="muted">La fecha y el título se toman de la sesión seleccionada.</p>
     </div>
 
+    ${['participations','behaviorGrades','uniformGrades','folderGrades','examGrades'].includes(arrName)?`
+    <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
+      <label>📋 Instrumento de evaluación</label>
+      <select id="editComponentInstrument">${componentInstrumentOptions(arrName).map(x=>`<option value="${escClass(x)}" ${((rec.instrument||componentDefaultInstrument(arrName))===x)?'selected':''}>${escClass(x)}</option>`).join('')}</select>
+      <p class="muted" style="margin-top:6px">Puedes cambiar el instrumento y editar los criterios de este registro.</p>
+      <div style="margin-top:12px"><label>📝 Criterios de evaluación</label><div id="editComponentCriteriaWrap"></div>
+        <button type="button" class="secondary" style="margin-top:8px" onclick="addEditComponentCriterionField()">＋ Agregar criterio</button>
+      </div>
+    </div>`:''}
+
     ${arrName==='notebookGrades'?`
     <div class="card" style="margin-top:14px;padding:14px;background:#f8fafc">
+      <label>📋 Instrumento de evaluación</label>
+      <select id="editNotebookInstrument" disabled><option value="Lista de cotejo">☑️ Lista de cotejo</option></select>
+      <p class="muted" style="margin-top:6px">Aquí puedes editar los criterios que revisarás en este registro de cuaderno.</p>
+      <div style="margin-top:12px"><label>📝 Criterios de la lista de cotejo</label><div id="editNotebookCriteriaWrap"></div>
+        <button type="button" class="secondary" style="margin-top:8px" onclick="addEditNotebookCriterionField()">＋ Agregar criterio</button>
+      </div>
+      <div style="margin-top:14px">
       <label>📚 Tipo de revisión de cuaderno</label>
       <select id="editNotebookReviewType" onchange="loadEditNotebookRecoveryOptions('${escClass(id)}')">
         <option value="normal" ${(String(rec.recordType||rec.type||'').toLowerCase()!=='recovery')?'selected':''}>📝 Revisión normal</option>
@@ -7127,8 +7714,29 @@ function editComponentRecord(key,arrName,id){
 
   modal.classList.remove('hidden');
   loadEditComponentSessions(arrName,id);
-  if(arrName==='notebookGrades') loadEditNotebookRecoveryOptions(id);
+  if(['participations','behaviorGrades','uniformGrades','folderGrades','examGrades'].includes(arrName)){
+    const criteria=Array.isArray(rec.criteria)?rec.criteria.filter(Boolean):[];
+    const wrap=document.getElementById('editComponentCriteriaWrap');
+    if(wrap){wrap.innerHTML='';(criteria.length?criteria:['']).forEach(c=>addEditComponentCriterionField(c));}
+  }
+  if(arrName==='notebookGrades'){
+    const criteria=Array.isArray(rec.criteria)?rec.criteria.filter(Boolean):[];
+    const wrap=document.getElementById('editNotebookCriteriaWrap');
+    if(wrap){
+      wrap.innerHTML='';
+      (criteria.length?criteria:['']).forEach(c=>addEditNotebookCriterionField(c));
+    }
+    loadEditNotebookRecoveryOptions(id);
+  }
 }
+
+function addEditNotebookCriterionField(value=''){
+  const wrap=document.getElementById('editNotebookCriteriaWrap'); if(!wrap)return;
+  const div=document.createElement('div'); div.className='notebookCriterionField'; div.style.cssText='display:flex;gap:8px;align-items:center;margin-top:7px';
+  div.innerHTML=`<input class="editNotebookCriterionInput" value="${escClass(value)}" placeholder="Ej.: Tiene carátula" style="flex:1"><button type="button" class="secondary" onclick="this.parentElement.remove()">✕</button>`;
+  wrap.appendChild(div);
+}
+function getEditNotebookCriteriaFromForm(){return [...document.querySelectorAll('#editNotebookCriteriaWrap .editNotebookCriterionInput')].map(x=>x.value.trim()).filter(Boolean);}
 
 function loadEditComponentSessions(arrName,id){
   const rec=(db[arrName]||[]).find(x=>x.id===id);
@@ -7216,6 +7824,13 @@ function updateComponentRecord(key,arrName,id){
   rec.date=ses.date||todayLocal30();
   rec.unit=ses.unit||rec.unit||'';
   if(arrName==='notebookGrades'){
+    const editedCriteria=getEditNotebookCriteriaFromForm();
+    if(!editedCriteria.length){
+      alert('Agrega al menos un criterio de la lista de cotejo.');
+      return;
+    }
+    rec.instrument='Lista de cotejo';
+    rec.criteria=editedCriteria;
     const rt=document.getElementById('editNotebookReviewType')?.value||'normal';
     rec.recordType=rt;
     rec.type=rt;
@@ -7271,6 +7886,8 @@ function openComponentRecord(key,arrName,id){
   };
 
   const title=componentDisplayTitle(arrName,rec,key);
+  if(arrName==='participations'){ renderParticipationEvaluator(id,'','sorteo'); return; }
+  if(arrName==='notebookGrades' && (rec.instrument==='Lista de cotejo' || Array.isArray(rec.criteria))){ openNotebookChecklistRecord(key,arrName,id,rec,scope,students); return; }
   const box=`
     <h2>${escClass(title)}</h2>
     <p class="muted">
@@ -7320,6 +7937,28 @@ function openComponentRecord(key,arrName,id){
   });
 }
 
+function openNotebookChecklistRecord(key,arrName,id,rec,scope,students){
+  const criteria=Array.isArray(rec.criteria)?rec.criteria.filter(Boolean):[];
+  const arr=db[arrName]||[]; const valueFor=u=>arr.find(x=>x.recordId===id&&x.user===u.u)||{};
+  const header=criteria.map(c=>`<th>${escClass(c)}</th>`).join('');
+  const rows=students.map(u=>{
+    const x=valueFor(u), checks=x.checks||{}, observations=x.observations||{}; const retired=studentIsRetired32(u); const att=attendanceStatusForDateUser(classAttendanceDate30(rec),u);
+    const cells=criteria.map(c=>`<td><select class="nbCheck" data-user="${escClass(u.u)}" data-criterion="${escClass(c)}" ${retired?'disabled':''}><option value="">—</option><option value="si" ${checks[c]==='si'?'selected':''}>✓ Cumple</option><option value="no" ${checks[c]==='no'?'selected':''}>✗ No cumple</option></select></td>`).join('');
+    return `<tr><td><b>${escClass(u.name)}</b></td><td>${retired?'⚫ RETIRADO':(att?escClass(attendanceStatusLabel(att)):'⚪ Sin registrar')}</td>${cells}<td><input class="nbObs" data-user="${escClass(u.u)}" value="${escClass(observations.general||'')}" placeholder="Observación" ${retired?'disabled':''}></td><td><input class="cmpGrade" data-user="${escClass(u.u)}" type="number" min="0" max="20" value="${x.grade??''}" style="width:80px" ${retired?'disabled':''}></td><td class="cmpLevel" data-user="${escClass(u.u)}">${retired?'—':(x.grade===''||x.grade===undefined?'—':classLevel(x.grade))}</td></tr>`;
+  }).join('');
+  const box=`<h2>📋 ${escClass(rec.title||'Revisión de cuaderno')} — Lista de cotejo</h2><p class="muted">${rec.sessionTitle?`📖 Sesión ${escClass(rec.sessionNumber||'')}: ${escClass(rec.sessionTitle)} · `:''}📅 ${escClass(rec.date||'—')} · 🎓 ${escClass(scope.grade||'')} ${escClass(scope.section||'')}</p><div class="card" style="margin:12px 0;background:#f8fafc"><b>Instrumento:</b> Lista de cotejo<br><span class="muted">Los criterios fueron escritos manualmente. Marca Cumple/No cumple, agrega observación si corresponde y coloca tú mismo la nota 0–20.</span></div><div style="overflow:auto"><table><tr><th>Estudiante</th><th>Asistencia</th>${header}<th>Observación</th><th>Nota 0–20</th><th>Nivel</th></tr>${rows||`<tr><td colspan="${criteria.length+5}">No hay estudiantes.</td></tr>`}</table></div><div class="actions" style="margin-top:15px"><button onclick="saveNotebookChecklist('${key}','${arrName}','${escClass(id)}')">💾 Guardar</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+  modalBody.innerHTML=box; modal.classList.remove('hidden');
+  modalBody.querySelectorAll('.nbCheck').forEach(e=>e.onchange=()=>saveNotebookChecklistField(id,e.dataset.user,e.dataset.criterion,e.value,''));
+  modalBody.querySelectorAll('.nbObs').forEach(e=>e.onchange=()=>saveNotebookChecklistField(id,e.dataset.user,'general','',e.value));
+  modalBody.querySelectorAll('.cmpGrade').forEach(e=>e.oninput=()=>{const o=modalBody.querySelector(`.cmpLevel[data-user="${CSS.escape(e.dataset.user)}"]`);if(o)o.textContent=e.value===''?'—':classLevel(e.value);autoSaveComponentGrade(arrName,id,e);});
+}
+function saveNotebookChecklistField(recordId,user,criterion,value,observation){
+  if(blockRetiredGrade32(user))return; ensureClassData(); const arr=db.notebookGrades||[]; let x=arr.find(x=>x.recordId===recordId&&x.user===user);
+  if(!x){x={id:'score_'+Date.now()+'_'+Math.random(),recordId,user,grade:''};arr.push(x);} x.checks=x.checks||{}; x.observations=x.observations||{};
+  if(criterion==='general') x.observations.general=observation||''; else if(value==='') delete x.checks[criterion]; else x.checks[criterion]=value; save();
+}
+function saveNotebookChecklist(key,arrName,recordId){save();closeModal();render();}
+
 function autoSaveComponentGrade(arrName,recordId,input){
   if(blockRetiredGrade32(input?.dataset?.user)) return;
   const cmpRec=(db[arrName]||[]).find(x=>x.id===recordId);
@@ -7362,7 +8001,106 @@ function saveComponentGrades(key,arrName,recordId){
   });save();closeModal();render();
 }
 function activitiesGrades(){return simpleComponentPanel('Desarrollo de actividades','💻','activities','activitiesGrades')}
+
+function participationRecordStudents(rec){
+  const scope=recordScope('participations',rec);
+  return (db.users||[]).filter(u=>u.role==='student' && (!scope.grade||u.grade===scope.grade) && (!scope.section||u.section===scope.section));
+}
+function participationScoreFor(recordId,user){
+  return (db.participations||[]).find(x=>x.recordId===recordId&&x.user===user)||null;
+}
+function participationRoundState(rec){
+  rec.drawnUsers=Array.isArray(rec.drawnUsers)?rec.drawnUsers:[];
+  const students=participationRecordStudents(rec).map(u=>u.u);
+  const valid=new Set(students);
+  rec.drawnUsers=rec.drawnUsers.filter(x=>valid.has(x));
+  if(students.length && rec.drawnUsers.length>=students.length){
+    rec.drawnUsers=[];
+    rec.round=Number(rec.round||1)+1;
+  }
+  if(!rec.round)rec.round=1;
+  return rec;
+}
+function drawParticipationStudent(recordId){
+  const rec=(db.participations||[]).find(x=>x.id===recordId); if(!rec)return;
+  const students=participationRecordStudents(rec); if(!students.length){alert('No hay estudiantes para este grado y sección.');return;}
+  participationRoundState(rec);
+  const available=students.filter(u=>!rec.drawnUsers.includes(u.u));
+  if(!available.length){rec.drawnUsers=[];rec.round=(Number(rec.round||1)+1);}
+  const pool=available.length?available:students;
+  const picked=pool[Math.floor(Math.random()*pool.length)];
+  if(!rec.drawnUsers.includes(picked.u))rec.drawnUsers.push(picked.u);
+  save();
+  renderParticipationEvaluator(recordId,picked.u,'sorteo');
+}
+function resetParticipationRound(recordId){
+  const rec=(db.participations||[]).find(x=>x.id===recordId); if(!rec)return;
+  rec.drawnUsers=[]; rec.round=Number(rec.round||1)+1; save(); renderParticipationEvaluator(recordId,'','sorteo');
+}
+function renderParticipationEvaluator(recordId,selectedUser='',mode='sorteo'){
+  const rec=(db.participations||[]).find(x=>x.id===recordId); if(!rec)return;
+  participationRoundState(rec);
+  const students=participationRecordStudents(rec);
+  const arr=db.participations||[];
+  const selected=selectedUser||students[0]?.u||'';
+  const score=participationScoreFor(recordId,selected);
+  const student=students.find(u=>u.u===selected);
+  const criteria=Array.isArray(rec.criteria)?rec.criteria.filter(Boolean):[];
+  const drawn=students.filter(u=>rec.drawnUsers.includes(u.u));
+  const already=score&&score.type;
+  modalBody.innerHTML=`
+    <h2>🙋 ${escClass(rec.title||'Participación')}</h2>
+    <p class="muted">📖 ${escClass(rec.sessionTitle||'Sesión')} · 📅 ${escClass(rec.date||'—')} · 🎓 ${escClass(rec.grade||'')} ${escClass(rec.section||'')}</p>
+    <div class="card" style="margin:12px 0;background:#f8fafc">
+      <b>📋 Instrumento:</b> ${escClass(rec.instrument||'Guía de observación')}<br>
+      <b>📝 Criterios:</b> ${criteria.length?criteria.map(c=>escClass(c)).join(' · '):'Sin criterios registrados'}
+    </div>
+    <div class="card" style="margin:12px 0">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" onclick="drawParticipationStudent('${escClass(recordId)}')">🎲 Sacar estudiante</button>
+        <button type="button" class="secondary" onclick="renderParticipationEvaluator('${escClass(recordId)}','','voluntaria')">🙋 Participación voluntaria</button>
+        <button type="button" class="secondary" onclick="resetParticipationRound('${escClass(recordId)}')">🔄 Nueva ronda</button>
+        <span class="badge ok">Ronda ${Number(rec.round||1)}</span>
+      </div>
+      <p class="muted" style="margin-top:8px">Sorteo: no repite estudiante hasta completar la ronda. La participación voluntaria puede registrarse aunque aún no haya salido sorteado.</p>
+    </div>
+    <div class="grid2">
+      <div><label>👤 Estudiante</label>
+        <select id="partStudentSelect" onchange="renderParticipationEvaluator('${escClass(recordId)}',this.value,'${escClass(mode)}')">
+          ${students.map(u=>`<option value="${escClass(u.u)}" ${u.u===selected?'selected':''}>${escClass(u.name)}${rec.drawnUsers.includes(u.u)?' ✓':''}</option>`).join('')}
+        </select>
+      </div>
+      <div><label>Tipo de participación</label>
+        <select id="partType"><option value="sorteo" ${mode==='sorteo'?'selected':''}>🎲 Sorteo</option><option value="voluntaria" ${mode==='voluntaria'?'selected':''}>🙋 Voluntaria</option></select>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <b>Estudiante seleccionado:</b> ${escClass(student?.name||'—')}<br>
+      <label style="margin-top:10px">⭐ Nota 0–20</label>
+      <input id="partScore" type="number" min="0" max="20" value="${score?.grade??''}" style="width:120px">
+      <p class="muted">La nota es manual. La voluntaria puede recibir una valoración mayor según tu criterio.</p>
+    </div>
+    <div class="actions"><button onclick="saveParticipationEvent('${escClass(recordId)}')">💾 Guardar participación</button><button class="secondary" onclick="closeModal()">Cerrar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveParticipationEvent(recordId){
+  const rec=(db.participations||[]).find(x=>x.id===recordId); if(!rec)return;
+  const user=document.getElementById('partStudentSelect')?.value||'';
+  const type=document.getElementById('partType')?.value||'sorteo';
+  const raw=document.getElementById('partScore')?.value||'';
+  if(!user||raw===''){alert('Selecciona un estudiante y coloca la nota.');return;}
+  const grade=Math.max(0,Math.min(20,Number(raw))); if(!Number.isFinite(grade)){alert('La nota debe estar entre 0 y 20.');return;}
+  let x=participationScoreFor(recordId,user);
+  if(!x){x={id:'score_'+Date.now()+'_'+Math.random(),recordId,user,grade,type,createdAt:Date.now()};db.participations.push(x)}
+  else{x.grade=grade;x.type=type;x.updatedAt=Date.now();}
+  if(type==='sorteo'){
+    rec.drawnUsers=Array.isArray(rec.drawnUsers)?rec.drawnUsers:[];
+    if(!rec.drawnUsers.includes(user))rec.drawnUsers.push(user);
+  }
+  participationRoundState(rec); save(); renderParticipationEvaluator(recordId,user,type);
+}
 function participations(){return simpleComponentPanel('Participación','🙋','participation','participations')}
+
 function behavior(){return simpleComponentPanel('Conducta','🧑‍🏫','behavior','behaviorGrades')}
 function uniform(){return simpleComponentPanel('Uniforme','👕','uniform','uniformGrades')}
 function notebook(){return simpleComponentPanel('Cuaderno','📓','notebook','notebookGrades')}
@@ -7370,6 +8108,18 @@ function folder(){return simpleComponentPanel('Folder','📁','folder','folderGr
 function exam(){return simpleComponentPanel('Examen / Fichas','📋','exam','examGrades')}
 
 /* ===== PROYECTO 70%: PORTAFOLIO + PRODUCTO + EXPOSICIÓN ===== */
+function openProjectFromEvaluation(){
+  try{
+    if(typeof closeModal==='function') closeModal();
+    page='project';
+    if(typeof buildNav==='function') buildNav();
+    render();
+  }catch(e){
+    console.error('No se pudo abrir Proyecto 70 %:',e);
+    alert('No se pudo abrir Proyecto 70 %.');
+  }
+}
+
 function project(){
   if(me.role!=='teacher')return `<div class="card"><h2>🚀 Proyecto</h2><p class="muted">Solo para el docente.</p></div>`;
   ensureClassData();
@@ -7390,7 +8140,7 @@ function project(){
   });
   const gradeOptions=['Todos','1.º','2.º','3.º','4.º','5.º'].map(g=>`<option value="${g}" ${gradeFilter===g?'selected':''}>${g}</option>`).join('');
   const sectionOptions=['Todas','A','B'].map(sec=>`<option value="${sec}" ${sectionFilter===sec?'selected':''}>${sec}</option>`).join('');
-  return `${bimesterSwitcher31()}<div class="card"><h2>🚀 Proyecto — 70 % · ${activeBimester31()} Bimestre</h2>
+  return `<div class="card"><h2>🚀 Proyecto — 70 %</h2>
     <p class="muted">En la modalidad normal se evalúan Portafolio + Producto + Exposición. Los estudiantes marcados como <b>Recuperación Crea</b> no aparecen en esta evaluación y se evalúan por separado mediante <b>Portafolio manual + Exposición</b>; Producto es opcional.</p>
     <div class="actions">
       <button onclick="openProjectWeekly()">📝 Evaluar Portafolio y Producto</button>
@@ -7406,7 +8156,7 @@ function project(){
     ${students.map(u=>{
       const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true,status=creaInstitutionalProjectStatus31(u);
       const activeBim=(()=>{const bs=getBimesterClose30();if(bs.IV?.closed)return 'IV';if(bs.III?.closed)return 'III';return '';})();
-      const snap=(activeBim===currentBimester31)?(db.bimesterFinals?.[currentBimester31]?.[u.u]||null):null;
+      const snap=activeBim&&db.bimesterFinals?.[activeBim]?.[u.u];
       const comps=snap?.projectComponents||{};
       const pv=snap?.automaticProject05&&comps.portfolio!=null?Number(comps.portfolio):p.portfolio;
       const pr=snap?.automaticProject05&&comps.product!=null?Number(comps.product):p.product;
@@ -7494,11 +8244,27 @@ function projectWeeklyRecord(user,week){
 }
 function expositionRubricAvg(user){
   ensureClassData();
-  const vals=(db.expositionRubric.scores||[])
-    .filter(x=>x.user===user&&isActiveBimesterRecord31(x)&&x.week!==undefined&&x.week!==null)
-    .map(x=>Number(x.score)).filter(Number.isFinite);
-  return avgNums(vals);
+  const scores=(db.expositionRubric.scores||[]).filter(x=>x.user===user&&isActiveBimesterRecord31(x)&&x.sessionId);
+  if(!scores.length)return null;
+  const byEval={};scores.forEach(x=>{const key=[x.sessionId||'',x.groupId||''].join('|');(byEval[key]||(byEval[key]=[])).push(x);});
+  const finals=[];
+  Object.entries(byEval).forEach(([key,arr])=>{
+    const [sessionId,groupId]=key.split('|');
+    const cfg=db.expositionRubric.evaluationConfigs?.[expositionBlockConfigKey30(sessionId,groupId,user)];
+    let blocks=cfg?.blocks;
+    if(!Array.isArray(blocks)||!blocks.length){
+      blocks=[...new Set(arr.map(sc=>(db.expositionRubric.criteria||[]).find(c=>String(c.id)===String(sc.criterionId))?.block||'technical'))];
+    }
+    const blockAvgs=blocks.map(block=>{
+      const crit=(db.expositionRubric.criteria||[]).filter(c=>c.block===block);
+      const vals=crit.map(c=>arr.find(sc=>String(sc.criterionId)===String(c.id))?.score).filter(v=>v!==undefined&&v!==null&&v!=='').map(Number).filter(Number.isFinite);
+      return crit.length&&vals.length===crit.length?avgNums(vals):null;
+    }).filter(v=>v!==null);
+    if(blockAvgs.length===blocks.length)finals.push(avgNums(blockAvgs));
+  });
+  return avgNums(finals);
 }
+
 function projectStudentName(u){return escClass((db.users||[]).find(x=>x.u===u)?.name||u)}
 
 function openProjectEvaluation(){
@@ -7527,7 +8293,7 @@ function openProjectWeekly(){
   modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>📅 Seguimiento semanal — Portafolio y Producto</h2>
   <p class="muted">Los grupos de esta evaluación se toman <b>exclusivamente de Crea y Emprende</b>. Los estudiantes marcados para <b>Recuperación Crea</b> no aparecen aquí y se evalúan únicamente en su módulo de recuperación. No utiliza los grupos del módulo “Grupos”.</p>
-  <div class="grid3" style="margin-bottom:15px">
+  <div class="grid3" style="margin-bottom:15px;gap:12px">
     <div><label>Semana</label><select id="prjWeek" onchange="renderProjectWeekly30()">${[1,2,3,4,5,6].map(w=>`<option value="${w}">Semana ${w}</option>`).join('')}</select></div>
     <div><label>Fecha de evaluación</label><input id="prjWeekDate" type="date" value="${todayLocal30()}"></div>
     <div><label>Grado</label><select id="prjWeekGrade" onchange="renderProjectWeekly30()">
@@ -7923,48 +8689,89 @@ function saveStudentWeeklyRubric30(user){
 
 function ensureDefaultExpositionRubric30(){
   ensureClassData();
+  if(!db.expositionRubric || typeof db.expositionRubric!=='object') db.expositionRubric={criteria:[],scores:[]};
   if(!Array.isArray(db.expositionRubric.criteria)) db.expositionRubric.criteria=[];
-  // Primera configuración: dejar lista la rúbrica de exposición individual.
-  const names=['1. Dominio del tema','2. Análisis económico','3. Sustenta la viabilidad','4. Propuesta de mejora','5. Comunicación y respuesta'];
+  if(!Array.isArray(db.expositionRubric.scores)) db.expositionRubric.scores=[];
+  if(!Array.isArray(db.expositionRubric.blocks)) db.expositionRubric.blocks=[];
   const current=db.expositionRubric.criteria;
+  const technicalNames=['1. Dominio del tema','2. Análisis económico','3. Sustenta la viabilidad','4. Propuesta de mejora','5. Comunicación y respuesta'];
   if(!current.length){
-    names.forEach((name,i)=>current.push({id:'crit_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),name}));
-    save();
-    return;
+    technicalNames.forEach((name,i)=>current.push({id:'crit_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6),name,block:'technical'}));
   }
-  // Si quedó la configuración inicial anterior con "Nuevo criterio", la actualizamos.
-  const looksOld=current.length<=2 && current.some(c=>String(c.name||'').toLowerCase().includes('nuevo criterio'));
-  if(looksOld){
-    const first=current[0]||{id:'crit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)};
-    first.name=names[0];
-    const ids=current.slice(1).map(c=>c.id);
-    if(ids.length) db.expositionRubric.scores=db.expositionRubric.scores.filter(s=>!ids.includes(s.criterionId));
-    current.length=0;
-    current.push(first);
-    names.slice(1).forEach((name,i)=>current.push({id:'crit_'+Date.now()+'_'+(i+1)+'_'+Math.random().toString(36).slice(2,6),name}));
-    save();
-  }
+  // Los criterios existentes de la versión anterior pertenecen al bloque técnico.
+  current.forEach(c=>{ if(!c.block) c.block='technical'; });
+  const ensureCriterion=(block,name)=>{
+    if(!current.some(c=>c.block===block && String(c.name||'').trim().toLowerCase()===name.toLowerCase())){
+      current.push({id:'crit_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,block});
+    }
+  };
+  ['Presentación y calidad del material','Relación del material con el proyecto','Claridad y comprensión del material','Creatividad y presentación','Uso adecuado del material durante la exposición'].forEach(n=>ensureCriterion('material',n));
+  ['Inicio: presenta y contextualiza el tema','Desarrollo: explica el proyecto de manera ordenada','Cierre: concluye y comunica los resultados','Tono y volumen de voz','Claridad y fluidez al expresarse','Dominio del tema','Responde preguntas'].forEach(n=>ensureCriterion('oral',n));
+  db.expositionRubric.blocks=[
+    {id:'technical',name:'Contenido técnico del proyecto'},
+    {id:'material',name:'Material elaborado'},
+    {id:'oral',name:'Exposición oral'}
+  ];
+  save();
 }
 
 function openExpositionRubricConfig(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
   const criteria=db.expositionRubric.criteria||[];
+  const blockLabel={technical:'📋 Contenido técnico del proyecto',material:'📦 Material elaborado',oral:'🎤 Exposición oral'};
   modalBody.classList.remove('projectMainModal');
   modalBody.innerHTML=`<h2>⚙️ Rúbrica de exposición — criterios</h2>
-  <p class="muted">Tú defines los criterios. Se usarán en cada presentación semanal.</p>
-  <div id="rubricCriteria30" class="list">${criteria.map(c=>`<div class="item">
-    <input class="rubricName30" data-id="${escClass(c.id)}" value="${escClass(c.name)}" placeholder="Escribe el criterio">
-    <button class="danger small" onclick="removeExpositionCriterion('${escClass(c.id)}')">Eliminar</button>
-  </div>`).join('')||'<div class="item"><span class="muted">Todavía no has agregado criterios.</span></div>'}</div>
-  <div class="actions" style="margin-top:15px"><button onclick="addExpositionCriterion()">＋ Agregar criterio</button><button onclick="saveExpositionRubric()">💾 Guardar criterios</button><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
+  <p class="muted">Los criterios se organizan en 3 bloques. En cada evaluación podrás elegir uno, dos o los tres bloques. Los criterios existentes del bloque técnico se conservan.</p>
+  ${['technical','material','oral'].map(block=>`<div class="card" style="margin-top:12px"><h3>${blockLabel[block]}</h3><div class="list">${criteria.filter(c=>c.block===block).map(c=>`<div class="item"><input class="rubricName30" data-id="${escClass(c.id)}" value="${escClass(c.name)}" placeholder="Escribe el criterio"><button class="danger small" onclick="removeExpositionCriterion('${escClass(c.id)}')">Eliminar</button></div>`).join('')||'<div class="item"><span class="muted">Todavía no has agregado criterios.</span></div>'}</div><button class="secondary small" style="margin-top:8px" onclick="addExpositionCriterion('${block}')">＋ Agregar criterio</button></div>`).join('')}
+  <div class="actions" style="margin-top:15px"><button onclick="saveExpositionRubric()">💾 Guardar criterios</button><button class="secondary" onclick="openExpositionEvaluation()">← Volver</button></div>`;
   modalBody.classList.add('wide');modal.classList.remove('hidden');
 }
-function addExpositionCriterion(){ensureClassData();const id='crit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);db.expositionRubric.criteria.push({id,name:'Nuevo criterio'});save();openExpositionRubricConfig();}
+function addExpositionCriterion(block='technical'){ensureClassData();ensureDefaultExpositionRubric30();const id='crit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);db.expositionRubric.criteria.push({id,name:'Nuevo criterio',block});save();openExpositionRubricConfig();}
 function removeExpositionCriterion(id){ensureClassData();if(!confirm('¿Eliminar este criterio de la rúbrica?'))return;db.expositionRubric.criteria=db.expositionRubric.criteria.filter(c=>c.id!==id);db.expositionRubric.scores=db.expositionRubric.scores.filter(s=>s.criterionId!==id);save();openExpositionRubricConfig();}
 function saveExpositionRubric(){ensureClassData();[...document.querySelectorAll('.rubricName30')].forEach(i=>{const c=db.expositionRubric.criteria.find(x=>x.id===i.dataset.id);if(c)c.name=i.value.trim()||'Criterio sin nombre'});save();alert('✅ Rúbrica de exposición guardada.');openExpositionEvaluation();}
 
-
+function expositionBlockConfigKey30(sessionId,groupId,user){return [sessionId||'',groupId||'',user||''].join('|');}
+function getExpositionBlockConfig30(sessionId,groupId,user){
+  ensureClassData();
+  const key=expositionBlockConfigKey30(sessionId,groupId,user);
+  const saved=db.expositionRubric?.evaluationConfigs?.[key];
+  if(saved && Array.isArray(saved.blocks)) return {blocks:[...new Set(saved.blocks)],materialMode:saved.materialMode||'con_material'};
+  // Compatibilidad segura con evaluaciones antiguas: si solo existen notas de
+  // los criterios técnicos, se considera evaluado únicamente ese bloque.
+  const scores=(db.expositionRubric?.scores||[]).filter(x=>String(x.sessionId||'')===String(sessionId||'')&&String(x.groupId||'')===String(groupId||'')&&String(x.user||'')===String(user||''));
+  const blocks=new Set();
+  scores.forEach(sc=>{const c=(db.expositionRubric.criteria||[]).find(c=>String(c.id)===String(sc.criterionId));if(c?.block)blocks.add(c.block);});
+  return {blocks:blocks.size?[...blocks]:['technical','material','oral'],materialMode:'con_material'};
+}
+function initExpositionBlockSelection30(sessionId){
+  ensureClassData();
+  const grade=document.getElementById('expoGrade30')?.value||'';
+  const sec=document.getElementById('expoSection30')?.value||'';
+  const session=(db.sessions||[]).find(x=>String(x.id)===String(sessionId||''));
+  if(!session){window.expoSelectedBlocks30=['technical','material','oral'];window.expoMaterialMode30='con_material';return;}
+  const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
+  const group=(db.groups||[]).find(g=>(g.grade===grade||!grade)&&(g.section===sec||!sec)&&(g.members||[]).some(id=>students.some(st=>st.u===id)));
+  const member=group?.members?.find(id=>students.some(st=>st.u===id));
+  const cfg=member?getExpositionBlockConfig30(session.id,group.id,member):null;
+  window.expoSelectedBlocks30=cfg?.blocks?.length?cfg.blocks:['technical','material','oral'];
+  window.expoMaterialMode30=cfg?.materialMode||'con_material';
+  if(window.expoMaterialMode30==='sin_material') window.expoSelectedBlocks30=window.expoSelectedBlocks30.filter(x=>x!=='material');
+}
+function setExpositionBlockSelection30(block,checked){
+  const set=new Set(Array.isArray(window.expoSelectedBlocks30)?window.expoSelectedBlocks30:[]);
+  if(checked)set.add(block);else set.delete(block);
+  window.expoSelectedBlocks30=[...set];
+  renderExpositionStudents30();
+}
+function setExpositionMaterialMode30(mode){
+  window.expoMaterialMode30=mode||'con_material';
+  const set=new Set(Array.isArray(window.expoSelectedBlocks30)?window.expoSelectedBlocks30:[]);
+  if(window.expoMaterialMode30==='sin_material')set.delete('material');
+  else set.add('material');
+  window.expoSelectedBlocks30=[...set];
+  renderExpositionStudents30();
+}
 function expositionEvaluationBatches30(){
   ensureClassData();
   const scores=(db.expositionRubric&&Array.isArray(db.expositionRubric.scores))?db.expositionRubric.scores:[];
@@ -8164,16 +8971,34 @@ function saveCreaExpoScores30(){
 function openSessionExpositionEvaluation30(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
+  // Esta ventana debe ocupar casi toda la pantalla y no heredar el diseño
+  // compacto de otros modales. Solo afecta a Evaluación de exposición.
+  modalCard.classList.add('wide','expoEvalModal30');
+  modalBody.classList.add('wide');
+  modalCard.style.width='95vw';
+  modalCard.style.maxWidth='none';
+  modalCard.style.height='92vh';
+  modalCard.style.maxHeight='92vh';
+  modalCard.style.padding='0';
+  modalCard.style.overflow='hidden';
+  modalBody.style.width='100%';
+  modalBody.style.height='100%';
+  modalBody.style.maxHeight='none';
+  modalBody.style.padding='22px 26px 28px';
+  modalBody.style.overflow='auto';
+  modalBody.style.boxSizing='border-box';
   const criteria=db.expositionRubric.criteria||[];
   if(!criteria.length){alert('No hay criterios en la rúbrica de exposición.');openExpositionRubricConfig();return;}
 
   modalBody.classList.remove('projectMainModal');
+  const savedGrade=['1.º','2.º','3.º','4.º','5.º'].includes(String(window.projectGradeFilter30||'')) ? String(window.projectGradeFilter30) : 'Todos';
+  const savedSection=['A','B'].includes(String(window.projectSectionFilter30||'')) ? String(window.projectSectionFilter30) : 'Todas';
   modalBody.innerHTML=`<h2>🎤 Evaluación de exposición</h2>
   <p class="muted"><b>La exposición es grupal, pero la evaluación es individual.</b> La evaluación se realiza únicamente sobre una <b>sesión de aprendizaje ya creada</b>. La fecha se toma automáticamente de esa sesión según el grado y la sección.</p>
   <div class="grid3" style="margin-bottom:15px">
-    <div><label>🎓 Grado</label><select id="expoGrade30" onchange="refreshExpositionSessions30()"><option value="Todos">Todos</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}">${x}</option>`).join('')}</select></div>
-    <div><label>🔤 Sección</label><select id="expoSection30" onchange="refreshExpositionSessions30()"><option value="Todas">Todas</option><option>A</option><option>B</option></select></div>
-    <div><label>📅 Buscar exposición por fecha</label><select id="expoDate30" onchange="selectExpositionDate30()"><option value="">Selecciona grado y sección</option></select></div>
+    <div><label>🎓 Grado</label><select id="expoGrade30" onchange="refreshExpositionSessions30()"><option value="Todos" ${savedGrade==='Todos'?'selected':''}>Seleccionar grado</option>${['1.º','2.º','3.º','4.º','5.º'].map(x=>`<option value="${x}" ${savedGrade===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div><label>🔤 Sección</label><select id="expoSection30" onchange="refreshExpositionSessions30()"><option value="Todas" ${savedSection==='Todas'?'selected':''}>Seleccionar sección</option><option ${savedSection==='A'?'selected':''}>A</option><option ${savedSection==='B'?'selected':''}>B</option></select></div>
+    <div><label>📅 Buscar exposición por fecha</label><select id="expoDate30" onchange="selectExpositionDate30()"><option value="">Todas las fechas</option></select></div>
   </div>
   <div style="margin-bottom:15px">
     <label>📖 Sesión de aprendizaje</label>
@@ -8183,23 +9008,35 @@ function openSessionExpositionEvaluation30(){
   <div id="expoSessionInfo30" class="item" style="margin-bottom:15px"></div>
   <div id="expoTable30" style="overflow:auto"></div>
   <div class="actions" style="margin-top:15px"><button class="secondary" onclick="closeModal();go('groups')">👥 Ir a Grupos / Sorteo</button><button onclick="openExpositionRubricConfig()">⚙️ Editar criterios</button><button onclick="openExpositionHistory30()">🗂️ Exposiciones evaluadas</button><button class="secondary" onclick="openProjectEvaluation()">← Volver</button></div>`;
-  modalBody.classList.add('wide');modal.classList.remove('hidden');
+  modalBody.classList.add('wide');modalCard.classList.add('wide','expoEvalModal30');modal.classList.remove('hidden');
   refreshExpositionSessions30();
 }
 
 function expositionSessionsForFilter30(){
   const grade=document.getElementById('expoGrade30')?.value||'Todos';
   const sec=document.getElementById('expoSection30')?.value||'Todas';
-  return allSessionsForUI().filter(s=>{
-    if(grade==='Todos') return true;
-    // Cuando se selecciona una sección, SOLO mostrar sesiones creadas
-    // específicamente para ese grado y sección. Las sesiones compartidas
-    // 3.º-5.º solo entran si tienen una fecha/configuración explícita para
-    // la combinación seleccionada.
-    if(sec!=='Todas') return sessionMatchesExactGradeSection30(s,grade,sec);
-    // Si se pide todo el grado, mostrar sus sesiones exactas y las compartidas
-    // únicamente cuando realmente incluyen ese grado.
-    return sessionAppliesToGrade(s,grade,'');
+  const currentBimester=activeBimester31();
+
+  // SEGURIDAD: la evaluación de exposición solo debe mostrar sesiones del
+  // bimestre actualmente seleccionado. NO se modifica ni se elimina ninguna
+  // sesión, nota o registro; aquí únicamente se filtra lo que se muestra.
+  const sessionsOfCurrentBimester=allSessionsForUI().filter(s=>{
+    const b=String(s?.bimester||'').toUpperCase();
+    if(b && validBimester31(b)) return b===currentBimester;
+    // Para sesiones antiguas que no tienen la propiedad bimester, usamos la
+    // misma lógica de respaldo que ya utiliza el sistema: unidad, fecha, etc.
+    return bimesterOfRecord31({session:s.id})===currentBimester;
+  });
+
+  return sessionsOfCurrentBimester.filter(s=>{
+    // En Evaluación de exposición se trabaja siempre con un grupo concreto.
+    // Así nunca se mezclan sesiones de otros grados/secciones.
+    if(grade==='Todos' || sec==='Todas') return false;
+    return sessionMatchesExactGradeSection30(s,grade,sec);
+  }).sort((a,b)=>{
+    const na=Number(a.number||0), nb=Number(b.number||0);
+    const da=expositionSessionDate30(a)||'', dbb=expositionSessionDate30(b)||'';
+    return na-nb || da.localeCompare(dbb) || String(a.id).localeCompare(String(b.id));
   });
 }
 
@@ -8234,6 +9071,17 @@ function refreshExpositionSessions30(){
   const sessionSel=document.getElementById('expoWeek30');
   const dateSel=document.getElementById('expoDate30');
   if(!sessionSel||!dateSel)return;
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  // No mezclar sesiones de distintos grados/secciones. Primero se elige el curso.
+  if(grade==='Todos' || sec==='Todas'){
+    dateSel.innerHTML='<option value="">Selecciona grado y sección</option>';
+    sessionSel.innerHTML='<option value="">Selecciona primero grado y sección</option>';
+    const info=document.getElementById('expoSessionInfo30');
+    if(info) info.innerHTML='📌 Selecciona <b>grado y sección</b> para mostrar únicamente las sesiones de ese grupo en el bimestre activo.';
+    renderExpositionStudents30();
+    return;
+  }
   const sessions=expositionSessionsForFilter30();
   const dates=[...new Set(sessions.map(s=>expositionSessionDate30(s)).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
   dateSel.innerHTML='<option value="">Todas las fechas</option>'+dates.map(d=>`<option value="${escClass(d)}">${escClass(d)}</option>`).join('');
@@ -8266,6 +9114,7 @@ function selectExpositionDate30(){
 
 function selectExpositionSession30(){
   const id=document.getElementById('expoWeek30')?.value||'';
+  initExpositionBlockSelection30(id);
   const s=(db.sessions||[]).find(x=>String(x.id)===String(id));
   const date=expositionSessionDate30(s);
   const dateSel=document.getElementById('expoDate30');
@@ -8316,135 +9165,168 @@ function expositionAutoReason30(date,user){
   return 'No expuso';
 }
 
+function expositionFinalFromBlocks30(studentScores,criteria,selectedBlocks){
+  const chosen=(selectedBlocks||[]).filter(Boolean);
+  if(!chosen.length)return null;
+  const blockAvgs=chosen.map(block=>{
+    const vals=criteria.filter(c=>c.block===block).map(c=>studentScores.find(x=>String(x.criterionId)===String(c.id))?.score).filter(v=>v!==undefined&&v!==null&&v!=='').map(Number).filter(Number.isFinite);
+    const needed=criteria.filter(c=>c.block===block).length;
+    return vals.length===needed && needed>0 ? avgNums(vals) : null;
+  }).filter(v=>v!==null);
+  if(blockAvgs.length!==chosen.length)return null;
+  return avgNums(blockAvgs);
+}
 function renderExpositionStudents30(){
   ensureDefaultExpositionRubric30();
   ensureClassData();
-  const box=document.getElementById('expoTable30');if(!box)return;
+  const box=document.getElementById('expoTable30'); if(!box)return;
   const criteria=db.expositionRubric.criteria||[];
   const sessionId=document.getElementById('expoWeek30')?.value||'';
   const session=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
-  const week=Number(session?.number||0);
-  const grade=document.getElementById('expoGrade30')?.value||'Todos',sec=document.getElementById('expoSection30')?.value||'Todas';
-  if(!sessionId||!session||!week){
-    box.innerHTML='<div class="item">📖 Selecciona una <b>sesión de aprendizaje creada</b> para mostrar a sus integrantes y evaluar la exposición.</div>';
-    return;
-  }
+  const grade=document.getElementById('expoGrade30')?.value||'Todos';
+  const sec=document.getElementById('expoSection30')?.value||'Todas';
+  if(!sessionId||!session){box.innerHTML='<div class="item">📖 Selecciona una <b>sesión de aprendizaje creada</b>.</div>';return;}
+
+  const selected=new Set(Array.isArray(window.expoSelectedBlocks30)?window.expoSelectedBlocks30:['technical','material','oral']);
+  const materialMode=window.expoMaterialMode30||'con_material';
+  if(materialMode==='sin_material')selected.delete('material');
+  const selectedBlocks=[...selected].filter(b=>['technical','material','oral'].includes(b));
+  const blockInfo={technical:'📋 Contenido técnico del proyecto',material:'📦 Material elaborado',oral:'🎤 Exposición oral'};
   const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
   const groups=(db.groups||[]).filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec));
-  const headers=criteria.map(c=>`<th>${escClass(c.name)}<br><small>0–20</small></th>`).join('');
+
+  const controls=`<div class="expoControls30">
+    <h3>🎯 ¿Qué vas a evaluar en esta exposición?</h3>
+    <div class="expoBlockChecks30">${[['technical','📋 Contenido técnico del proyecto'],['material','📦 Material elaborado'],['oral','🎤 Exposición oral']].map(([id,label])=>
+      `<label><input type="checkbox" ${selected.has(id)?'checked':''} onchange="setExpositionBlockSelection30('${id}',this.checked)" ${id==='material'&&materialMode==='sin_material'?'disabled':''}> ${label}</label>`).join('')}</div>
+    <div class="expoMaterialMode30"><b>Modalidad del material:</b>
+      <label><input type="radio" name="expoMaterialMode30" value="con_material" ${materialMode==='con_material'?'checked':''} onchange="setExpositionMaterialMode30('con_material')"> Con material elaborado</label>
+      <label><input type="radio" name="expoMaterialMode30" value="sin_material" ${materialMode==='sin_material'?'checked':''} onchange="setExpositionMaterialMode30('sin_material')"> Sin material elaborado</label>
+    </div>
+    <p class="muted">📌 <b>Contenido técnico</b> y <b>Material elaborado</b> son evaluaciones <b>grupales</b>. Se califican <b>una sola vez por grupo</b> y se aplican a todos sus integrantes. La <b>Exposición oral</b> se evalúa <b>individualmente</b>.</p>
+  </div>`;
+
+  if(!selectedBlocks.length){box.innerHTML=controls+'<div class="item">⚠️ Selecciona al menos un bloque para evaluar.</div>';return;}
+
+  const blockCriteria=(b)=>criteria.filter(c=>c.block===b);
+  const scoreFor=(user,groupId,criterionId)=>{
+    const sc=(db.expositionRubric.scores||[]).find(x=>String(x.sessionId)===String(session.id)&&String(x.groupId||'')===String(groupId||'')&&String(x.user)===String(user)&&String(x.criterionId)===String(criterionId));
+    return sc?.score;
+  };
+  const groupScoreFor=(groupId,criterionId)=>{
+    const members=(db.groups||[]).find(g=>String(g.id)===String(groupId))?.members||[];
+    for(const u of members){ const v=scoreFor(u,groupId,criterionId); if(v!==undefined&&v!==null&&v!=='') return v; }
+    return '';
+  };
+  const avgGroupFromInputs=(groupId,block)=>{
+    const vals=[...box.querySelectorAll('.expoScore30[data-scope="group"]')].filter(el=>el.dataset.block===block&&el.dataset.group===String(groupId)).map(el=>Number(el.value)).filter(Number.isFinite);
+    const need=blockCriteria(block).length;
+    return vals.length===need&&need?avgNums(vals):null;
+  };
+  const avgOralFromInputs=(user,groupId)=>{
+    const vals=[...box.querySelectorAll('.expoScore30[data-scope="student"]')].filter(el=>el.dataset.block==='oral'&&el.dataset.user===String(user)&&el.dataset.group===String(groupId)).map(el=>Number(el.value)).filter(Number.isFinite);
+    const need=blockCriteria('oral').length;
+    return vals.length===need&&need?avgNums(vals):null;
+  };
+  const refresh=()=>{
+    const groupAvgs={};
+    groups.forEach(g=>{
+      selectedBlocks.filter(b=>b!=='oral').forEach(b=>{
+        const av=avgGroupFromInputs(g.id,b); groupAvgs[g.id+'|'+b]=av;
+        const label=box.querySelector(`.expoGroupBlockAvg30[data-group="${g.id}"][data-block="${b}"]`);
+        if(label)label.innerHTML=`Nota del grupo: <b>${av===null?'—':Number(av).toFixed(2)}</b>`;
+      });
+    });
+    box.querySelectorAll('.expoStudentCard30').forEach(card=>{
+      const user=card.dataset.user,groupId=card.dataset.group,waiting=card.dataset.waiting==='1',noExpuso=card.dataset.noExpuso==='1';
+      const vals=[];
+      selectedBlocks.forEach(b=>{
+        let av=null;
+        if(b==='oral') av=noExpuso?5:(waiting?null:avgOralFromInputs(user,groupId));
+        else av=groupAvgs[groupId+'|'+b]??null;
+        if(av!==null)vals.push(av);
+      });
+      const final=vals.length===selectedBlocks.length?avgNums(vals):null;
+      const f=card.querySelector('.expoFinal30'); if(f)f.textContent=final===null?'—':Number(final).toFixed(2);
+      const oa=card.querySelector('.expoOralAvg30'); if(oa){const av=selectedBlocks.includes('oral')?(noExpuso?5:(waiting?null:avgOralFromInputs(user,groupId))):null;oa.innerHTML=`Nota oral: <b>${av===null?'—':Number(av).toFixed(2)}</b>`;}
+    });
+  };
+
+  const groupBlockHtml=(g,b)=>{
+    const bc=blockCriteria(b); if(!bc.length)return '';
+    const criteriaRows=bc.map(c=>{
+      const val=groupScoreFor(g.id,c.id);
+      return `<div class="expoCriterionRow30"><div class="expoCriterionName30">${escClass(c.name)}</div><input class="expoScore30" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" data-block="${b}" data-scope="group" type="number" min="0" max="20" value="${val??''}"></div>`;
+    }).join('');
+    return `<div class="expoBlockCard30"><div class="expoBlockTitle30"><b>${blockInfo[b]}</b><span class="expoGroupBlockAvg30" data-group="${escClass(g.id)}" data-block="${b}">Nota del grupo: —</span></div><div class="expoBlockScope30">GRUPAL · una sola nota para todo el grupo</div><div class="expoCriteriaList30">${criteriaRows}</div></div>`;
+  };
+
   const rows=[];
   groups.forEach(g=>{
-    const members=(g.members||[]).map(id=>db.users.find(u=>u.u===id)).filter(u=>u && students.some(s=>s.u===u.u));
+    const members=(g.members||[]).map(id=>db.users.find(u=>u.u===id)).filter(u=>u && students.some(st=>st.u===u.u));
     if(!members.length)return;
-    members.forEach((student,idx)=>{
-      const studentScores=(db.expositionRubric.scores||[]).filter(x=>x.user===student.u&&x.sessionId&&String(x.sessionId)===String(session.id)&&String(x.groupId||'')===String(g.id));
+    const selectedGroupBlocks=selectedBlocks.filter(b=>b!=='oral');
+    const groupBlocks=selectedGroupBlocks.map(b=>groupBlockHtml(g,b)).join('');
+    const oralCriteria=blockCriteria('oral');
+    const oralStudents=members.map((student,idx)=>{
       const attendance=normalizeAttendanceStatus30(attendanceStatusForDateUser(expositionSessionDate30(session),student));
       const waiting=attendance==='Salud'||attendance==='Representacion';
+      const studentScores=(db.expositionRubric.scores||[]).filter(x=>String(x.sessionId)===String(session.id)&&String(x.groupId||'')===String(g.id)&&String(x.user)===String(student.u));
       const savedStatus=studentScores.find(x=>x.expositionStatus)?.expositionStatus||'expuso';
-      // Salud y representación siempre quedan pendientes: no deben mostrarse
-      // como No expuso ni conservar los 05 automáticos de una ejecución anterior.
-      const status=waiting?'esperar':savedStatus;
-      const cells=criteria.map(c=>{
-        const sc=studentScores.find(x=>x.criterionId===c.id);
-        const shown=waiting?'':(status==='no_expuso'?'5':(sc?.score??''));
-        return `<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="${shown}" ${status==='no_expuso'||waiting?'readonly':''} style="width:75px"></td>`;
+      const noExpuso=savedStatus==='no_expuso';
+      const statusText=waiting?(attendance==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación'):(noExpuso?'❌ No expuso → 05':`🎤 Expuso · ${attendance==='Presente'?'Presente':attendance||'Sin registro de asistencia'}`);
+      if(!selectedBlocks.includes('oral')) return '';
+      const criteriaRows=oralCriteria.map(c=>{
+        let val=studentScores.find(x=>String(x.criterionId)===String(c.id))?.score??'';
+        if(noExpuso)val=5;
+        const ro=waiting||noExpuso;
+        return `<div class="expoCriterionRow30"><div class="expoCriterionName30">${escClass(c.name)}</div><input class="expoScore30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-criterion="${escClass(c.id)}" data-block="oral" data-scope="student" type="number" min="0" max="20" value="${val??''}" ${ro?'readonly':''}></div>`;
       }).join('');
-      const vals=criteria.map(c=>studentScores.find(x=>x.criterionId===c.id)?.score).filter(x=>x!==undefined&&x!==null&&x!=='');
-      const effectiveVals=waiting?[]:(status==='no_expuso'?criteria.map(()=>5):vals);
-      const av=avgNums(effectiveVals);
-      const attendanceLabel=attendance ? (attendance==='Presente'?'✅ Presente':attendance==='Falta'?'❌ Faltó a clases':attendance==='Justificada'?'📄 Falta justificada':attendance==='Representacion'?'🏫 Representación del colegio':attendance==='Salud'?'🩺 Motivo de salud':attendance==='Tardanza'?'🕐 Llegó tarde':('📋 '+attendance)) : '📋 Sin registro de asistencia';
-      const statusText=waiting?(attendance==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio'):(status==='no_expuso'?`❌ No expuso → 05 · ${attendanceLabel}`:`🎤 Expuso · ${attendanceLabel}`);
-      rows.push(`<tr data-no-expuso="${status==='no_expuso'?'1':'0'}" data-waiting="${waiting?'1':'0'}">
-        <td><b>${escClass(g.name)}</b><br>${escClass(student.name)}<br><small class="muted">${idx+1} de ${members.length} integrantes · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td>
-        <td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}">${statusText}</span></td>${cells}<td><b>${av===null?'—':av.toFixed(2)}</b></td></tr>`);
-    });
+      return `<div class="expoStudentCard30" data-user="${escClass(student.u)}" data-group="${escClass(g.id)}" data-no-expuso="${noExpuso?'1':'0'}" data-waiting="${waiting?'1':'0'}"><div class="expoStudentHead30"><div><b>${escClass(student.name)}</b><small>${idx+1} de ${members.length} integrantes</small></div><div class="expoAutoStatus30">${statusText}</div></div><div class="expoBlocks30"><div class="expoBlockCard30"><div class="expoBlockTitle30"><b>🎤 Exposición oral</b><span class="expoOralAvg30">Nota oral: —</span></div><div class="expoBlockScope30">INDIVIDUAL</div><div class="expoCriteriaList30">${criteriaRows}</div></div></div><div class="expoFinalBar30"><span>🎯 Nota final de exposición</span><b class="expoFinal30">—</b></div></div>`;
+    }).join('');
+    rows.push(`<div class="expoGroupCard30"><div class="expoGroupBanner30"><b>👥 ${escClass(g.name)}</b><span>${members.length} integrante(s) · ${escClass(g.grade||'')} · ${escClass(g.section||'')}</span></div><div class="expoGroupGrid30"><div class="expoGroupMembers30"><b>👥 Integrantes</b>${members.map((st,i)=>`<div class="expoMemberLine30"><span>${i+1}. ${escClass(st.name)}</span></div>`).join('')}</div>${groupBlocks?`<div class="expoGroupBlockWrap30">${groupBlocks}</div>`:''}${selectedBlocks.includes('oral')?`<div class="expoGroupOralWrap30"><div class="expoOralGroupTitle30">🎤 Exposición oral · evaluación individual</div>${oralStudents}</div>`:''}</div></div>`);
   });
-  box.innerHTML=`<table><tr><th>Grupo / estudiante</th><th>Estado</th>${headers}<th>Nota individual</th></tr>${rows.join('')||'<tr><td colspan="'+(criteria.length+3)+'">No hay grupos para el filtro. Crea los grupos primero.</td></tr>'}</table><div id="expoUngrouped30" style="margin-top:14px"></div><p class="muted" style="margin-top:10px">🎯 Sesión ${escClass(session.number||'')} · ${escClass(session.title||'')} · Fecha: <b>${escClass(expositionSessionDate30(session)||'Sin fecha')}</b>. Los estudiantes que no tengan notas pueden rellenarse automáticamente con <b>❌ No expuso → 05</b>; el estado también muestra su <b>asistencia de esa fecha</b>.</p><div class="actions" style="margin-top:10px"><button class="secondary" onclick="fill05RemainingNoExposed30()">❌ Rellenar 05 a quienes no expusieron</button></div><button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
+
+  box.innerHTML=controls+`<div class="expoStudents30">${rows.join('')||'<div class="item">No hay grupos para el filtro. Crea los grupos primero.</div>'}</div>
+    <p class="muted" style="margin-top:10px">🎯 Sesión ${escClass(session.number||'')} · ${escClass(session.title||'')} · Fecha: <b>${escClass(expositionSessionDate30(session)||'Sin fecha')}</b>. Los estudiantes que no tengan notas pueden rellenarse con <b>❌ No expuso → 05</b>; esto afecta únicamente su bloque de exposición oral.</p>
+    <div class="actions" style="margin-top:10px"><button class="secondary" onclick="fill05RemainingNoExposed30()">❌ Rellenar 05 a quienes no expusieron</button></div>
+    <button onclick="saveExpositionScores()">💾 Guardar evaluaciones individuales</button>`;
+
+  box.querySelectorAll('.expoScore30').forEach(inp=>inp.addEventListener('input',refresh));
+  refresh();
   const closedDate=expositionSessionDate30(session)||todayLocal30();
   if(closedForDate31(closedDate)) box.querySelectorAll('input,button').forEach(e=>e.disabled=true);
-  box.querySelectorAll('.expoScore30').forEach(inp=>{inp.addEventListener('input',()=>{const row=inp.closest('tr');if(!row)return;const vals=[...row.querySelectorAll('.expoScore30')].map(x=>x.value.trim()).filter(x=>x!=='').map(Number).filter(x=>Number.isFinite(x));const cell=row.lastElementChild;if(cell)cell.innerHTML=`<b>${vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):'—'}</b>`;});});
 }
 
 function fill05RemainingNoExposed30(){
-  const box=document.getElementById('expoTable30');
-  if(!box)return;
-  let count=0, waitingCount=0;
+  const box=document.getElementById('expoTable30'); if(!box)return;
   const session=(db.sessions||[]).find(x=>String(x.id)===String(document.getElementById('expoWeek30')?.value||''));
+  if(!session)return;
   const date=expositionSessionDate30(session)||todayLocal30();
-  const rows=[...box.querySelectorAll('tr')].filter(r=>r.querySelector('.expoScore30'));
-
-  rows.forEach(row=>{
-    const inputs=[...row.querySelectorAll('.expoScore30')];
-    const user=inputs[0]?.dataset.user||'';
-    const groupId=inputs[0]?.dataset.group||'';
+  let count=0,waitingCount=0;
+  box.querySelectorAll('.expoStudentCard30').forEach(card=>{
+    const user=card.dataset.user||'',groupId=card.dataset.group||'';
     if(!user)return;
     const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,user));
-
-    // SALUD y REPRESENTACIÓN: se espera al estudiante. Si este registro
-    // tenía 05 automáticos de una ejecución anterior, se limpian para que
-    // no quede falsamente como "No expuso".
-    if(att==='Salud' || att==='Representacion'){
-      waitingCount++;
-      inputs.forEach(i=>{i.value='';i.readOnly=true;});
-      row.dataset.noExpuso='0';
-      row.dataset.expoObservation='';
-      row.dataset.waiting='1';
-      const st=row.querySelector('.expoAutoStatus30');
-      if(st)st.textContent=att==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio';
-      const cell=row.lastElementChild;if(cell)cell.innerHTML='<b>—</b>';
-      // Quitar únicamente los registros que estaban marcados como no expuso
-      // para esta sesión/grupo. No se tocan evaluaciones de otras sesiones.
+    const oral=[...card.querySelectorAll('.expoScore30[data-scope="student"][data-block="oral"]')];
+    if(att==='Salud'||att==='Representacion'){
+      waitingCount++; card.dataset.waiting='1'; card.dataset.noExpuso='0';
+      oral.forEach(i=>{i.value='';i.readOnly=true;});
       db.expositionRubric.scores=(db.expositionRubric.scores||[]).filter(x=>!(String(x.sessionId)===String(session.id)&&String(x.user)===String(user)&&String(x.groupId||'')===String(groupId)&&x.expositionStatus==='no_expuso'));
+      const st=card.querySelector('.expoAutoStatus30');if(st)st.textContent=att==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación';
       return;
     }
-
-    // Para los demás: solo se rellenan quienes todavía no tienen ninguna nota.
-    const hasAny=inputs.some(i=>String(i.value||'').trim()!=='');
-    if(hasAny)return;
-    inputs.forEach(i=>{i.value='5';i.readOnly=true;});
-    row.dataset.noExpuso='1';
-    row.dataset.waiting='0';
-    row.dataset.expoObservation=expositionAutoReason30(date,user);
-    const st=row.querySelector('.expoAutoStatus30');
-    if(st)st.textContent='❌ No expuso → 05';
-    const cell=row.lastElementChild;if(cell)cell.innerHTML='<b>5.00</b>';
-    count++;
+    const anyOral=oral.some(i=>String(i.value||'').trim()!=='');
+    if(anyOral)return;
+    oral.forEach(i=>{i.value='5';i.readOnly=true;});
+    card.dataset.noExpuso='1'; card.dataset.waiting='0'; count++;
+    const st=card.querySelector('.expoAutoStatus30');if(st)st.textContent='❌ No expuso → 05';
   });
-
-  // Toda la relación del grado/sección: también incluye estudiantes sin grupo/sorteo.
-  const grade=document.getElementById('expoGrade30')?.value||'Todos';
-  const sec=document.getElementById('expoSection30')?.value||'Todas';
-  const students=(db.users||[]).filter(u=>u.role==='student'&&(grade==='Todos'||u.grade===grade)&&(sec==='Todas'||u.section===sec));
-  const grouped=new Set((db.groups||[])
-    .filter(g=>(grade==='Todos'||g.grade===grade)&&(sec==='Todas'||g.section===sec))
-    .flatMap(g=>g.members||[]));
-  const ungrouped=students.filter(u=>!grouped.has(u.u));
-  const target=document.getElementById('expoUngrouped30');
-  if(target && ungrouped.length){
-    const criteria=db.expositionRubric.criteria||[];
-    const headers=criteria.map(c=>`<th>${escClass(c.name)}<br><small>0–20</small></th>`).join('');
-    const existingUsers=new Set([...box.querySelectorAll('.expoScore30')].map(i=>i.dataset.user));
-    const fresh=ungrouped.filter(u=>!existingUsers.has(u.u));
-    if(fresh.length){
-      const urows=fresh.map(student=>{
-        const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,student));
-        if(att==='Salud' || att==='Representacion'){
-          waitingCount++;
-          return `<tr data-no-expuso="0" data-waiting="1"><td><b>Sin grupo</b><br>${escClass(student.name)}<br><small class="muted">No pertenece a ningún grupo/sorteo · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td><td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="">${att==='Salud'?'🩺 Esperar al estudiante · Salud':'🏫 Esperar al estudiante · Representación del colegio'}</span></td>${criteria.map(c=>`<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="" readonly style="width:75px"></td>`).join('')}<td><b>—</b></td></tr>`;
-        }
-        const reason=expositionAutoReason30(date,student.u);
-        const attendanceLabel=att ? (att==='Presente'?'✅ Presente':att==='Falta'?'❌ Faltó a clases':att==='Justificada'?'📄 Falta justificada':att==='Representacion'?'🏫 Representación del colegio':att==='Salud'?'🩺 Motivo de salud':att==='Tardanza'?'🕐 Llegó tarde':('📋 '+att)) : '📋 Sin registro de asistencia';
-        const cells=criteria.map(c=>`<td><input class="expoScore30" data-user="${escClass(student.u)}" data-group="" data-criterion="${escClass(c.id)}" type="number" min="0" max="20" value="5" readonly style="width:75px"></td>`).join('');
-        return `<tr data-no-expuso="1" data-waiting="0" data-expo-observation="${escClass(reason)}"><td><b>Sin grupo</b><br>${escClass(student.name)}<br><small class="muted">No pertenece a ningún grupo/sorteo · ${escClass(student.grade||'')} ${escClass(student.section||'')}</small></td><td><span class="expoAutoStatus30" data-user="${escClass(student.u)}" data-group="">❌ No expuso → 05 · ${escClass(attendanceLabel)}</span></td>${cells}<td><b>5.00</b></td></tr>`;
-      }).join('');
-      target.innerHTML=`<div class="item"><b>📋 Estudiantes del grado/sección sin grupo o sin sorteo</b><div class="muted" style="margin-top:4px">Se incluyen en la relación. Salud y representación quedan pendientes; los demás reciben automáticamente 05.</div><table style="margin-top:10px"><tr><th>Estudiante</th><th>Estado</th>${headers}<th>Nota individual</th></tr>${urows}</table></div>`;
-      count+=fresh.filter(u=>{const a=normalizeAttendanceStatus30(attendanceStatusForDateUser(date,u));return a!=='Salud'&&a!=='Representacion';}).length;
-    }
-  }
-
-  if(count===0 && waitingCount===0){alert('No hay estudiantes pendientes de rellenar. Las notas existentes no se modificaron.');return;}
+  if(count===0&&waitingCount===0){alert('No hay estudiantes pendientes de rellenar. Las notas existentes no se modificaron.');return;}
   save();
-  alert(`❌ ${count} estudiante(s) quedaron como “No expuso” y con 05.${waitingCount?`\n\n⏳ ${waitingCount} estudiante(s) con SALUD o REPRESENTACIÓN quedaron pendientes y NO tienen 05.`:''}`);
+  // Actualiza la interfaz sin convertir las notas grupales en 05.
+  renderExpositionStudents30();
+  alert(`❌ ${count} estudiante(s) quedaron como “No expuso” y con 05 únicamente en Exposición oral.${waitingCount?`\n\n⏳ ${waitingCount} estudiante(s) con SALUD o REPRESENTACIÓN quedaron pendientes y NO tienen 05.`:''}`);
 }
 function toggleExpositionStatus30(sel){
   // Compatibilidad con registros anteriores. El estado de Exposición ahora es automático.
@@ -8456,33 +9338,74 @@ function saveExpositionScores(){
   const sessionId=document.getElementById('expoWeek30')?.value||'';
   const ses=(db.sessions||[]).find(x=>String(x.id)===String(sessionId));
   if(!ses){alert('Selecciona una sesión de aprendizaje creada.');return;}
+  const selectedBlocks=[...new Set((Array.isArray(window.expoSelectedBlocks30)?window.expoSelectedBlocks30:['technical','material','oral']).filter(Boolean))];
+  if(!selectedBlocks.length){alert('Selecciona al menos un bloque para evaluar.');return;}
+  const materialMode=window.expoMaterialMode30||'con_material';
+  if(materialMode==='sin_material')selectedBlocks.splice(selectedBlocks.indexOf('material'),1);
   const date=sessionDateForGradeSection(ses,document.getElementById('expoGrade30')?.value||ses.grade,document.getElementById('expoSection30')?.value||ses.section)||ses.date||'';
   if(!date){alert('La sesión seleccionada no tiene una fecha registrada para ese grado y sección.');return;}
-  if(blockClosedDate31(date)) return;
-  const week=Number(ses.number||0);
-  if(!week){alert('La sesión seleccionada no tiene número de sesión válido.');return;}
+  if(blockClosedDate31(date))return;
+  const week=Number(ses.number||0);if(!week){alert('La sesión seleccionada no tiene número de sesión válido.');return;}
+  const criteria=db.expositionRubric.criteria||[];
   const inputs=[...document.querySelectorAll('.expoScore30')];
-  let count=0;
-  inputs.forEach(e=>{
-    const user=e.dataset.user,groupId=e.dataset.group,criterionId=e.dataset.criterion,val=e.value;
-    const g=groupId ? (db.groups||[]).find(x=>x.id===groupId) : null;
-    if(g && !(g.members||[]).includes(user))return;
-    if(!g && groupId) return;
-    const row=e.closest('tr');
-    const status=row?.dataset.noExpuso==='1'?'no_expuso':'expuso';
-    const reason=status==='no_expuso'?(row?.dataset.expoObservation||'No expuso'):'';
-    const finalVal=status==='no_expuso'?5:val;
-    // Buscar por sesión exacta + estudiante + grupo + criterio.
-    // NO usar solo week, porque eso mezcla la misma Sesión 1, 2, etc. de otros grados/secciones.
-    let sc=db.expositionRubric.scores.find(x=>x.user===user&&x.sessionId&&String(x.sessionId)===String(ses.id)&&String(x.groupId||'')===String(groupId)&&x.criterionId===criterionId);
-    if(finalVal===''){if(sc)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==sc);return;}
+  let count=0,groupCriteriaSaved=0,oralCriteriaSaved=0;
+  const groupsTouched=new Set();
+  const saveOne=(user,groupId,criterionId,val,status='expuso')=>{
+    const criterion=criteria.find(c=>String(c.id)===String(criterionId)); if(!criterion)return;
+    let sc=db.expositionRubric.scores.find(x=>String(x.user)===String(user)&&String(x.sessionId)===String(ses.id)&&String(x.groupId||'')===String(groupId||'')&&String(x.criterionId)===String(criterionId));
+    if(val===''||val===null||val===undefined){if(sc)db.expositionRubric.scores=db.expositionRubric.scores.filter(x=>x!==sc);return;}
+    const n=Math.max(0,Math.min(20,Number(val))); if(!Number.isFinite(n))return;
+    if(studentIsRetired32(user))return;
+    const student=(db.users||[]).find(x=>String(x.u)===String(user));
+    const g=(db.groups||[]).find(x=>String(x.id)===String(groupId||''));
     if(!sc){sc={id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),user,week,criterionId,bimester:activeBimester31()};db.expositionRubric.scores.push(sc);}
-    if(studentIsRetired32(user)) return;
-    const student=(db.users||[]).find(x=>x.u===user);
-    sc.date=date;sc.grade=student?.grade||'';sc.section=student?.section||'';sc.category=categoryForStudent(student);sc.groupId=groupId;sc.groupName=g?.name||'Sin grupo';sc.sessionId=ses.id;sc.sessionNumber=ses.number||'';sc.sessionTitle=ses.title||'';sc.score=Math.max(0,Math.min(20,Number(finalVal)));sc.expositionStatus=status;sc.expositionObservation=status==='no_expuso'?(reason||'No expuso') : '';sc.savedAt=Date.now();
-    count++;
+    sc.date=date;sc.grade=student?.grade||'';sc.section=student?.section||'';sc.category=categoryForStudent(student);sc.groupId=groupId;sc.groupName=g?.name||'Sin grupo';sc.sessionId=ses.id;sc.sessionNumber=ses.number||'';sc.sessionTitle=ses.title||'';sc.score=n;sc.expositionStatus=status;sc.expositionObservation=status==='no_expuso'?'No expuso':'';sc.savedAt=Date.now();
+    count++; if(criterion.block==='oral')oralCriteriaSaved++;else groupCriteriaSaved++;
+  };
+
+  // 1) Bloques GRUPALES: una sola calificación por criterio para el grupo,
+  // replicada internamente a todos sus integrantes para que el registro
+  // individual y el cálculo final de cada estudiante sean consistentes.
+  const groupInputs=inputs.filter(i=>i.dataset.scope==='group');
+  const seenGroup=new Set();
+  groupInputs.forEach(inp=>{
+    const groupId=inp.dataset.group,criterionId=inp.dataset.criterion;
+    const key=groupId+'|'+criterionId;
+    if(seenGroup.has(key))return; seenGroup.add(key);
+    const val=inp.value;
+    const g=(db.groups||[]).find(x=>String(x.id)===String(groupId));
+    if(!g)return;
+    (g.members||[]).forEach(user=>{
+      const st=(db.users||[]).find(x=>String(x.u)===String(user));
+      if(!st||!((document.getElementById('expoGrade30')?.value||'Todos')==='Todos'||st.grade===document.getElementById('expoGrade30')?.value) || !((document.getElementById('expoSection30')?.value||'Todas')==='Todas'||st.section===document.getElementById('expoSection30')?.value))return;
+      saveOne(user,groupId,criterionId,val,'expuso');
+    });
+    groupsTouched.add(groupId);
   });
-  save();alert(`✅ Evaluación individual de exposición guardada.\n${count} criterio(s) registrado(s).`);openProjectEvaluation();
+
+  // 2) Exposición oral: nota individual de cada estudiante.
+  inputs.filter(i=>i.dataset.scope==='student').forEach(inp=>{
+    const card=inp.closest('.expoStudentCard30'); if(!card)return;
+    const user=inp.dataset.user,groupId=inp.dataset.group,criterionId=inp.dataset.criterion;
+    const waiting=card.dataset.waiting==='1'; if(waiting)return;
+    const status=card.dataset.noExpuso==='1'?'no_expuso':'expuso';
+    const val=status==='no_expuso'?'5':inp.value;
+    saveOne(user,groupId,criterionId,val,status);
+  });
+
+  // 3) Guarda la selección de bloques para cada integrante del grupo.
+  const selected=selectedBlocks.slice();
+  [...document.querySelectorAll('.expoStudentCard30')].forEach(card=>{
+    const user=card.dataset.user,groupId=card.dataset.group;
+    if(!user)return;
+    const key=expositionBlockConfigKey30(ses.id,groupId,user);
+    if(!db.expositionRubric.evaluationConfigs)db.expositionRubric.evaluationConfigs={};
+    db.expositionRubric.evaluationConfigs[key]={blocks:selected.slice(),materialMode};
+  });
+
+  save();
+  alert(`✅ Evaluación guardada correctamente.\n\n📋 Contenido técnico y 📦 Material elaborado: evaluación GRUPAL.\n🎤 Exposición oral: evaluación INDIVIDUAL.\n\n${count} registro(s) de criterio guardado(s).`);
+  openProjectEvaluation();
 }
 
 /* ===== CONFIGURACIÓN DE PESOS ===== */
@@ -8896,7 +9819,65 @@ function openTimerWindow30(){
   const memberHtml=members.map(n=>`<div class="member">👤 ${String(n).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div>`).join('');
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>
   *{box-sizing:border-box}body{margin:0;background:#101010;color:#fff;font-family:Arial,Helvetica,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}.wrap{width:94vw;max-width:1200px;text-align:center;padding:30px}.title{font-size:clamp(32px,5vw,68px);font-weight:900;color:#00e676;letter-spacing:1px}.subtitle{font-size:clamp(18px,2.5vw,30px);color:#ddd;margin:12px 0}.timer{font-size:clamp(90px,18vw,220px);font-weight:900;line-height:1;margin:35px 0;font-variant-numeric:tabular-nums}.timer.warning{color:#ffb300}.timer.done{color:#ff5252}.group{font-size:clamp(24px,4vw,46px);font-weight:800;margin:8px 0 18px;color:#fff}.members{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:0 auto 24px;max-width:1050px}.member{background:#1f1f1f;border:1px solid #444;border-radius:12px;padding:10px 16px;font-size:18px}.controls{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.controls button{border:0;border-radius:10px;padding:14px 28px;font-size:18px;font-weight:700;cursor:pointer;background:#00e676;color:#111}.controls button:hover{filter:brightness(1.08)}.status{font-size:22px;color:#ff9800;margin-top:16px;min-height:28px;font-weight:700}.member{box-shadow:0 2px 8px rgba(0,0,0,.25)}@media(max-width:700px){.wrap{padding:16px}.member{font-size:15px}}
-  </style></head><body><div class="wrap"><div class="title">${safeTitle}</div><div class="subtitle">${safeSubtitle}</div>${groupName?`<div class="group">👥 ${String(groupName).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div><div class="members">${memberHtml}</div>`:''}<div id="tm" class="timer">${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}</div><div class="controls"><button class="start" id="start">▶ Iniciar</button><button class="pause" id="pause">⏸ Pausar</button><button class="reset" id="reset">↩ Reiniciar</button><button class="close" onclick="window.close()">✕ Cerrar</button></div><div id="status" class="status"></div></div><script>
+  </style>
+<style id="expoEvalFinalCompactFix34">
+/* ===== CORRECCIÓN: evitar espacios gigantes heredados de .modalCard.wide ===== */
+#modalCard.wide.expoEvalModal30{
+  width:min(1280px,96vw) !important;
+  max-width:1280px !important;
+  height:92vh !important;
+  max-height:92vh !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide.expoEvalModal30 #modalBody.wide{
+  width:100% !important;
+  height:100% !important;
+  min-height:0 !important;
+  max-height:none !important;
+  padding:16px 20px 22px !important;
+  box-sizing:border-box !important;
+  overflow:auto !important;
+  display:block !important;
+}
+/* El CSS general de .modalCard.wide ponía height:100% a cada div directo.
+   En esta ventana cada bloque debe ocupar solo el espacio que necesita. */
+#modalCard.wide.expoEvalModal30 #modalBody.wide > div{
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  flex:none !important;
+}
+#modalCard.wide.expoEvalModal30 #expoSessionInfo30{
+  height:auto !important;
+  min-height:0 !important;
+  padding:10px 12px !important;
+  margin-bottom:12px !important;
+}
+#modalCard.wide.expoEvalModal30 #expoTable30{
+  height:auto !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+#modalCard.wide.expoEvalModal30 #expoTable30 > div{
+  height:auto !important;
+  min-height:0 !important;
+}
+#modalCard.wide.expoEvalModal30 .card{
+  height:auto !important;
+  min-height:0 !important;
+}
+#modalCard.wide.expoEvalModal30 .grid3{
+  height:auto !important;
+  min-height:0 !important;
+}
+@media(max-width:900px){
+  #modalCard.wide.expoEvalModal30{width:96vw !important;height:92vh !important;max-height:92vh !important}
+  #modalCard.wide.expoEvalModal30 #modalBody.wide{padding:14px !important}
+}
+</style>
+</head><body><div class="wrap"><div class="title">${safeTitle}</div><div class="subtitle">${safeSubtitle}</div>${groupName?`<div class="group">👥 ${String(groupName).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</div><div class="members">${memberHtml}</div>`:''}<div id="tm" class="timer">${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}</div><div class="controls"><button class="start" id="start">▶ Iniciar</button><button class="pause" id="pause">⏸ Pausar</button><button class="reset" id="reset">↩ Reiniciar</button><button class="close" onclick="window.close()">✕ Cerrar</button></div><div id="status" class="status"></div></div><script>
   let total=${min*60+sec},left=total,run=false,timer=null;const tm=document.getElementById('tm'),st=document.getElementById('status');function fmt(v){return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')}function draw(){tm.textContent=fmt(Math.max(0,left));tm.className='timer'+(left>0&&left<=10?' warning':'')+(left===0?' done':'')}function start(){if(run)return; if(left<=0)left=total;if(left<=0)return;run=true;st.textContent='⏳ Tiempo en marcha...';clearInterval(timer);timer=setInterval(()=>{left--;draw();if(left<=0){clearInterval(timer);timer=null;run=false;st.textContent='🔔 ¡TIEMPO TERMINADO!';try{new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQAAAAA=').play().catch(()=>{})}catch(e){}}},1000)}function pause(){clearInterval(timer);timer=null;run=false;st.textContent='⏸ Pausado.'}function reset(){pause();left=total;st.textContent='';draw()}document.getElementById('start').onclick=start;document.getElementById('pause').onclick=pause;document.getElementById('reset').onclick=reset;draw();<\/script>
 
 
@@ -9556,7 +10537,7 @@ function grades(){
     <p class="muted"><b>70 % Proyecto</b> (Portafolio + Producto + Exposición) + <b>30 % Proceso</b>. ${activeBimester&&snapshot?`<b>📌 ${activeBimester} Bimestre cerrado:</b> se muestran las notas registradas al cierre.`:''}</p>
 
     <div class="actions">
-      <button onclick="go('project')">🚀 Proyecto 70 %</button>
+      <button type="button" onclick="openProjectFromEvaluation()">🚀 Proyecto 70 %</button>
       <button onclick="go('registro')">📝 Registro de clase</button>
       <button onclick="go('activitiesGrades')">💻 Actividades</button>
       <button onclick="go('participations')">🙋 Participación</button>
@@ -10246,6 +11227,56 @@ function nextSessionNumber26(unitId, selectedGroup){
   });
   return (Math.max(0,...nums)+1);
 }
+function sessionStatusLabel30(x){
+  const st=String(x?.status||'Programada');
+  if(st==='No realizada') return '⏸️ No realizada';
+  if(st==='Reprogramada') return '🔄 Reprogramada';
+  if(st==='Finalizada') return '✅ Realizada';
+  if(st==='En desarrollo') return '🟡 En desarrollo';
+  return '🗓️ Programada';
+}
+function sessionIsPending30(x){ return String(x?.status||'')==='No realizada'; }
+function openRescheduleSession30(id){
+  const x=(db.sessions||[]).find(a=>String(a.id)===String(id)); if(!x)return;
+  const group=(String(x.grade)==='1.º'||String(x.grade)==='2.º') ? `${x.grade} ${x.section||'A'}` : (['3.º','4.º','5.º'].includes(String(x.grade)) && String(x.section||'')) ? `${x.grade} ${x.section}` : '3.º-5.º';
+  const currentDate=sessionDateForGradeSection(x,group.split(' ')[0],group.split(' ')[1]||'');
+  const reason=x.noClassReason||'';
+  modalBody.innerHTML=`<h2>🔄 Reprogramar Sesión ${escClass(x.number)}</h2>
+  <div class="card" style="background:#fff7ed;border:1px solid #fed7aa"><b>Sesión ${escClass(x.number)}: ${escClass(x.title)}</b><br><span class="muted">La sesión no se elimina ni se reemplaza. Se mantiene el mismo número y se cambia únicamente la fecha de realización.</span></div>
+  <label>📅 Fecha en que estaba programada</label><input type="date" id="resOldDate30" value="${escClass(currentDate||x.date||'')}" disabled>
+  <label>Motivo por el que no se realizó</label><select id="resReason30"><option value="">Seleccionar motivo...</option>${['Feriado','Suspensión de clases','Actividad institucional','Reunión','Emergencia','Otro'].map(v=>`<option value="${escClass(v)}" ${reason===v?'selected':''}>${escClass(v)}</option>`).join('')}</select>
+  <label>Observación (opcional)</label><input id="resReasonOther30" value="${escClass(x.noClassObservation||'')}" placeholder="Especifica el motivo si corresponde">
+  <label>📅 Nueva fecha de la Sesión ${escClass(x.number)}</label><input type="date" id="resNewDate30">
+  <div class="card" style="margin-top:10px;background:#eff6ff"><b>Así quedará:</b><br>La Sesión ${escClass(x.number)} seguirá siendo la <b>Sesión ${escClass(x.number)}</b>, pero quedará registrada como <b>Reprogramada</b>. La siguiente sesión conservará su número original y no se adelantará.</div>
+  <div class="actions" style="margin-top:15px"><button onclick="saveRescheduleSession30(${x.id},'${escClass(group)}')">💾 Guardar reprogramación</button><button class="secondary" onclick="editSession(${x.id})">Cancelar</button></div>`;
+  modal.classList.remove('hidden');
+}
+function saveRescheduleSession30(id,group){
+  const x=(db.sessions||[]).find(a=>String(a.id)===String(id)); if(!x)return;
+  const reason=document.getElementById('resReason30')?.value||'';
+  const observation=document.getElementById('resReasonOther30')?.value.trim()||'';
+  const newDate=document.getElementById('resNewDate30')?.value||'';
+  if(!reason){alert('Selecciona el motivo por el que no se realizó la clase.');return}
+  if(!newDate){alert('Selecciona la nueva fecha de reprogramación.');return}
+  const oldDate=sessionDateForGradeSection(x,group.split(' ')[0],group.split(' ')[1]||'')||x.date||'';
+  if(!x.originalScheduledDate) x.originalScheduledDate=oldDate;
+  x.noClassReason=reason;
+  x.noClassObservation=observation;
+  x.reprogrammedFromDate=oldDate;
+  x.reprogrammedDate=newDate;
+  x.status='Reprogramada';
+  const parts=group.split(' ');
+  if(['1.º','2.º','3.º','4.º','5.º'].includes(String(x.grade)) && parts.length>1){
+    x.date=newDate;
+  }else if(String(x.grade)==='3.º-5.º'){
+    if(!x.dateByGradeSection)x.dateByGradeSection={};
+    const key=parts.length>1?parts[0]+'|'+parts[1]:'';
+    if(key)x.dateByGradeSection[key]=newDate;
+    if(parts[0]){ if(!x.dateByGrade)x.dateByGrade={}; x.dateByGrade[parts[0]]=newDate; }
+  }else x.date=newDate;
+  save();
+  openUnit(x.unit,group);
+}
 function openUnit(id, selectedGroup='1.º A'){
   const u=(db.units||[]).find(x=>x.id===id); if(!u)return;
   normalizeSessionGroups();
@@ -10274,20 +11305,20 @@ function openUnit(id, selectedGroup='1.º A'){
   <div class="session-group-tabs" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
     ${groups.map(g=>`<button class="${g===selectedGroup?'':'secondary'}" onclick="openUnit(${id},'${g}')">🎓 ${sessionTabLabel(g)}</button>`).join('')}
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <h3>📖 Sesiones de aprendizaje — ${sessionTabLabel(selectedGroup)}</h3>
-    ${me.role==='teacher'?`<button onclick="addSession(${id},'${selectedGroup}')">＋ Agregar sesión</button>`:''}
+    ${me.role==='teacher'?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="openAdaptationConfig30()" style="background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd">♿ Configurar adaptaciones</button><button onclick="addSession(${id},'${selectedGroup}')">＋ Agregar sesión</button></div>`:''}
   </div>
   <div class="list" style="margin-top:12px">
   ${ses.map(x=>`<div class="item">
-    <div><span class="badge">${escClass(x.status||'Programada')}</span>
+    <div><span class="badge">${escClass(sessionStatusLabel30(x))}</span>
     <h3 style="margin:7px 0">Sesión ${escClass(x.number)}: ${escClass(x.title)}</h3>
     <div class="muted">${escClass(x.description||'')}</div>
     <div style="margin-top:7px"><b>🎓 Grupo:</b> ${escClass(sessionGradeLabel(x))}</div>
     ${x.sessionType==='recovery'?`<div style="margin-top:7px;color:#9a3412;font-weight:800">🔄 Recuperación de Sesión ${escClass(sessionRecordById30(x.recoveryOfSession)?.number||'—')} · ${escClass(sessionRecordById30(x.recoveryOfSession)?.title||'')}</div>`:''}
     ${sessionDateEntries(x).length?`<div style="margin-top:8px"><button class="secondary small" id="sessionDatesBtn_${x.id}" onclick="toggleSessionDates(${x.id})">📅 Ver fechas</button><span class="muted" style="margin-left:8px">${escClass(sessionDatesSummary(x))}</span><div id="sessionDates_${x.id}" style="display:none;margin-top:8px" class="muted">${sessionDateEntries(x).map(d=>`<div>📅 <b>${escClass(d.label)}</b>: ${escClass(d.date)}</div>`).join('')}</div></div>`:''}</div>
     <div class="actions" style="align-self:flex-start"><button onclick="viewSession(${x.id})">Ver</button>
-    ${me.role==='teacher'?`<button class="secondary" onclick="editSession(${x.id})">✏️ Editar</button><button class="danger" onclick="deleteSession(${x.id})">🗑️ Eliminar</button>`:''}</div>
+    ${me.role==='teacher'?`${x.status==='No realizada'?`<button onclick="openRescheduleSession30(${x.id})">🔄 Reprogramar</button>`:''}<button class="secondary" onclick="editSession(${x.id})">✏️ Editar</button><button class="danger" onclick="deleteSession(${x.id})">🗑️ Eliminar</button>`:''}</div>
   </div>`).join('') || `<div class="card"><p class="muted">Todavía no hay sesiones para <b>${sessionTabLabel(selectedGroup)}</b>. Usa “＋ Agregar sesión”.</p></div>`}
   </div>
   <button class="secondary" style="margin-top:15px" onclick="closeModal()">Cerrar</button>`;
@@ -10295,6 +11326,8 @@ function openUnit(id, selectedGroup='1.º A'){
 }
 function addSession(unitId, group='1.º A'){
   if(group==='1.º-2.º') group='1.º A';
+  const pending=(db.sessions||[]).filter(x=>x.unit===unitId && sessionGroupsForFilter30(x).some(g=>g===group) && x.status==='No realizada').sort((a,b)=>Number(a.number||0)-Number(b.number||0));
+  if(pending.length){ alert('Primero debes reprogramar la Sesión '+pending[0].number+'. La sesión pendiente conserva su número y se realiza en la siguiente fecha.'); openRescheduleSession30(pending[0].id); return; }
   const firstSecond=isFirstSecondSessionGroup(group);
   const seniorIndividual=activeBimester31()==='IV' && ['3.º A','3.º B','4.º A','4.º B','5.º A','5.º B'].includes(group);
   const count=nextSessionNumber26(unitId,group);
@@ -10333,10 +11366,17 @@ function addSession(unitId, group='1.º A'){
   </div>
   <small class="muted">Escribe solo los criterios que evaluarás en esta sesión. Puedes agregar tantos como necesites.</small>
   <label style="margin-top:12px"><b>Instrumento de evaluación</b></label>
-  <select id="sesInstrument30">
+  <select id="sesInstrument30" onchange="toggleWrittenQuestions30()">
     <option value="">Seleccionar instrumento</option>
     ${['Lista de cotejo','Escala de valoración','Guía de observación','Rúbrica','Ficha de evaluación','Prueba escrita','Otro'].map(i=>`<option value="${escClass(i)}">${escClass(i)}</option>`).join('')}
   </select>
+  <div id="sesWrittenQuestions30" style="display:none;margin-top:12px;padding:12px;border:1px solid #dbeafe;border-radius:10px;background:#f8fbff">
+    <label><b>📝 Preguntas / ítems de la prueba escrita</b></label>
+    <div id="sesWrittenQuestionsList30">
+      ${writtenQuestionRow30('',0,false)}
+    </div>
+    <small class="muted">Escribe la pregunta y elige si será con alternativas A–D o de respuesta abierta. En las abiertas el estudiante puede responder por escrito. Puedes indicar la respuesta correcta como referencia para las preguntas con alternativas. La calificación final se registra manualmente en 0–20.</small>
+  </div>
   <label>Tipo de sesión</label>
   <select id="sesType30" onchange="toggleSessionRecovery30()">
     <option value="normal">Sesión normal</option>
@@ -10358,6 +11398,44 @@ function sessionGroupsForFilter30(x){
   if(isFirstSecondSessionGroup(x.grade+' '+(x.section||''))) return [String(x.grade)+' '+String(x.section||'')];
   if(String(x.grade)==='3.º-5.º') return ['3.º-5.º'];
   return [String(x.grade||'')];
+}
+function normalizeWrittenQuestion30(q){
+  if(typeof q==='string') return {text:q,options:['','','',''],correct:'',type:'choice'};
+  return {text:String(q?.text||''),options:Array.isArray(q?.options)?[0,1,2,3].map(i=>String(q.options[i]||'')):['','','',''],correct:String(q?.correct||''),type:q?.type==='open'?'open':'choice'};
+}
+function writtenQuestionRow30(q,index=0,remove=true){
+  const x=normalizeWrittenQuestion30(q);
+  const opts=x.options||['','','',''];
+  const action=remove ? "this.closest('.sesWrittenQuestionRow30').remove()" : "addWrittenQuestion30()";
+  return `<div class="sesWrittenQuestionRow30" style="display:block;padding:10px;border:1px solid #dbeafe;border-radius:10px;margin-bottom:10px;background:#fff">
+    <div style="margin-bottom:6px"><label style="font-size:.85rem;font-weight:700">Pregunta / enunciado ${index+1}</label></div>
+    <div style="display:flex;gap:8px;align-items:flex-start"><textarea class="sesWrittenQuestion30" placeholder="Escribe aquí la pregunta ${index+1}" style="flex:1;min-height:55px">${escClass(x.text)}</textarea><button type="button" class="${remove?'danger':'secondary'} small" onclick="${action}">${remove?'−':'＋'}</button></div>
+    <div style="margin-top:8px"><label style="font-size:.85rem;font-weight:700">Tipo de pregunta</label><select class="sesWrittenType30" onchange="this.closest('.sesWrittenQuestionRow30').querySelector('.writtenOptionsBox30').style.display=this.value==='choice'?'block':'none'"><option value="choice" ${x.type!=='open'?'selected':''}>Con alternativas</option><option value="open" ${x.type==='open'?'selected':''}>Respuesta abierta</option></select></div>
+    <div class="writtenOptionsBox30" style="display:${x.type==='open'?'none':'block'};margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:7px">
+      ${['A','B','C','D'].map((letter,i)=>`<input class="sesWrittenOption30" data-letter="${letter}" placeholder="Alternativa ${letter}" value="${escClass(opts[i]||'')}">`).join('')}
+    </div>
+    <div class="writtenCorrectBox30" style="display:${x.type==='open'?'none':'block'};margin-top:8px"><label style="font-size:.85rem">Respuesta correcta (opcional)</label><select class="sesWrittenCorrect30"><option value="">Sin indicar</option>${['A','B','C','D'].map(l=>`<option value="${l}" ${x.correct===l?'selected':''}>${l}</option>`).join('')}</select></div>
+  </div>`;
+}
+function collectWrittenQuestions30(){
+  return [...document.querySelectorAll('.sesWrittenQuestionRow30')].map(row=>({
+    text:row.querySelector('.sesWrittenQuestion30')?.value.trim()||'',
+    type:row.querySelector('.sesWrittenType30')?.value||'choice',
+    options:[...row.querySelectorAll('.sesWrittenOption30')].map(e=>e.value.trim()),
+    correct:row.querySelector('.sesWrittenCorrect30')?.value||''
+  })).filter(q=>q.text);
+}
+function toggleWrittenQuestions30(){
+  const sel=document.getElementById('sesInstrument30');
+  const box=document.getElementById('sesWrittenQuestions30');
+  if(box)box.style.display=sel?.value==='Prueba escrita'?'block':'none';
+}
+function addWrittenQuestion30(){
+  const box=document.getElementById('sesWrittenQuestionsList30'); if(!box)return;
+  const wrap=document.createElement('div');
+  wrap.innerHTML=writtenQuestionRow30('',box.querySelectorAll('.sesWrittenQuestionRow30').length,true);
+  box.appendChild(wrap.firstElementChild);
+  box.lastElementChild?.querySelector('.sesWrittenQuestion30')?.focus();
 }
 function toggleSessionRecovery30(){
   const type=document.getElementById('sesType30')?.value||'normal';
@@ -10386,6 +11464,7 @@ function saveSession(unitId, group='1.º A'){
   const status=document.getElementById('sesS').value;
   const criteriaSelected=[...document.querySelectorAll('.sesManualCriterion30')].map(e=>e.value.trim()).filter(Boolean);
   const instrument=document.getElementById('sesInstrument30')?.value||'';
+  const writtenQuestions=instrument==='Prueba escrita' ? collectWrittenQuestions30() : [];
   const sessionType=document.getElementById('sesType30')?.value||'normal';
   const recoveryOfSession=document.getElementById('sesRecoveryOf30')?.value||'';
   if(!number||!title){alert('Completa número y título de la sesión.');return}
@@ -10398,7 +11477,7 @@ function saveSession(unitId, group='1.º A'){
     [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)dateByGradeSection[g+'|'+ss]=v;});
     ['3.º','4.º','5.º'].forEach(g=>{const v=dateByGradeSection[g+'|A']||dateByGradeSection[g+'|B']||'';if(v)dateByGrade[g]=v;});
   }
-  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,desempeno,evidencia,grade,section:sec,date,status,dateByGrade,dateByGradeSection,criteriaSelected,instrument,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:'',bimester:(bimesterOfUnit31((db.units||[]).find(u=>String(u.id)===String(unitId)))||bimesterForDate31(date)||activeBimester31()||'III')});
+  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,desempeno,evidencia,grade,section:sec,date,status,dateByGrade,dateByGradeSection,criteriaSelected,instrument,writtenQuestions,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:'',adaptations:[],bimester:(bimesterOfUnit31((db.units||[]).find(u=>String(u.id)===String(unitId)))||bimesterForDate31(date)||activeBimester31()||'III')});
   save();openUnit(unitId,group);
 }
 function editSession(id){
@@ -10440,10 +11519,17 @@ function editSession(id){
   </div>
   <small class="muted">Los criterios se escriben manualmente. Los antiguos nombres de capacidades no se tomarán como criterios.</small>
   <label style="margin-top:12px"><b>Instrumento de evaluación</b></label>
-  <select id="sesInstrument30">
+  <select id="sesInstrument30" onchange="toggleWrittenQuestions30()">
     <option value="">Seleccionar instrumento</option>
     ${['Lista de cotejo','Escala de valoración','Guía de observación','Rúbrica','Ficha de evaluación','Prueba escrita','Otro'].map(i=>`<option value="${escClass(i)}" ${x.instrument===i?'selected':''}>${escClass(i)}</option>`).join('')}
   </select>
+  <div id="sesWrittenQuestions30" style="display:${x.instrument==='Prueba escrita'?'block':'none'};margin-top:12px;padding:12px;border:1px solid #dbeafe;border-radius:10px;background:#f8fbff">
+    <label><b>📝 Preguntas / ítems de la prueba escrita</b></label>
+    <div id="sesWrittenQuestionsList30">
+      ${(()=>{const qs=Array.isArray(x.writtenQuestions)?x.writtenQuestions.filter(Boolean):[]; const vals=qs.length?qs:['']; return vals.map((q,i)=>writtenQuestionRow30(q,i,i>0)).join('')})()}
+    </div>
+    <small class="muted">Escribe la pregunta y elige si será con alternativas A–D o de respuesta abierta. En las abiertas el estudiante puede responder por escrito. Puedes indicar la respuesta correcta como referencia para las preguntas con alternativas. La calificación final se registra manualmente en 0–20.</small>
+  </div>
   <label>Tipo de sesión</label>
   <select id="sesType30" onchange="toggleSessionRecovery30()">
     <option value="normal" ${x.sessionType!=='recovery'?'selected':''}>Sesión normal</option>
@@ -10457,7 +11543,8 @@ function editSession(id){
     </select>
     <small class="muted">Se toma la mayor nota entre la sesión recuperada y esta sesión. Esta sesión no suma como una nota adicional.</small>
   </div>
-  <label>Estado</label><select id="sesS"><option ${x.status==='Programada'?'selected':''}>Programada</option><option ${x.status==='En desarrollo'?'selected':''}>En desarrollo</option><option ${x.status==='Finalizada'?'selected':''}>Finalizada</option></select>
+  <label>Estado de la clase</label><select id="sesS"><option ${x.status==='Programada'?'selected':''}>Programada</option><option ${x.status==='En desarrollo'?'selected':''}>En desarrollo</option><option ${x.status==='Finalizada'?'selected':''}>Finalizada</option><option ${x.status==='No realizada'?'selected':''}>No realizada</option><option ${x.status==='Reprogramada'?'selected':''}>Reprogramada</option></select>
+  ${x.status==='No realizada'?`<div class="card" style="margin-top:10px;background:#fff7ed"><b>Motivo registrado:</b> ${escClass(x.noClassReason||'—')}${x.noClassObservation?`<br><b>Observación:</b> ${escClass(x.noClassObservation)}`:''}<br><button type="button" onclick="openRescheduleSession30(${x.id})">🔄 Reprogramar esta sesión</button></div>`:''}
   <div class="actions" style="margin-top:15px"><button onclick="saveEditedSession(${id})">Guardar cambios</button><button class="danger" onclick="deleteSession(${id})">🗑️ Eliminar sesión</button><button class="secondary" onclick="openUnit(${x.unit},'${oldGroup}')">Cancelar</button></div>`;
   modal.classList.remove('hidden');
 }
@@ -10471,11 +11558,13 @@ function saveEditedSession(id){
   const status=document.getElementById('sesS')?.value||'Programada';
   const criteriaSelected=[...document.querySelectorAll('.sesManualCriterion30')].map(e=>e.value.trim()).filter(Boolean);
   const instrument=document.getElementById('sesInstrument30')?.value||'';
+  const writtenQuestions=instrument==='Prueba escrita' ? collectWrittenQuestions30() : [];
   if(!title){alert('Completa el título de la sesión.');return}
   x.number=Number(document.getElementById('sesN')?.value)||x.number;
   x.title=title;x.description=description;x.desempeno=desempeno;x.evidencia=evidencia;x.status=status;x.date=date;
   x.criteriaSelected=criteriaSelected;
   x.instrument=instrument;
+  x.writtenQuestions=writtenQuestions;
   const sessionType=document.getElementById('sesType30')?.value||'normal';
   const recoveryOfSession=document.getElementById('sesRecoveryOf30')?.value||'';
   if(sessionType==='recovery'&&!recoveryOfSession){alert('Selecciona la sesión que esta recuperación va a recuperar.');return}
@@ -10507,7 +11596,8 @@ function viewSession(id){
   <div class="badge" style="display:inline-block;margin:5px 0">🎓 ${escClass(sessionGradeLabel(x))}</div>
   <p>${escClass(x.description||'Sin descripción.')}</p>
   <p class="muted">${sessionDatesLabel(x)!=='Sin fecha'?'📅 Fechas: '+escClass(sessionDatesLabel(x)):'Sin fecha'} · ${escClass(x.status||'Programada')}</p>
-  ${(x.desempeno||x.desempeño||x.evidencia)?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>📚 Información de la sesión</b>${(x.desempeno||x.desempeño)?`<div style="margin-top:7px"><b>🎯 Desempeño esperado:</b> ${escClass(x.desempeno||x.desempeño)}</div>`:''}${x.evidencia?`<div style="margin-top:7px"><b>📌 Evidencia:</b> ${escClass(x.evidencia)}</div>`:''}<small class="muted" style="display:block;margin-top:7px">Información orientativa; no genera nota.</small></div>`:''}${Array.isArray(x.criteriaSelected)&&x.criteriaSelected.length?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>🎯 Criterios de evaluación</b><ul style="margin:8px 0 0 18px">${x.criteriaSelected.map(c=>`<li>${escClass(c)}</li>`).join('')}</ul>${x.instrument?`<div style="margin-top:8px"><b>📝 Instrumento:</b> ${escClass(x.instrument)}</div>`:''}</div>`:x.instrument?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>📝 Instrumento:</b> ${escClass(x.instrument)}</div>`:''}${x.sessionType==='recovery'?`<div class="card" style="background:#fff7ed;border:1px solid #fed7aa"><b>🔄 Sesión de recuperación</b><br>Recupera: Sesión ${escClass(sessionRecordById30(x.recoveryOfSession)?.number||'—')} · ${escClass(sessionRecordById30(x.recoveryOfSession)?.title||'—')}<br><small>Para cada estudiante se toma la mayor nota entre ambas sesiones. Esta sesión no se suma nuevamente como una nota independiente.</small></div>`:''}<hr>
+  ${(x.desempeno||x.desempeño||x.evidencia)?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>📚 Información de la sesión</b>${(x.desempeno||x.desempeño)?`<div style="margin-top:7px"><b>🎯 Desempeño esperado:</b> ${escClass(x.desempeno||x.desempeño)}</div>`:''}${x.evidencia?`<div style="margin-top:7px"><b>📌 Evidencia:</b> ${escClass(x.evidencia)}</div>`:''}<small class="muted" style="display:block;margin-top:7px">Información orientativa; no genera nota.</small></div>`:''}${Array.isArray(x.criteriaSelected)&&x.criteriaSelected.length?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>🎯 Criterios de evaluación</b><ul style="margin:8px 0 0 18px">${x.criteriaSelected.map(c=>`<li>${escClass(c)}</li>`).join('')}</ul>${x.instrument?`<div style="margin-top:8px"><b>📝 Instrumento:</b> ${escClass(x.instrument)}</div>`:''}</div>`:x.instrument?`<div class="card" style="margin-top:10px;background:#f8fbff"><b>📝 Instrumento:</b> ${escClass(x.instrument)}</div>`:''}${x.sessionType==='recovery'?`<div class="card" style="background:#fff7ed;border:1px solid #fed7aa"><b>🔄 Sesión de recuperación</b><br>Recupera: Sesión ${escClass(sessionRecordById30(x.recoveryOfSession)?.number||'—')} · ${escClass(sessionRecordById30(x.recoveryOfSession)?.title||'—')}<br><small>Para cada estudiante se toma la mayor nota entre ambas sesiones. Esta sesión no se suma nuevamente como una nota independiente.</small></div>`:''}<div class="card" style="margin-top:12px;background:#f5f3ff;border:1px solid #ddd6fe"><div><b>♿ Adaptaciones para estudiantes</b><div class="muted" style="margin-top:4px">Las adaptaciones se configuran una sola vez desde «Configurar adaptaciones» y aparecen automáticamente en las sesiones correspondientes.</div></div>${(()=>{const cfg=configuredAdaptationStudents30(x);if(!cfg.length)return `<p class="muted" style="margin:10px 0 0">No hay estudiantes configurados con adaptación para este grupo.</p>`;return `<div class="list" style="margin-top:10px">${cfg.map(st=>{const uid=String(st.u||st.id),p=db.adaptationProfiles30?.[uid]||{};return `<div class="item"><div><b>${escClass(st.name||'Estudiante')}</b>${(p.types||[]).length?`<div class="muted" style="margin-top:5px">${p.types.map(t=>`<span class="badge" style="margin-right:4px">${escClass(t)}</span>`).join('')}</div>`:''}${p.description?`<div style="margin-top:6px"><b>Qué hará diferente:</b> ${escClass(p.description)}</div>`:''}${p.evidence?`<div style="margin-top:4px"><b>Evidencia adaptada:</b> ${escClass(p.evidence)}</div>`:''}${p.criterion?`<div style="margin-top:4px"><b>Criterio adaptado:</b> ${escClass(p.criterion)}</div>`:''}${p.observation?`<div style="margin-top:4px"><b>Observación:</b> ${escClass(p.observation)}</div>`:''}</div></div>`}).join('')}</div>`})()}</div>
+  <hr>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3>🎬 Materiales</h3>${me.role==='teacher'?`<button onclick="addSessionMaterial(${id})">＋ Agregar material</button>`:''}</div>
   <div class="list" style="margin-top:10px">${mats.map(m=>`<div class="item"><div><span class="badge">${escClass(m.type||'Recurso')}</span><h3 style="margin:6px 0">${escClass(m.title)}</h3><div class="muted">${escClass(m.description||'')}</div></div>${m.url?`<a href="${m.url}" target="_blank" rel="noopener"><button>🔗 Abrir</button></a>`:''}</div>`).join('')||`<p class="muted">Todavía no hay materiales para esta sesión.</p>`}</div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:20px"><h3>📝 Actividades</h3>${me.role==='teacher'?`<button onclick="addSessionActivity(${id})">＋ Crear actividad</button>`:''}</div>
@@ -12245,5 +13335,83 @@ try{ startAutomaticBackupWatcher(); }catch(e){ console.error("Respaldo automáti
 .guideTable30 th{background:#e0f2fe;color:#0f3d5e;vertical-align:middle}.guideTable30 td{vertical-align:top}.ogCell30{min-width:170px;background:#f8fbff}.ogCell30 select{width:100%;margin-bottom:5px}.ogCell30 input{width:100%;box-sizing:border-box;font-size:11px;padding:6px 7px;border:1px solid #cbd5e1;border-radius:7px}.guideEvalWrap30 .scaleHelp30{color:#475569}
 </style>
 <!-- Indicador ♿ integrado en asistencia, registro de clase, recuperacion Crea, evaluaciones por componentes, proyecto y evaluacion final. -->
+
+<style id="expoEvalFinalViewportFix">
+/* ===== VISTA COMPLETA: EVALUACION DE EXPOSICION ===== */
+#modalCard.wide.expoEvalModal30{
+  width:min(1320px,96vw) !important;
+  max-width:1320px !important;
+  height:94vh !important;
+  max-height:94vh !important;
+  min-height:0 !important;
+  padding:0 !important;
+  overflow:auto !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide.expoEvalModal30 #modalBody.wide{
+  width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  padding:24px !important;
+  box-sizing:border-box !important;
+  overflow:visible !important;
+}
+#modalCard.wide.expoEvalModal30 #expoTable30{
+  max-height:62vh !important;
+  overflow:auto !important;
+}
+@media(max-width:900px){
+  #modalCard.wide.expoEvalModal30{
+    width:96vw !important;
+    height:92vh !important;
+    max-height:92vh !important;
+  }
+  #modalCard.wide.expoEvalModal30 #modalBody.wide{
+    padding:16px !important;
+  }
+}
+</style>
+
+<style id="expoEvalScreenFinalFix33">
+/* Evaluación de exposición: ventana grande y contenido visible. */
+#modalCard.wide.expoEvalModal30{
+  width:95vw !important;
+  max-width:none !important;
+  height:92vh !important;
+  max-height:92vh !important;
+  min-height:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#modalCard.wide.expoEvalModal30 #modalBody.wide{
+  width:100% !important;
+  height:100% !important;
+  max-height:none !important;
+  padding:22px 26px 28px !important;
+  overflow:auto !important;
+  box-sizing:border-box !important;
+  display:block !important;
+}
+#modalCard.wide.expoEvalModal30 .grid3{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:12px !important;
+}
+#modalCard.wide.expoEvalModal30 #expoTable30{
+  width:100% !important;
+  max-height:none !important;
+  overflow:auto !important;
+}
+#modalCard.wide.expoEvalModal30 #expoTable30 > div{
+  width:100% !important;
+}
+@media(max-width:900px){
+  #modalCard.wide.expoEvalModal30{width:94vw !important;height:92vh !important;max-height:92vh !important}
+  #modalCard.wide.expoEvalModal30 #modalBody.wide{padding:16px !important}
+  #modalCard.wide.expoEvalModal30 .grid3{grid-template-columns:1fr !important}
+}
+</style>
 </body>
 </html>
