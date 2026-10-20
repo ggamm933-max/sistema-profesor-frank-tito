@@ -6999,6 +6999,81 @@ function renderWrittenTest30(box,rec,students){
   });
 }
 
+function saveChecklist30(classId,user,criterion,value){
+  ensureClassData();
+  let ev=classEvalRecord(classId,user);
+  if(!ev){
+    ev={id:'ev_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),classId,user,status:'',grade:'',date:classRecordById(classId)?.date||todayLocal30(),title:classRecordById(classId)?.title||'',gradeClass:classRecordById(classId)?.grade||'',section:classRecordById(classId)?.section||'',bimester:activeBimester31()};
+    db.classEvaluations.push(ev);
+  }
+  if(!ev.checklistScores) ev.checklistScores={};
+  if(value==='') delete ev.checklistScores[criterion];
+  else ev.checklistScores[criterion]=value;
+
+  const rec=classRecordById(classId);
+  const linkedSession=(db.sessions||[]).find(x=>String(x.id)===String(rec?.session));
+  const criteria=Array.isArray(linkedSession?.criteriaSelected)&&linkedSession.criteriaSelected.length
+    ? linkedSession.criteriaSelected.filter(Boolean)
+    : (Array.isArray(rec?.criteriaSelected)?rec.criteriaSelected.filter(Boolean):[]);
+  const vals=criteria.map(c=>ev.checklistScores[c]).filter(v=>v==='SI'||v==='NO');
+  const yes=vals.filter(v=>v==='SI').length;
+  ev.grade=vals.length===0?'':Math.round((yes/criteria.length)*20*100)/100;
+  ev.status=vals.length?'EVALUADO':'';
+  ev.updatedAt=Date.now();
+  save();
+}
+
+function renderChecklist30(box,rec,students){
+  // Los criterios de la Lista de cotejo se toman SIEMPRE de la sesión de aprendizaje vinculada.
+  // No se escriben criterios fijos en el Registro de clase.
+  const linkedSession=(db.sessions||[]).find(x=>String(x.id)===String(rec.session));
+  const rawCriteria=Array.isArray(linkedSession?.criteriaSelected)&&linkedSession.criteriaSelected.length
+    ? linkedSession.criteriaSelected.filter(Boolean)
+    : (Array.isArray(rec.criteriaSelected)?rec.criteriaSelected.filter(Boolean):[]);
+  const criteria=rawCriteria.map((text,i)=>({id:String(text),text:String(text)}));
+
+  const rows=students.map((u,i)=>{
+    const retired=studentIsRetired32(u), suspended=studentIsSuspended32(u), forced=retired||suspended;
+    const att=normalizeAttendanceStatus30(attendanceStatusForDateUser(classAttendanceDate30(rec),u));
+    const ev=classEvalRecord(rec.id,u.u)||{};
+    const scores=ev.checklistScores||{};
+    const vals=criteria.map(c=>scores[c.id]).filter(v=>v==='SI'||v==='NO');
+    const yes=vals.filter(v=>v==='SI').length;
+    const grade=forced?5:(vals.length?Math.round((yes/criteria.length)*20*100)/100:'');
+    const level=forced?'C':(grade===''?'—':classLevel(grade));
+    const cells=criteria.map(c=>{
+      const v=scores[c.id]||'';
+      return `<td style="min-width:110px;width:110px;text-align:center"><select class="check30" style="width:92px;min-width:92px;max-width:92px;box-sizing:border-box" data-user="${escClass(u.u)}" data-criterion="${escClass(c.id)}" ${forced?'disabled':''}>
+        <option value="">—</option><option value="SI" ${v==='SI'?'selected':''}>✅ Sí</option><option value="NO" ${v==='NO'?'selected':''}>❌ No</option>
+      </select></td>`;
+    }).join('');
+    return `<tr><td>${i+1}</td><td><b>${escClass(u.name)}</b><br><span class="muted">${escClass(u.grade||'')} ${escClass(u.section||'')}</span></td><td>${forced?'<span class="badge bad">No evaluable</span>':(att?`<span class="badge ${att==='Presente'?'ok':att==='Tardanza'?'warn':'bad'}">${escClass(attendanceStatusLabel(att))}</span>`:'<span class="muted">⚪ Sin registrar</span>')}</td>${cells}<td class="checkGrade30" data-user="${escClass(u.u)}">${grade===''?'—':grade}</td><td class="checkLevel30" data-user="${escClass(u.u)}">${level}</td></tr>`;
+  }).join('');
+
+  const header=criteria.map((c,i)=>`<th style="min-width:145px"><div>Criterio ${i+1}</div><small style="font-weight:500;line-height:1.25;display:block;margin-top:4px">${escClass(c.text)}</small></th>`).join('');
+  const emptyCriteria=!criteria.length;
+  box.innerHTML=`<div class="checkEvalWrap30">
+    <div class="card" style="background:#f8fafc;border:1px solid #cbd5e1;padding:12px 14px;margin-bottom:8px">
+      <h3 style="margin:0 0 6px;color:#1e3a8a">☑️ Lista de cotejo</h3>
+      <div class="scaleHelp30">Los criterios se toman <b>exactamente de la sesión de aprendizaje seleccionada</b>. Marca <b>Sí</b> o <b>No</b> en cada criterio. La nota 0–20 se calcula automáticamente según los criterios cumplidos.</div>
+      ${emptyCriteria?`<div class="alert" style="margin-top:10px">⚠️ Esta sesión no tiene criterios de evaluación configurados. Regresa a <b>Cursos → Editar sesión</b> y registra los criterios.</div>`:''}
+    </div>
+    <div class="scaleTableWrap30"><table class="scaleTable30"><thead><tr><th>N.º</th><th>APELLIDOS Y NOMBRES</th><th>ASISTENCIA</th>${header}<th>NOTA 0–20</th><th>NIVEL</th></tr></thead><tbody>${rows||`<tr><td colspan="${criteria.length+5}">No hay estudiantes.</td></tr>`}</tbody></table></div>
+  </div>`;
+
+  box.querySelectorAll('.check30').forEach(sel=>sel.onchange=()=>{
+    saveChecklist30(rec.id,sel.dataset.user,sel.dataset.criterion,sel.value);
+    const ev=classEvalRecord(rec.id,sel.dataset.user)||{};
+    const scores=ev.checklistScores||{};
+    const vals=criteria.map(c=>scores[c.id]).filter(v=>v==='SI'||v==='NO');
+    const yes=vals.filter(v=>v==='SI').length;
+    const grade=vals.length?Math.round((yes/criteria.length)*20*100)/100:'';
+    const g=box.querySelector(`.checkGrade30[data-user="${CSS.escape(sel.dataset.user)}"]`),l=box.querySelector(`.checkLevel30[data-user="${CSS.escape(sel.dataset.user)}"]`);
+    if(g)g.textContent=grade===''?'—':grade;
+    if(l)l.textContent=grade===''?'—':classLevel(grade);
+  });
+}
+
 function renderClass30(){
   const box=document.getElementById('ceTable30'); if(!box)return;
   ensureClassData();
@@ -7049,6 +7124,10 @@ function renderClass30(){
   }
   if(effectiveInstrument30==='Prueba escrita') {
     renderWrittenTest30(box,rec,students);
+    return;
+  }
+  if(effectiveInstrument30==='Lista de cotejo') {
+    renderChecklist30(box,rec,students);
     return;
   }
 
@@ -8205,7 +8284,7 @@ function project(){
     <div style="overflow:auto;margin-top:18px"><table><tr><th>Estudiante</th><th>Grado</th><th>Sección</th><th>Situación Crea</th><th>Portafolio<br><small>prom. semanal</small></th><th>Producto<br><small>prom. semanal</small></th><th>Exposición<br><small>rúbrica</small></th><th>Proyecto</th><th>Final 70/30</th><th>Nivel</th></tr>
     ${students.map(u=>{
       const p=projectRecord(u.u),d=evaluationDetail(u.u),recovery=u.creaRecovery===true,status=creaInstitutionalProjectStatus31(u);
-      const activeBim=(()=>{const bs=getBimesterClose30();if(bs.IV?.closed)return 'IV';if(bs.III?.closed)return 'III';return '';})();
+      const activeBim=activeBimester31();
       const snap=activeBim&&db.bimesterFinals?.[activeBim]?.[u.u];
       const comps=snap?.projectComponents||{};
       const pv=snap?.automaticProject05&&comps.portfolio!=null?Number(comps.portfolio):p.portfolio;
