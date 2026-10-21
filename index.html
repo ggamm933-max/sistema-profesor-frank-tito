@@ -667,6 +667,10 @@ async function loadFromFirebase(){
         firebaseStatus31("Local más reciente",true);
         return false;
       }
+      // Fusionar asistencia local/remota evita perder registros al cambiar de dispositivo.
+      const localAttendance=(db&&db.attendance&&typeof db.attendance==='object')?db.attendance:{};
+      const remoteAttendance=(remote&&remote.attendance&&typeof remote.attendance==='object')?remote.attendance:{};
+      remote.attendance={...localAttendance,...remoteAttendance};
       db = remote;
       if(remoteUpdatedAt){
         window.__firebaseLastRemoteUpdatedAt31=remoteUpdatedAt;
@@ -720,7 +724,14 @@ function startFirebaseSync(){
           if(incomingSignature && incomingSignature!==currentSignature){
             createAutoBackup("Antes de sincronización Firebase");
           }
+          // La asistencia debe conservarse entre dispositivos aunque una copia local
+          // no tenga todavía ese bloque. Fusionamos el bloque de asistencia en vez de
+          // permitir que una copia sin asistencia lo borre.
+          const localAttendance=(db&&db.attendance&&typeof db.attendance==='object')?db.attendance:{};
+          const remoteAttendance=(incoming&&incoming.attendance&&typeof incoming.attendance==='object')?incoming.attendance:{};
+          const mergedAttendance={...localAttendance,...remoteAttendance};
           db=incoming;
+          db.attendance=mergedAttendance;
           if(incomingUpdatedAt){
             window.__firebaseLastRemoteUpdatedAt31=incomingUpdatedAt;
             localStorage.setItem("aulaEPT_firebase_remote_ts",String(incomingUpdatedAt));
@@ -4856,7 +4867,7 @@ function incidents(){
 
 function newIncident26(){
  const users=(db.users||[]).filter(u=>u.role==="student"||u.role==="estudiante");
- const today=new Date().toISOString().slice(0,10);
+ const today=(typeof todayLocal30==='function'?todayLocal30():new Date().toISOString().slice(0,10));
  modalBody.innerHTML=`<h2>📝 Registrar incidente</h2>
   <label>Fecha</label><input type="date" id="incDate26" value="${today}">
   <label>Estudiante</label><select id="incStudent26">${users.map(u=>`<option value="${u.u}">${u.name||u.u} — ${u.grade||"—"} ${u.section||""}</option>`).join("")}</select>
