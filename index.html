@@ -583,6 +583,7 @@ function startAutomaticBackupWatcher(){
 function save(){
   // Guardado manual opcional. El respaldo automático NO depende de este botón.
   localStorage.setItem("aulaEPT",JSON.stringify(db));
+  saveProtectedAttendance25();
   autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
   autoBackupLastSignature=dbSignature();
   if(typeof saveToFirebase === "function") saveToFirebase();
@@ -590,6 +591,22 @@ function save(){
 
 /* ===== SINCRONIZACIÓN FIREBASE ===== */
 const FIREBASE_DOCUMENT = "aulaEPT/main";
+const ATTENDANCE_PROTECTED_KEY = "aulaEPT_attendance_protected_v1";
+function loadProtectedAttendance25(){
+  try{
+    const x=JSON.parse(localStorage.getItem(ATTENDANCE_PROTECTED_KEY)||"{}");
+    return x && typeof x==="object" ? x : {};
+  }catch(e){ return {}; }
+}
+function saveProtectedAttendance25(){
+  try{ localStorage.setItem(ATTENDANCE_PROTECTED_KEY, JSON.stringify(db.attendance||{})); }catch(e){ console.warn("No se pudo proteger la asistencia local",e); }
+}
+function mergeProtectedAttendance25(target){
+  if(!target || typeof target!=="object") target={};
+  const protectedAttendance=loadProtectedAttendance25();
+  target.attendance={...(target.attendance||{}),...protectedAttendance};
+  return target;
+}
 
 async function saveToFirebase(){
   try{
@@ -627,6 +644,17 @@ async function loadFromFirebase(){
       let localLibrary=[];
       try{ localLibrary=JSON.parse(localStorage.getItem(LIBRARY_DRIVE_LOCAL_KEY)||"[]"); }catch(e){}
       if(!Array.isArray(localLibrary)) localLibrary=[];
+      // Protegemos la asistencia local frente a una copia antigua de Firebase.
+      // La asistencia se guarda por clave fecha|estudiante, por lo que podemos
+      // conservar los registros locales sin tocar estudiantes ni calificaciones.
+      let localAttendance={};
+      try{
+        const localSaved=JSON.parse(localStorage.getItem("aulaEPT")||"null");
+        if(localSaved && localSaved.attendance && typeof localSaved.attendance==="object") localAttendance=localSaved.attendance;
+      }catch(e){}
+      remote.attendance={...(remote.attendance||{}),...localAttendance};
+      mergeProtectedAttendance25(remote);
+
       const remoteLibrary=Array.isArray(remote.libraryDrive)?remote.libraryDrive:[];
       const mergedMap=new Map();
       [...remoteLibrary,...localLibrary].forEach(x=>{if(x&&x.id) mergedMap.set(String(x.id),x);});
@@ -662,6 +690,10 @@ function startFirebaseSync(){
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
           }}
+          // Nunca dejamos que una copia remota antigua haga desaparecer una
+          // asistencia que ya está en el equipo. Se conserva por clave fecha|estudiante.
+          incoming.attendance={...(incoming.attendance||{}),...((db&&db.attendance)||{})};
+          mergeProtectedAttendance25(incoming);
           const incomingSignature=dbSignature(incoming);
           const currentSignature=dbSignature(db);
           // Antes de aceptar una versión diferente desde Firebase, protegemos
@@ -4552,9 +4584,10 @@ function attendanceDateRange31(bim=activeBimester31()){
 function attendance(){
  if(me.role!=="teacher") return `<div class="card"><h2>🗓️ Asistencia</h2><p class="muted">Esta sección es exclusiva del profesor.</p></div>`;
  if(!db.attendance) db.attendance={};
+ mergeProtectedAttendance25(db);
  const bim=activeBimester31();
  const [bStart,bEnd]=attendanceDateRange31(bim);
- const today=new Date().toISOString().slice(0,10);
+ const today=typeof todayLocal30==="function"?todayLocal30():new Date().toISOString().slice(0,10);
  const defaultDate=(today>=bStart&&today<=bEnd)?today:bStart;
  return `<div class="card">
    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -4624,8 +4657,8 @@ function showAttendanceDateModal25(date,grade,section){
  const rows=users.map((u,i)=>{const statusOnDate=String(studentStatusForDate31(u,date)).trim().toLowerCase();const suspended=statusOnDate==='suspensión'||statusOnDate==='suspension';const retired=statusOnDate==='retirado';const val=suspended?"Suspensión":retired?"Retirado":(records[date+"|"+u.u]||"Sin registrar");const label=val==="Presente"?"✅ Presente":val==="Tardanza"?"🕐 Tardanza":val==="Falta"?"❌ Falta":val==="Justificada"?"📄 Justificada":val==="Representacion"?"🏫 Representando al colegio":val==="Salud"?"🩺 Motivo de salud":val==="Suspensión"?"🟠 Suspendido":val==="Retirado"?"⚫ Retirado":"— Sin registrar";return `<tr><td>${i+1}</td><td><b>${esc(u.name||u.u)}</b><div class="muted">${esc(u.grade||"—")} · ${esc(u.section||"—")}</div></td><td><span class="badge">${label}</span></td></tr>`;}).join("")||`<tr><td colspan="3">No hay estudiantes para este filtro.</td></tr>`;
  const old=document.getElementById("attDateModal25");if(old)old.remove();const modal=document.createElement("div");modal.id="attDateModal25";modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";modal.innerHTML=`<div style="background:#fff;width:min(1000px,96vw);max-height:90vh;overflow:auto;border-radius:16px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px"><div><h2 style="margin:0">📅 Asistencia del ${fmt(date)}</h2><p class="muted" style="margin:4px 0 0">🎓 ${esc(grade)} · Sección ${esc(section)} · ${activeBimester31()} Bimestre</p></div><button class="secondary" onclick="document.getElementById('attDateModal25')?.remove()">✖ Cerrar</button></div><div style="overflow:auto"><table><tr><th>#</th><th>Estudiante</th><th>Estado</th></tr>${rows}</table></div><div style="margin-top:14px;text-align:right"><button onclick="document.getElementById('attDateModal25')?.remove()">Cerrar</button></div></div>`;modal.addEventListener("click",e=>{if(e.target===modal)modal.remove()});document.body.appendChild(modal);
 }
-function autoSaveAttendance25(sel){const date=document.getElementById("attDate25")?.value;if(!date||!sel?.dataset?.user)return;const bim=activeBimester31(),[bStart,bEnd]=attendanceDateRange31(bim);if(date<bStart||date>bEnd){alert(`La fecha debe estar dentro del ${bim} Bimestre (${bStart.split('-').reverse().join('/')} al ${bEnd.split('-').reverse().join('/')}).`);return;}const stu=(db.users||[]).find(u=>u.u===sel.dataset.user&&(u.role==='student'||u.role==='estudiante'));if(stu&&studentSuspendedOrRetiredOnDate31(stu,date))return;if(!db.attendance)db.attendance={};const key=date+"|"+sel.dataset.user;if(sel.value)db.attendance[key]=sel.value;else delete db.attendance[key];if(stu)syncStudentAttendanceStatus31(stu);save();renderAttendanceHistory25();}
-function saveAttendance25(){const date=document.getElementById("attDate25")?.value;if(!date){alert("Selecciona una fecha.");return}const bim=activeBimester31(),[bStart,bEnd]=attendanceDateRange31(bim);if(date<bStart||date>bEnd){alert(`La fecha debe estar dentro del ${bim} Bimestre (${bStart.split('-').reverse().join('/')} al ${bEnd.split('-').reverse().join('/')}).`);return}if(!db.attendance)db.attendance={};document.querySelectorAll(".attSel25").forEach(sel=>{const key=date+"|"+sel.dataset.user;if(sel.value)db.attendance[key]=sel.value;else delete db.attendance[key];});syncAllStudentAttendanceStatus31();save();alert(`Asistencia del ${bim} Bimestre guardada correctamente.`);renderAttendanceTable25();renderAttendanceHistory25();}
+function autoSaveAttendance25(sel){const date=document.getElementById("attDate25")?.value;if(!date||!sel?.dataset?.user)return;const bim=activeBimester31(),[bStart,bEnd]=attendanceDateRange31(bim);if(date<bStart||date>bEnd){alert(`La fecha debe estar dentro del ${bim} Bimestre (${bStart.split('-').reverse().join('/')} al ${bEnd.split('-').reverse().join('/')}).`);return;}const stu=(db.users||[]).find(u=>u.u===sel.dataset.user&&(u.role==='student'||u.role==='estudiante'));if(stu&&studentSuspendedOrRetiredOnDate31(stu,date))return;if(!db.attendance)db.attendance={};const key=date+"|"+sel.dataset.user;if(sel.value)db.attendance[key]=sel.value;else delete db.attendance[key];saveProtectedAttendance25();if(stu)syncStudentAttendanceStatus31(stu);save();renderAttendanceHistory25();}
+function saveAttendance25(){const date=document.getElementById("attDate25")?.value;if(!date){alert("Selecciona una fecha.");return}const bim=activeBimester31(),[bStart,bEnd]=attendanceDateRange31(bim);if(date<bStart||date>bEnd){alert(`La fecha debe estar dentro del ${bim} Bimestre (${bStart.split('-').reverse().join('/')} al ${bEnd.split('-').reverse().join('/')}).`);return}if(!db.attendance)db.attendance={};document.querySelectorAll(".attSel25").forEach(sel=>{const key=date+"|"+sel.dataset.user;if(sel.value)db.attendance[key]=sel.value;else delete db.attendance[key];});saveProtectedAttendance25();syncAllStudentAttendanceStatus31();save();alert(`Asistencia del ${bim} Bimestre guardada correctamente.`);renderAttendanceTable25();renderAttendanceHistory25();}
 function attendanceSummary25(username){const entries=Object.keys(attendanceRecordsForBimester31()).filter(k=>k.endsWith("|"+username)).map(k=>attendanceRecordsForBimester31()[k]);return {presente:entries.filter(x=>x==="Presente").length,tardanza:entries.filter(x=>x==="Tardanza").length,falta:entries.filter(x=>x==="Falta").length,justificada:entries.filter(x=>x==="Justificada"||x==="Representacion"||x==="Salud").length,total:entries.length};}
 /* ===== FIN ASISTENCIA ===== */
 
