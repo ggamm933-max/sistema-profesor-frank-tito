@@ -752,6 +752,7 @@ function startFirebaseSync(){
             // hasta el panel de alertas. Solo actualizamos la tabla de estudiantes.
             if(page === 'attendance'){
               if(typeof renderAttendanceTable25 === 'function') renderAttendanceTable25();
+              if(typeof renderAttendanceHistory25 === 'function') renderAttendanceHistory25();
               return;
             }
             // En Crea y Emprende no reconstruimos la tabla mientras el docente
