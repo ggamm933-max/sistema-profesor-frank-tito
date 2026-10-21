@@ -593,6 +593,24 @@ function save(){
   if(typeof saveToFirebase === "function") saveToFirebase();
 }
 
+
+function mergeLocalAttendanceIntoRemote(remote){
+  try{
+    const localRaw=localStorage.getItem("aulaEPT");
+    if(!localRaw) return remote;
+    const local=JSON.parse(localRaw);
+    const la=(local&&local.attendance&&typeof local.attendance==='object')?local.attendance:{};
+    if(!remote.attendance||typeof remote.attendance!=='object') remote.attendance={};
+    let added=0;
+    for(const [key,val] of Object.entries(la)){
+      if(val===undefined||val===null||String(val).trim()==='') continue;
+      if(remote.attendance[key]===undefined){ remote.attendance[key]=val; added++; }
+    }
+    if(added) console.log(`Firebase: se incorporaron ${added} registros de asistencia locales que no estaban en la nube.`);
+  }catch(e){ console.warn('Firebase: no se pudo fusionar asistencia local',e); }
+  return remote;
+}
+
 /* ===== SINCRONIZACIÓN FIREBASE ===== */
 const FIREBASE_DOCUMENT = "aulaEPT/main";
 
@@ -636,6 +654,10 @@ async function loadFromFirebase(){
       const mergedMap=new Map();
       [...remoteLibrary,...localLibrary].forEach(x=>{if(x&&x.id) mergedMap.set(String(x.id),x);});
       remote.libraryDrive=Array.from(mergedMap.values());
+      // IMPORTANTE: si el PC tiene asistencias que aún no llegaron a Firebase,
+      // no las perdemos al abrir otro dispositivo. Se agregan solo las claves
+      // que faltan en la nube; una clave ya existente en Firebase conserva su valor.
+      remote = mergeLocalAttendanceIntoRemote(remote);
       db = remote;
       localStorage.setItem("aulaEPT", JSON.stringify(db));
       localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY, JSON.stringify(db.libraryDrive||[]));
@@ -667,6 +689,15 @@ function startFirebaseSync(){
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
           }}
+          // Fusionamos únicamente las asistencias locales que todavía no
+          // existen en Firebase. Así un registro hecho en el PC no desaparece
+          // cuando el celular recibe una copia anterior de la nube.
+          const beforeAttendanceCount=Object.keys(incoming.attendance||{}).length;
+          incoming = mergeLocalAttendanceIntoRemote(incoming);
+          const afterAttendanceCount=Object.keys(incoming.attendance||{}).length;
+          if(afterAttendanceCount>beforeAttendanceCount){
+            saveToFirebase();
+          }
           const incomingSignature=dbSignature(incoming);
           const currentSignature=dbSignature(db);
           // Antes de aceptar una versión diferente desde Firebase, protegemos
