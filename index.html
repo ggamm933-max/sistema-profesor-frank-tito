@@ -590,26 +590,46 @@ function save(){
 
 /* ===== SINCRONIZACIÓN FIREBASE ===== */
 const FIREBASE_DOCUMENT = "aulaEPT/main";
-const FIREBASE_PENDING_WRITE_KEY = "aulaEPT_firebase_pending_write";
 
+// ===== SINCRONIZACIÓN MULTIDISPOSITIVO v3.2 =====
+// Guarda la última versión remota aceptada y la última escritura local para
+// evitar que una copia vieja del celular reemplace datos nuevos de la PC.
+window.__firebaseLastRemoteUpdatedAt31 = Number(localStorage.getItem("aulaEPT_firebase_remote_ts")||0);
+window.__firebaseLastLocalWriteAt31 = Number(localStorage.getItem("aulaEPT_firebase_local_ts")||0);
+function firebaseStatus31(text,ok=true){
+  try{
+    let el=document.getElementById("firebaseSyncStatus31");
+    if(!el){
+      el=document.createElement("div");
+      el.id="firebaseSyncStatus31";
+      el.style="position:fixed;right:10px;bottom:10px;z-index:99999;padding:8px 12px;border-radius:999px;font:600 12px Arial;background:#fee2e2;color:#991b1b;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer";
+      el.title="Pulsa para sincronizar ahora";
+      el.onclick=()=>window.syncFirebaseNow31&&window.syncFirebaseNow31();
+      document.body.appendChild(el);
+    }
+    el.textContent=(ok?"☁️ ":"⚠️ ")+text;
+    el.style.background=ok?"#dcfce7":"#fee2e2";
+    el.style.color=ok?"#166534":"#991b1b";
+  }catch(e){}
+}
 async function saveToFirebase(){
   try{
-    if(!window.firebaseReady) return;
-    // Marcamos esta escritura como pendiente. Esto evita que, al abrir el
-    // sistema en otro dispositivo, una instantánea antigua de Firebase
-    // reemplace inmediatamente los datos recién guardados.
-    const writeAt=Date.now();
-    try{ localStorage.setItem(FIREBASE_PENDING_WRITE_KEY,String(writeAt)); }catch(e){}
+    if(!window.firebaseReady){ firebaseStatus31("Firebase no conectado",false); return false; }
+    const ts=Date.now();
     await window.firebaseSetDoc(
       window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-      { data: db, updatedAt: writeAt }
+      { data: db, updatedAt: ts }
     );
-    try{
-      const pending=Number(localStorage.getItem(FIREBASE_PENDING_WRITE_KEY)||0);
-      if(pending===writeAt) localStorage.removeItem(FIREBASE_PENDING_WRITE_KEY);
-    }catch(e){}
+    window.__firebaseLastLocalWriteAt31=ts;
+    window.__firebaseLastRemoteUpdatedAt31=ts;
+    localStorage.setItem("aulaEPT_firebase_local_ts",String(ts));
+    localStorage.setItem("aulaEPT_firebase_remote_ts",String(ts));
+    firebaseStatus31("Sincronizado",true);
+    return true;
   }catch(error){
     console.error("Firebase: no se pudo guardar", error);
+    firebaseStatus31("Sin conexión: guardado local",false);
+    return false;
   }
 }
 
@@ -641,7 +661,17 @@ async function loadFromFirebase(){
       const mergedMap=new Map();
       [...remoteLibrary,...localLibrary].forEach(x=>{if(x&&x.id) mergedMap.set(String(x.id),x);});
       remote.libraryDrive=Array.from(mergedMap.values());
+      const remoteUpdatedAt=Number(snap.data().updatedAt||0);
+      if(remoteUpdatedAt && remoteUpdatedAt < Number(window.__firebaseLastLocalWriteAt31||0)){
+        console.warn("Firebase: se ignoró una copia remota anterior a la última escritura local.");
+        firebaseStatus31("Local más reciente",true);
+        return false;
+      }
       db = remote;
+      if(remoteUpdatedAt){
+        window.__firebaseLastRemoteUpdatedAt31=remoteUpdatedAt;
+        localStorage.setItem("aulaEPT_firebase_remote_ts",String(remoteUpdatedAt));
+      }
       localStorage.setItem("aulaEPT", JSON.stringify(db));
       localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY, JSON.stringify(db.libraryDrive||[]));
       autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
@@ -672,18 +702,15 @@ function startFirebaseSync(){
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
           }}
-          // Firebase es la fuente común para todos los dispositivos.
-          // Si existe una escritura local pendiente y esta instantánea es más antigua,
-          // no la aceptamos porque podría hacer desaparecer asistencia o notas recién guardadas.
           const incomingUpdatedAt=Number(snap.data().updatedAt||0);
-          let pendingWriteAt=0;
-          try{ pendingWriteAt=Number(localStorage.getItem(FIREBASE_PENDING_WRITE_KEY)||0); }catch(e){}
-          if(pendingWriteAt && incomingUpdatedAt < pendingWriteAt){
-            console.warn("Firebase: se ignoró una copia antigua mientras termina una escritura local.");
+          if(incomingUpdatedAt && incomingUpdatedAt < Number(window.__firebaseLastLocalWriteAt31||0)){
+            console.warn("Firebase: se ignoró una actualización antigua frente a la última escritura local.");
+            firebaseStatus31("Esperando versión nueva",true);
             return;
           }
-          if(pendingWriteAt && incomingUpdatedAt >= pendingWriteAt){
-            try{ localStorage.removeItem(FIREBASE_PENDING_WRITE_KEY); }catch(e){}
+          if(incomingUpdatedAt && incomingUpdatedAt <= Number(window.__firebaseLastRemoteUpdatedAt31||0)){
+            firebaseStatus31("Sincronizado",true);
+            return;
           }
           const incomingSignature=dbSignature(incoming);
           const currentSignature=dbSignature(db);
@@ -694,7 +721,12 @@ function startFirebaseSync(){
             createAutoBackup("Antes de sincronización Firebase");
           }
           db=incoming;
+          if(incomingUpdatedAt){
+            window.__firebaseLastRemoteUpdatedAt31=incomingUpdatedAt;
+            localStorage.setItem("aulaEPT_firebase_remote_ts",String(incomingUpdatedAt));
+          }
           localStorage.setItem("aulaEPT",JSON.stringify(db));
+          firebaseStatus31("Sincronizado",true);
           autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
           autoBackupLastSignature=incomingSignature;
           // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
@@ -1083,6 +1115,27 @@ function ensureBioPlasticoMembers31(){
   }
   return changed;
 }
+
+window.syncFirebaseNow31=async function(){
+  try{
+    firebaseStatus31("Sincronizando…",true);
+    if(!window.firebaseReady){ firebaseStatus31("Firebase no conectado",false); return false; }
+    const ok=await loadFromFirebase();
+    if(ok){ startFirebaseSync(); firebaseStatus31("Sincronizado",true); return true; }
+    firebaseStatus31("No se pudo actualizar",false);
+    return false;
+  }catch(e){ console.error(e); firebaseStatus31("Error de sincronización",false); return false; }
+};
+setInterval(()=>{
+  if(document.visibilityState==='visible' && navigator.onLine && window.firebaseReady){
+    window.syncFirebaseNow31();
+  }
+},30000);
+window.addEventListener('online',()=>{ if(window.firebaseReady) window.syncFirebaseNow31(); });
+setTimeout(()=>{
+  if(window.firebaseReady) firebaseStatus31("Conectado a la nube",true);
+  else firebaseStatus31("Firebase no conectado",false);
+},5000);
 
 window.addEventListener("firebase-ready", async ()=>{
   const exists = await loadFromFirebase();
@@ -4577,7 +4630,7 @@ function attendance(){
  if(!db.attendance) db.attendance={};
  const bim=activeBimester31();
  const [bStart,bEnd]=attendanceDateRange31(bim);
- const today=typeof todayLocal30==="function"?todayLocal30():new Date().toISOString().slice(0,10);
+ const today=(typeof todayLocal30==='function'?todayLocal30():new Date().toISOString().slice(0,10));
  const defaultDate=(today>=bStart&&today<=bEnd)?today:bStart;
  return `<div class="card">
    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
