@@ -398,6 +398,11 @@ select:focus, textarea:focus, input:focus { border-color:#60a5fa !important; box
   .expoAutoStatus30{text-align:left}
 }
 </style>
+<style id="registro-clase-scroll-fix">
+/* Evitar anclaje automático del navegador al cambiar Sí/No. */
+.scaleTableWrap30,.scaleTable30{overflow-anchor:none !important;scroll-behavior:auto !important;}
+.check30{scroll-margin-top:0 !important;scroll-margin-bottom:0 !important;}
+</style>
 </head>
 <body>
 <div id="login" class="login">
@@ -586,7 +591,8 @@ function startAutomaticBackupWatcher(){
 }
 
 function save(){
-  // Guardado manual opcional. El respaldo automático NO depende de este botón.
+  // Guardado local primero. El respaldo automático NO depende de este botón.
+  markLocalWrite();
   localStorage.setItem("aulaEPT",JSON.stringify(db));
   autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
   autoBackupLastSignature=dbSignature();
@@ -611,19 +617,100 @@ function mergeLocalAttendanceIntoRemote(remote){
   return remote;
 }
 
-/* ===== SINCRONIZACIÓN FIREBASE ===== */
+/* ===== SINCRONIZACIÓN FIREBASE ESTABLE ===== */
 const FIREBASE_DOCUMENT = "aulaEPT/main";
+let firebaseWriteChain=Promise.resolve();
+let lastLocalWriteAt=Number(localStorage.getItem("aulaEPT_lastLocalWriteAt")||0);
 
-async function saveToFirebase(){
-  try{
-    if(!window.firebaseReady) return;
-    await window.firebaseSetDoc(
-      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-      { data: db, updatedAt: Date.now() }
-    );
-  }catch(error){
-    console.error("Firebase: no se pudo guardar", error);
-  }
+// Une datos locales y remotos sin permitir que una copia vieja de Firebase
+// haga desaparecer registros creados en este dispositivo. Para colecciones
+// se conserva la unión por id y, si existe updatedAt/savedAt, gana la versión
+// más reciente. Las claves de objetos se fusionan recursivamente.
+function mergeDbSafely(local,remote){
+  if(!local||typeof local!=="object") return remote||{};
+  if(!remote||typeof remote!=="object") return local;
+  const out=JSON.parse(JSON.stringify(remote));
+  const arrayKeys=new Set([
+    "users","sessions","classRecords","classEvaluations","classScaleEvaluations",
+    "classRecoveries","classRecoveryLinks","classEvidence","notebookGrades",
+    "participations","conductRecords","uniformRecords","folderRecords","writtenTests",
+    "observationGuides","evaluationSheets","incidents","libraryDrive"
+  ]);
+  const stamp=x=>Number(x?.updatedAt||x?.savedAt||x?.createdAt||x?.importedAt||0);
+  const mergeArray=(la,ra)=>{
+    const left=Array.isArray(la)?la:[], right=Array.isArray(ra)?ra:[];
+    const all=left.concat(right);
+    const hasIds=all.some(x=>x&&typeof x==='object'&&x.id!=null);
+    if(!hasIds){
+      const seen=new Set(), out=[];
+      all.forEach(x=>{
+        const k=JSON.stringify(x);
+        if(!seen.has(k)){seen.add(k);out.push(x);}
+      });
+      return out;
+    }
+    const map=new Map();
+    right.forEach(x=>{
+      if(x&&x.id!=null) map.set(String(x.id),x);
+      else { const k='raw:'+JSON.stringify(x); if(!map.has(k)) map.set(k,x); }
+    });
+    left.forEach(x=>{
+      if(x&&x.id!=null){
+        const k=String(x.id), r=map.get(k);
+        if(!r || stamp(x)>stamp(r)) map.set(k,x);
+      }else{
+        const k='raw:'+JSON.stringify(x);
+        if(!map.has(k)) map.set(k,x);
+      }
+    });
+    return Array.from(map.values());
+  };
+  const mergeObject=(lo,ro,key)=>{
+    if(key==='attendance'){
+      const o={...(ro&&typeof ro==='object'?ro:{})};
+      Object.entries(lo||{}).forEach(([k,v])=>{ if(o[k]===undefined) o[k]=v; });
+      return o;
+    }
+    if(Array.isArray(lo)||Array.isArray(ro)) return mergeArray(lo,ro);
+    if(lo&&typeof lo==='object'&&ro&&typeof ro==='object'){
+      const o={...ro};
+      Object.keys(lo).forEach(k=>{ o[k]=mergeObject(lo[k],ro[k],k); });
+      return o;
+    }
+    return lo===undefined?ro:lo;
+  };
+  Object.keys(local).forEach(k=>{
+    if(k==='__syncMeta') return;
+    if(arrayKeys.has(k)) out[k]=mergeArray(local[k],out[k]);
+    else out[k]=mergeObject(local[k],out[k],k);
+  });
+  return out;
+}
+
+function markLocalWrite(){
+  lastLocalWriteAt=Date.now();
+  try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
+}
+
+function saveToFirebase(){
+  if(!window.firebaseReady) return Promise.resolve();
+  // Las escrituras se serializan. Así varios Sí/No consecutivos no abren
+  // varias escrituras simultáneas que puedan llegar en orden incorrecto.
+  const snapshot=JSON.parse(JSON.stringify(db));
+  const writeAt=Date.now();
+  lastLocalWriteAt=Math.max(lastLocalWriteAt,writeAt);
+  try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
+  firebaseWriteChain=firebaseWriteChain.then(async()=>{
+    try{
+      await window.firebaseSetDoc(
+        window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
+        { data:snapshot, updatedAt:writeAt }
+      );
+    }catch(error){
+      console.error("Firebase: no se pudo guardar", error);
+    }
+  });
+  return firebaseWriteChain;
 }
 
 async function loadFromFirebase(){
@@ -654,9 +741,9 @@ async function loadFromFirebase(){
       const mergedMap=new Map();
       [...remoteLibrary,...localLibrary].forEach(x=>{if(x&&x.id) mergedMap.set(String(x.id),x);});
       remote.libraryDrive=Array.from(mergedMap.values());
-      // IMPORTANTE: si el PC tiene asistencias que aún no llegaron a Firebase,
-      // no las perdemos al abrir otro dispositivo. Se agregan solo las claves
-      // que faltan en la nube; una clave ya existente en Firebase conserva su valor.
+      // Fusionar antes de reemplazar la base local: conserva registros locales
+      // que todavía no estén en la copia remota.
+      remote = mergeDbSafely(db,remote);
       remote = mergeLocalAttendanceIntoRemote(remote);
       db = remote;
       localStorage.setItem("aulaEPT", JSON.stringify(db));
@@ -682,27 +769,26 @@ function startFirebaseSync(){
       window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
       (snap)=>{
         if(snap.exists() && snap.data().data){
-          const incoming=snap.data().data;
+          let incoming=snap.data().data;
           const incomingStudents=Array.isArray(incoming.users)?incoming.users.filter(u=>u&&u.role==="student").length:0;
           const incomingIII=Object.keys(incoming.bimesterFinals?.III||{}).length;
           if(incomingStudents<290 || incomingIII<290){{
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
           }}
-          // Fusionamos únicamente las asistencias locales que todavía no
-          // existen en Firebase. Así un registro hecho en el PC no desaparece
-          // cuando el celular recibe una copia anterior de la nube.
-          const beforeAttendanceCount=Object.keys(incoming.attendance||{}).length;
-          incoming = mergeLocalAttendanceIntoRemote(incoming);
-          const afterAttendanceCount=Object.keys(incoming.attendance||{}).length;
-          if(afterAttendanceCount>beforeAttendanceCount){
-            saveToFirebase();
+          const remoteUpdatedAt=Number(snap.data().updatedAt||0);
+          // Si Firebase trae una copia anterior a nuestro último guardado local,
+          // NO reemplazamos la base local. Este era uno de los motivos por los
+          // que los registros parecían desaparecer al calificar.
+          if(remoteUpdatedAt && lastLocalWriteAt && remoteUpdatedAt<lastLocalWriteAt){
+            console.warn("Firebase: se ignoró una copia remota anterior al último cambio local.");
+            return;
           }
+          const localBefore=JSON.parse(JSON.stringify(db||{}));
+          incoming=mergeDbSafely(localBefore,incoming);
+          incoming=mergeLocalAttendanceIntoRemote(incoming);
           const incomingSignature=dbSignature(incoming);
           const currentSignature=dbSignature(db);
-          // Antes de aceptar una versión diferente desde Firebase, protegemos
-          // la versión local actual para que una sincronización no destruya datos
-          // sin dejar una copia recuperable.
           if(incomingSignature && incomingSignature!==currentSignature){
             createAutoBackup("Antes de sincronización Firebase");
           }
@@ -7101,6 +7187,12 @@ function renderChecklist30(box,rec,students){
   </div>`;
 
   box.querySelectorAll('.check30').forEach(sel=>sel.onchange=()=>{
+    // Mantener la posición al marcar Sí/No en Registro de clase.
+    const tableWrap=sel.closest('.scaleTableWrap30');
+    const savedTableScroll=tableWrap ? tableWrap.scrollTop : 0;
+    const savedWindowScroll=window.scrollY;
+    const savedFocus=sel;
+
     saveChecklist30(rec.id,sel.dataset.user,sel.dataset.criterion,sel.value);
     const ev=classEvalRecord(rec.id,sel.dataset.user)||{};
     const scores=ev.checklistScores||{};
@@ -7110,6 +7202,20 @@ function renderChecklist30(box,rec,students){
     const g=box.querySelector(`.checkGrade30[data-user="${CSS.escape(sel.dataset.user)}"]`),l=box.querySelector(`.checkLevel30[data-user="${CSS.escape(sel.dataset.user)}"]`);
     if(g)g.textContent=grade===''?'—':grade;
     if(l)l.textContent=grade===''?'—':classLevel(grade);
+
+    // Restaurar después del guardado/sincronización.
+    requestAnimationFrame(()=>{
+      if(tableWrap) tableWrap.scrollTop=savedTableScroll;
+      window.scrollTo({top:savedWindowScroll,left:window.scrollX,behavior:'instant'});
+      if(document.activeElement!==savedFocus && document.body.contains(savedFocus)){
+        try{savedFocus.focus({preventScroll:true});}catch(e){savedFocus.focus();}
+      }
+      if(tableWrap) tableWrap.scrollTop=savedTableScroll;
+    });
+    setTimeout(()=>{
+      if(tableWrap) tableWrap.scrollTop=savedTableScroll;
+      window.scrollTo({top:savedWindowScroll,left:window.scrollX,behavior:'instant'});
+    },0);
   });
 }
 
