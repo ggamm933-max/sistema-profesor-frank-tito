@@ -564,6 +564,26 @@ function getAutoBackups(){
 // RESPALDO AUTOMÁTICO REAL: detecta cambios aunque el usuario no pulse Guardar.
 // Guarda la versión ANTERIOR al detectar un cambio, para que una modificación
 // accidental o una sincronización posterior pueda recuperarse.
+// SINCRONIZACION CONTINUA: detecta cualquier cambio real en db, aunque
+// una función de la interfaz haya guardado directamente en memoria/localStorage.
+// No reemplaza la base; solo publica el estado local actual para que Firebase
+// lo fusione con el otro dispositivo.
+let firebaseDbSyncWatchTimer=null;
+function startFirebaseDbSyncWatcher(){
+  if(firebaseDbSyncWatchTimer) clearInterval(firebaseDbSyncWatchTimer);
+  let lastSignature=dbSignature();
+  firebaseDbSyncWatchTimer=setInterval(()=>{
+    try{
+      const currentSignature=dbSignature();
+      if(currentSignature && currentSignature!==lastSignature){
+        lastSignature=currentSignature;
+        localStorage.setItem("aulaEPT",JSON.stringify(db));
+        saveToFirebase();
+      }
+    }catch(e){ console.warn("Firebase: vigilante de sincronización",e); }
+  },1000);
+}
+
 function startAutomaticBackupWatcher(){
   if(autoBackupWatchTimer) clearInterval(autoBackupWatchTimer);
   autoBackupLastSignature=dbSignature();
@@ -657,7 +677,10 @@ function mergeDbSafely(local,remote){
     left.forEach(x=>{
       if(x&&x.id!=null){
         const k=String(x.id), r=map.get(k);
-        if(!r || stamp(x)>stamp(r)) map.set(k,x);
+        // Si no hay marcas de tiempo, la copia local gana. Esto evita que
+        // una copia antigua de Firebase haga desaparecer una evaluación,
+        // sesión o registro creado en este dispositivo.
+        if(!r || stamp(x)>=stamp(r)) map.set(k,x);
       }else{
         const k='raw:'+JSON.stringify(x);
         if(!map.has(k)) map.set(k,x);
@@ -698,6 +721,11 @@ function saveToFirebase(){
   // varias escrituras simultáneas que puedan llegar en orden incorrecto.
   const snapshot=JSON.parse(JSON.stringify(db));
   const writeAt=Date.now();
+  // Dejamos una cola local antes de tocar la red. Si Firebase falla o se
+  // corta Internet, el cambio no queda únicamente en memoria.
+  try{
+    localStorage.setItem("aulaEPT_pendingFirebaseWrite",JSON.stringify({snapshot,writeAt}));
+  }catch(e){ console.warn("No se pudo crear la cola local de Firebase",e); }
   lastLocalWriteAt=Math.max(lastLocalWriteAt,writeAt);
   try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
   firebaseWriteChain=firebaseWriteChain.then(async()=>{
@@ -706,7 +734,12 @@ function saveToFirebase(){
         window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
         { data:snapshot, updatedAt:writeAt }
       );
+      try{
+        const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
+        if(pending && Number(pending.writeAt)===Number(writeAt)) localStorage.removeItem("aulaEPT_pendingFirebaseWrite");
+      }catch(e){}
     }catch(error){
+      window.__firebaseLastError=error;
       console.error("Firebase: no se pudo guardar", error);
     }
   });
@@ -716,6 +749,17 @@ function saveToFirebase(){
 async function loadFromFirebase(){
   try{
     if(!window.firebaseReady) return false;
+    // Si quedó una escritura pendiente de una sesión anterior, la fusionamos
+    // con la base actual antes de leer Firebase. Nunca se descarta una copia
+    // local pendiente.
+    try{
+      const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
+      if(pending && pending.snapshot){
+        db=mergeDbSafely(db,pending.snapshot);
+        localStorage.setItem("aulaEPT",JSON.stringify(db));
+        markLocalWrite();
+      }
+    }catch(e){ console.warn("No se pudo recuperar la cola local de Firebase",e); }
     const snap = await window.firebaseGetDoc(
       window.firebaseDoc(window.firebaseDB, "aulaEPT", "main")
     );
@@ -746,10 +790,16 @@ async function loadFromFirebase(){
       remote = mergeDbSafely(db,remote);
       remote = mergeLocalAttendanceIntoRemote(remote);
       db = remote;
+      // Primero dejamos la fusión segura en almacenamiento local.
+      // Si el navegador se cierra aquí, la información fusionada ya existe.
       localStorage.setItem("aulaEPT", JSON.stringify(db));
       localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY, JSON.stringify(db.libraryDrive||[]));
       autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
       autoBackupLastSignature=dbSignature(db);
+      // Si la fusión incorporó algo local que Firebase no tenía, se vuelve a
+      // publicar la base fusionada. La cola pendiente solo se elimina después
+      // de que saveToFirebase confirme la escritura.
+      await saveToFirebase();
       if(typeof render === "function") render();
       return true;
     }
@@ -776,14 +826,9 @@ function startFirebaseSync(){
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
           }}
-          const remoteUpdatedAt=Number(snap.data().updatedAt||0);
-          // Si Firebase trae una copia anterior a nuestro último guardado local,
-          // NO reemplazamos la base local. Este era uno de los motivos por los
-          // que los registros parecían desaparecer al calificar.
-          if(remoteUpdatedAt && lastLocalWriteAt && remoteUpdatedAt<lastLocalWriteAt){
-            console.warn("Firebase: se ignoró una copia remota anterior al último cambio local.");
-            return;
-          }
+          // No descartamos una copia remota por comparar relojes entre dispositivos.
+          // PC y celular pueden tener horas diferentes. La protección real es la
+          // fusión por registros de mergeDbSafely(), que conserva la unión de ambos.
           const localBefore=JSON.parse(JSON.stringify(db||{}));
           incoming=mergeDbSafely(localBefore,incoming);
           incoming=mergeLocalAttendanceIntoRemote(incoming);
@@ -796,6 +841,9 @@ function startFirebaseSync(){
           localStorage.setItem("aulaEPT",JSON.stringify(db));
           autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
           autoBackupLastSignature=incomingSignature;
+          // Publicamos la fusión para que PC y celular converjan. Si el
+          // registro solo existía en este dispositivo, también viajará a Firebase.
+          saveToFirebase();
           // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
           // No reconstruimos el cuadro de texto porque eso hacía que el cursor
           // saltara, el modal se moviera y el usuario perdiera la posición al escribir.
@@ -1183,19 +1231,33 @@ function ensureBioPlasticoMembers31(){
   return changed;
 }
 
-window.addEventListener("firebase-ready", async ()=>{
-  const exists = await loadFromFirebase();
-  // Recupera sesiones creadas con versiones anteriores que guardaban
-  // "4.º A" dentro de grade en vez de separar grade/section.
-  const legacySessionsChanged = normalizeLegacyIndividualSessions31();
-  const fourthUnitChanged = ensureFourthBimesterSessionUnit31();
-  const changed = ensureBioPlasticoMembers31();
-  if(!exists || legacySessionsChanged || fourthUnitChanged || changed) {
-    save();
-    await saveToFirebase();
+async function initializeFirebaseSyncSafe(){
+  if(window.__aulaEPTFirebaseSyncInitialized) return;
+  if(!window.firebaseReady) return;
+  window.__aulaEPTFirebaseSyncInitialized=true;
+  try{
+    console.log("Firebase: inicializando sincronización segura...");
+    const exists = await loadFromFirebase();
+    const legacySessionsChanged = normalizeLegacyIndividualSessions31();
+    const fourthUnitChanged = ensureFourthBimesterSessionUnit31();
+    const changed = ensureBioPlasticoMembers31();
+    if(!exists || legacySessionsChanged || fourthUnitChanged || changed) {
+      save();
+      await saveToFirebase();
+    }
+    startFirebaseSync();
+    startFirebaseDbSyncWatcher();
+    console.log("Firebase: sincronización automática ACTIVADA correctamente.");
+  }catch(error){
+    window.__firebaseLastError=error;
+    window.__aulaEPTFirebaseSyncInitialized=false;
+    console.error("Firebase: error al iniciar sincronización",error);
   }
-  startFirebaseSync();
-});
+}
+window.addEventListener("firebase-ready", initializeFirebaseSyncSafe);
+// El módulo Firebase puede terminar antes de que el listener sea registrado.
+// Si firebaseReady ya está activo, inicializamos igualmente.
+if(window.firebaseReady) setTimeout(initializeFirebaseSyncSafe,0);
 
 function refreshDB29(){
  try{
