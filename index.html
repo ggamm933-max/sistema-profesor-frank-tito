@@ -734,6 +734,12 @@ function saveToFirebase(){
         window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
         { data:snapshot, updatedAt:writeAt }
       );
+      // Las sesiones tienen su propio documento para evitar que el límite/tamaño
+      // del documento principal impida sincronizarlas entre PC y celular.
+      await window.firebaseSetDoc(
+        window.firebaseDoc(window.firebaseDB, "aulaEPT_sessions", "main"),
+        { sessions:Array.isArray(snapshot.sessions)?snapshot.sessions:[], updatedAt:writeAt }
+      );
       try{
         const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
         if(pending && Number(pending.writeAt)===Number(writeAt)) localStorage.removeItem("aulaEPT_pendingFirebaseWrite");
@@ -769,13 +775,13 @@ async function loadFromFirebase(){
       // los estudiantes o las notas cerradas del III Bimestre restauradas.
       const remoteStudents=Array.isArray(remote.users)?remote.users.filter(u=>u&&u.role==="student").length:0;
       const remoteIII=Object.keys(remote.bimesterFinals?.III||{}).length;
-      if(remoteStudents<290 || remoteIII<290){{
+      if(remoteStudents<290 || remoteIII<290){
         console.warn("Firebase contiene una copia incompleta; se conserva el respaldo local restaurado.");
-        try{{ localStorage.setItem("aulaEPT",JSON.stringify(db)); }}catch(e){{}}
+        try{ localStorage.setItem("aulaEPT",JSON.stringify(db)); }catch(e){}
         if(typeof saveToFirebase==="function") saveToFirebase();
         if(typeof render==="function" && me) render();
         return false;
-      }}
+      }
       // La Biblioteca tiene una copia local independiente para evitar que
       // una versión antigua de Firebase borre enlaces recién agregados.
       let localLibrary=[];
@@ -810,6 +816,43 @@ async function loadFromFirebase(){
 }
 
 let firebaseUnsubscribe=null;
+let firebaseSessionsUnsubscribe=null;
+
+async function loadSessionsFromFirebase(){
+  try{
+    if(!window.firebaseReady) return false;
+    const snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"));
+    if(!snap.exists()) return false;
+    const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+    if(!remoteSessions.length) return false;
+    const before=Array.isArray(db.sessions)?db.sessions.length:0;
+    db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
+    localStorage.setItem("aulaEPT",JSON.stringify(db));
+    return db.sessions.length!==before || remoteSessions.length>0;
+  }catch(e){ console.warn("Firebase: no se pudieron cargar las sesiones separadas",e); return false; }
+}
+
+function startFirebaseSessionsSync(){
+  if(!window.firebaseReady) return;
+  try{
+    if(typeof firebaseSessionsUnsubscribe === "function") firebaseSessionsUnsubscribe();
+    firebaseSessionsUnsubscribe=window.firebaseOnSnapshot(
+      window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"),
+      (snap)=>{
+        if(!snap.exists()) return;
+        const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+        if(!remoteSessions.length) return;
+        const before=JSON.stringify(db.sessions||[]);
+        db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
+        if(JSON.stringify(db.sessions)!==before){
+          localStorage.setItem("aulaEPT",JSON.stringify(db));
+          if(typeof render === "function" && me && page!=='registro') render();
+        }
+      },
+      (error)=>console.warn("Firebase: sincronización de sesiones",error)
+    );
+  }catch(e){ console.warn("Firebase: no se pudo activar sincronización de sesiones",e); }
+}
 
 function startFirebaseSync(){
   if(!window.firebaseReady) return;
@@ -822,10 +865,10 @@ function startFirebaseSync(){
           let incoming=snap.data().data;
           const incomingStudents=Array.isArray(incoming.users)?incoming.users.filter(u=>u&&u.role==="student").length:0;
           const incomingIII=Object.keys(incoming.bimesterFinals?.III||{}).length;
-          if(incomingStudents<290 || incomingIII<290){{
+          if(incomingStudents<290 || incomingIII<290){
             console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
             return;
-          }}
+          }
           // No descartamos una copia remota por comparar relojes entre dispositivos.
           // PC y celular pueden tener horas diferentes. La protección real es la
           // fusión por registros de mergeDbSafely(), que conserva la unión de ambos.
@@ -1238,6 +1281,7 @@ async function initializeFirebaseSyncSafe(){
   try{
     console.log("Firebase: inicializando sincronización segura...");
     const exists = await loadFromFirebase();
+    await loadSessionsFromFirebase();
     const legacySessionsChanged = normalizeLegacyIndividualSessions31();
     const fourthUnitChanged = ensureFourthBimesterSessionUnit31();
     const changed = ensureBioPlasticoMembers31();
@@ -1246,6 +1290,7 @@ async function initializeFirebaseSyncSafe(){
       await saveToFirebase();
     }
     startFirebaseSync();
+    startFirebaseSessionsSync();
     startFirebaseDbSyncWatcher();
     console.log("Firebase: sincronización automática ACTIVADA correctamente.");
   }catch(error){
@@ -11813,7 +11858,7 @@ function saveSession(unitId, group='1.º A'){
     [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)dateByGradeSection[g+'|'+ss]=v;});
     ['3.º','4.º','5.º'].forEach(g=>{const v=dateByGradeSection[g+'|A']||dateByGradeSection[g+'|B']||'';if(v)dateByGrade[g]=v;});
   }
-  db.sessions.push({id:Date.now()+Math.random(),unit:unitId,number,title,description,desempeno,evidencia,grade,section:sec,date,status,dateByGrade,dateByGradeSection,criteriaSelected,instrument,writtenQuestions,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:'',adaptations:[],bimester:(bimesterOfUnit31((db.units||[]).find(u=>String(u.id)===String(unitId)))||bimesterForDate31(date)||activeBimester31()||'III')});
+  const sessionNow=Date.now(); db.sessions.push({id:sessionNow+Math.random(),unit:unitId,number,title,description,desempeno,evidencia,grade,section:sec,date,status,dateByGrade,dateByGradeSection,criteriaSelected,instrument,writtenQuestions,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:'',adaptations:[],bimester:(bimesterOfUnit31((db.units||[]).find(u=>String(u.id)===String(unitId)))||bimesterForDate31(date)||activeBimester31()||'III'),createdAt:sessionNow,updatedAt:sessionNow});
   save();openUnit(unitId,group);
 }
 function editSession(id){
