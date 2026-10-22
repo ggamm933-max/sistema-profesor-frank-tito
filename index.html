@@ -764,18 +764,27 @@ async function loadFromFirebase(){
       window.firebaseDoc(window.firebaseDB, "aulaEPT", "main")
     );
     if(snap.exists() && snap.data().data){
-      const remote = snap.data().data || {};
+      let remote = snap.data().data || {};
       // No permitimos que una copia incompleta de Firebase vuelva a borrar
       // los estudiantes o las notas cerradas del III Bimestre restauradas.
       const remoteStudents=Array.isArray(remote.users)?remote.users.filter(u=>u&&u.role==="student").length:0;
       const remoteIII=Object.keys(remote.bimesterFinals?.III||{}).length;
-      if(remoteStudents<290 || remoteIII<290){{
-        console.warn("Firebase contiene una copia incompleta; se conserva el respaldo local restaurado.");
-        try{{ localStorage.setItem("aulaEPT",JSON.stringify(db)); }}catch(e){{}}
-        if(typeof saveToFirebase==="function") saveToFirebase();
-        if(typeof render==="function" && me) render();
-        return false;
-      }}
+      if(remoteStudents<290 || remoteIII<290){
+        // En una ventana privada no existe la copia local del PC. Si rechazamos
+        // Firebase aquí, las sesiones nunca llegan al nuevo dispositivo.
+        // Solo bloqueamos la copia remota incompleta cuando ya tenemos una
+        // copia local sustancial que proteger; en una sesión nueva sí se carga.
+        const localStudents=Array.isArray(db?.users)?db.users.filter(u=>u&&u.role==="student").length:0;
+        const localIII=Object.keys(db?.bimesterFinals?.III||{}).length;
+        if(localStudents>=290 || localIII>=290){
+          console.warn("Firebase contiene una copia incompleta; se conserva el respaldo local restaurado.");
+          try{ localStorage.setItem("aulaEPT",JSON.stringify(db)); }catch(e){}
+          if(typeof saveToFirebase==="function") saveToFirebase();
+          if(typeof render==="function" && me) render();
+          return false;
+        }
+        console.warn("Firebase: copia remota incompleta, pero no hay copia local sustancial; se cargará para permitir la sincronización entre dispositivos.");
+      }
       // La Biblioteca tiene una copia local independiente para evitar que
       // una versión antigua de Firebase borre enlaces recién agregados.
       let localLibrary=[];
