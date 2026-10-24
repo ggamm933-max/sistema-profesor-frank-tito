@@ -843,17 +843,37 @@ let firebaseSessionsUnsubscribe=null;
 async function loadSessionsFromFirebase(){
   try{
     if(!window.firebaseReady) return false;
-    // El documento real de sesiones del proyecto es "Principal".
-    // Si no existe, se intenta "main" para compatibilidad con una copia anterior.
-    let snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"));
-    if(!snap.exists()) snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"));
-    if(!snap.exists()) return false;
-    const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+    // El proyecto tiene sesiones históricas repartidas en "Director" y "Principal".
+    // Se leen ambos documentos y se fusionan para que ninguna sesión quede aislada
+    // en un dispositivo o en una ventana privada. "main" queda como compatibilidad.
+    const docNames=["Principal","Director","main"];
+    const remoteLists=[];
+    for(const name of docNames){
+      try{
+        const snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions",name));
+        if(snap.exists()){
+          const list=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+          if(list.length) remoteLists.push(list);
+        }
+      }catch(e){ console.warn("Firebase: no se pudo leer el documento de sesiones",name,e); }
+    }
+    const remoteSessions=remoteLists.flat();
     if(!remoteSessions.length) return false;
-    const before=Array.isArray(db.sessions)?db.sessions.length:0;
+    const before=JSON.stringify(db.sessions||[]);
     db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
     localStorage.setItem("aulaEPT",JSON.stringify(db));
-    return db.sessions.length!==before || remoteSessions.length>0;
+    const changed=JSON.stringify(db.sessions)!==before;
+    // Unificamos la copia en "Principal" para que los dispositivos nuevos
+    // puedan recuperar todas las sesiones desde un único documento.
+    if(changed || remoteLists.length>1){
+      try{
+        await window.firebaseSetDoc(
+          window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),
+          {sessions:Array.isArray(db.sessions)?db.sessions:[],updatedAt:Date.now()}
+        );
+      }catch(e){ console.warn("Firebase: no se pudo unificar la copia de sesiones",e); }
+    }
+    return changed || remoteSessions.length>0;
   }catch(e){ console.warn("Firebase: no se pudieron cargar las sesiones separadas",e); return false; }
 }
 
@@ -861,21 +881,28 @@ function startFirebaseSessionsSync(){
   if(!window.firebaseReady) return;
   try{
     if(typeof firebaseSessionsUnsubscribe === "function") firebaseSessionsUnsubscribe();
-    firebaseSessionsUnsubscribe=window.firebaseOnSnapshot(
-      window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),
-      (snap)=>{
-        if(!snap.exists()) return;
-        const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
-        if(!remoteSessions.length) return;
-        const before=JSON.stringify(db.sessions||[]);
-        db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
-        if(JSON.stringify(db.sessions)!==before){
-          localStorage.setItem("aulaEPT",JSON.stringify(db));
-          if(typeof render === "function" && me && page!=='registro') render();
-        }
-      },
-      (error)=>console.warn("Firebase: sincronización de sesiones",error)
-    );
+    const unsubs=[];
+    ["Principal","Director"].forEach(docName=>{
+      unsubs.push(window.firebaseOnSnapshot(
+        window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions",docName),
+        (snap)=>{
+          if(!snap.exists()) return;
+          const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+          if(!remoteSessions.length) return;
+          const before=JSON.stringify(db.sessions||[]);
+          db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
+          if(JSON.stringify(db.sessions)!==before){
+            localStorage.setItem("aulaEPT",JSON.stringify(db));
+            // Publicamos la unión en Principal para que todos los dispositivos
+            // compartan la misma copia completa, sin borrar sesiones históricas.
+            try{ window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),{sessions:Array.isArray(db.sessions)?db.sessions:[],updatedAt:Date.now()}); }catch(e){ console.warn("Firebase: no se pudo unificar sesiones en tiempo real",e); }
+            if(typeof render === "function" && me && page!=='registro') render();
+          }
+        },
+        (error)=>console.warn("Firebase: sincronización de sesiones",docName,error)
+      ));
+    });
+    firebaseSessionsUnsubscribe=()=>unsubs.forEach(fn=>{try{if(typeof fn==='function')fn();}catch(e){}});
   }catch(e){ console.warn("Firebase: no se pudo activar sincronización de sesiones",e); }
 }
 
