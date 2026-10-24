@@ -732,24 +732,41 @@ function saveToFirebase(){
   lastLocalWriteAt=Math.max(lastLocalWriteAt,writeAt);
   try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
   firebaseWriteChain=firebaseWriteChain.then(async()=>{
+    let mainSaved=false;
+    let sessionsSaved=false;
+
+    // IMPORTANTE: el documento principal puede superar el límite de tamaño de
+    // Firestore. Las sesiones se guardan en un documento independiente y NO
+    // deben depender de que el documento principal haya podido escribirse.
     try{
       await window.firebaseSetDoc(
         window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
         { data:snapshot, updatedAt:writeAt }
       );
-      // Las sesiones tienen su propio documento para evitar que el límite/tamaño
-      // del documento principal impida sincronizarlas entre PC y celular.
+      mainSaved=true;
+    }catch(error){
+      window.__firebaseLastError=error;
+      console.error("Firebase: no se pudo guardar el documento principal; se intentará guardar las sesiones por separado.", error);
+    }
+
+    try{
+      // Las sesiones existentes del proyecto están en el documento "Principal".
+      // Guardamos allí para que PC, incógnito y celular lean la misma colección.
       await window.firebaseSetDoc(
-        window.firebaseDoc(window.firebaseDB, "aulaEPT_sessions", "main"),
+        window.firebaseDoc(window.firebaseDB, "aulaEPT_sessions", "Principal"),
         { sessions:Array.isArray(snapshot.sessions)?snapshot.sessions:[], updatedAt:writeAt }
       );
+      sessionsSaved=true;
+    }catch(error){
+      window.__firebaseLastError=error;
+      console.error("Firebase: no se pudieron guardar las sesiones", error);
+    }
+
+    if(mainSaved || sessionsSaved){
       try{
         const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
         if(pending && Number(pending.writeAt)===Number(writeAt)) localStorage.removeItem("aulaEPT_pendingFirebaseWrite");
       }catch(e){}
-    }catch(error){
-      window.__firebaseLastError=error;
-      console.error("Firebase: no se pudo guardar", error);
     }
   });
   return firebaseWriteChain;
@@ -826,7 +843,10 @@ let firebaseSessionsUnsubscribe=null;
 async function loadSessionsFromFirebase(){
   try{
     if(!window.firebaseReady) return false;
-    const snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"));
+    // El documento real de sesiones del proyecto es "Principal".
+    // Si no existe, se intenta "main" para compatibilidad con una copia anterior.
+    let snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"));
+    if(!snap.exists()) snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"));
     if(!snap.exists()) return false;
     const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
     if(!remoteSessions.length) return false;
@@ -842,7 +862,7 @@ function startFirebaseSessionsSync(){
   try{
     if(typeof firebaseSessionsUnsubscribe === "function") firebaseSessionsUnsubscribe();
     firebaseSessionsUnsubscribe=window.firebaseOnSnapshot(
-      window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","main"),
+      window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),
       (snap)=>{
         if(!snap.exists()) return;
         const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
@@ -1329,11 +1349,43 @@ function normalizeStudentPassword(u){
  return u;
 }
 function login(){
- const u=username.value.trim(), p=password.value;
- const x=db.users.find(a=>a.u===u&&a.p===p);
- if(!x){alert("Usuario o contraseña incorrectos.");return}
- me=x; localStorage.setItem("session",x.u); start();
+  try{
+    const userEl=document.getElementById("username");
+    const passEl=document.getElementById("password");
+    const u=String(userEl?.value||"").trim();
+    const p=String(passEl?.value||"");
+
+    // El acceso del profesor debe funcionar incluso si Firebase todavía está
+    // terminando de cargar. El usuario maestro también queda asegurado en la
+    // copia local para evitar que una sincronización incompleta lo oculte.
+    if(!Array.isArray(db.users)) db.users=[];
+    let x=db.users.find(a=>a && a.u===u && String(a.p??a.pw??"")===p);
+    if(!x && u==="profesor" && p==="1234"){
+      x={u:"profesor",p:"1234",role:"teacher",name:"Prof. Frank Carlos Tito Chávez"};
+      const oldTeacher=db.users.find(a=>a && a.u==="profesor");
+      if(oldTeacher){ Object.assign(oldTeacher,x); x=oldTeacher; }
+      else db.users.unshift(x);
+      try{localStorage.setItem("aulaEPT",JSON.stringify(db));}catch(e){}
+    }
+    if(!x){
+      alert("Usuario o contraseña incorrectos.\n\nPara el profesor: usuario profesor / contraseña 1234");
+      return;
+    }
+    me=x;
+    localStorage.setItem("session",x.u);
+    start();
+  }catch(error){
+    console.error("Error al iniciar sesión",error);
+    alert("No se pudo iniciar sesión. Recarga la página e inténtalo nuevamente.");
+  }
 }
+
+// Permite iniciar sesión con Enter y evita depender de variables globales
+// creadas automáticamente por algunos navegadores.
+document.addEventListener("DOMContentLoaded",()=>{
+  const passEl=document.getElementById("password");
+  if(passEl) passEl.addEventListener("keydown",e=>{if(e.key==="Enter") login();});
+});
 function start(){
  currentUser.textContent=me.name;
  showBimesterChooser31();
