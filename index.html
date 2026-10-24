@@ -578,7 +578,10 @@ function startFirebaseDbSyncWatcher(){
       if(currentSignature && currentSignature!==lastSignature){
         lastSignature=currentSignature;
         localStorage.setItem("aulaEPT",JSON.stringify(db));
-        saveToFirebase();
+        // Solo publica cambios realmente realizados en este dispositivo.
+        // Las actualizaciones recibidas desde Firebase actualizan lastSignature
+        // y no vuelven a entrar en un ciclo de escritura.
+        if(!window.__aulaEPTApplyingRemote) saveToFirebase();
       }
     }catch(e){ console.warn("Firebase: vigilante de sincronización",e); }
   },1000);
@@ -793,8 +796,11 @@ async function loadFromFirebase(){
       remote.libraryDrive=Array.from(mergedMap.values());
       // Fusionar antes de reemplazar la base local: conserva registros locales
       // que todavía no estén en la copia remota.
+      const remoteBeforeMergeSignature=dbSignature(remote);
       remote = mergeDbSafely(db,remote);
       remote = mergeLocalAttendanceIntoRemote(remote);
+      const mergedSignature=dbSignature(remote);
+      const needsPublish=mergedSignature!==remoteBeforeMergeSignature;
       db = remote;
       // Primero dejamos la fusión segura en almacenamiento local.
       // Si el navegador se cierra aquí, la información fusionada ya existe.
@@ -802,10 +808,9 @@ async function loadFromFirebase(){
       localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY, JSON.stringify(db.libraryDrive||[]));
       autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
       autoBackupLastSignature=dbSignature(db);
-      // Si la fusión incorporó algo local que Firebase no tenía, se vuelve a
-      // publicar la base fusionada. La cola pendiente solo se elimina después
-      // de que saveToFirebase confirme la escritura.
-      await saveToFirebase();
+      // Solo publicamos si la fusión incorporó información local que Firebase
+      // todavía no tenía. Esto evita el ciclo PC → Firebase → PC.
+      if(needsPublish) await saveToFirebase();
       if(typeof render === "function") render();
       return true;
     }
@@ -875,18 +880,23 @@ function startFirebaseSync(){
           const localBefore=JSON.parse(JSON.stringify(db||{}));
           incoming=mergeDbSafely(localBefore,incoming);
           incoming=mergeLocalAttendanceIntoRemote(incoming);
-          const incomingSignature=dbSignature(incoming);
+          const incomingRawSignature=dbSignature(incoming);
           const currentSignature=dbSignature(db);
-          if(incomingSignature && incomingSignature!==currentSignature){
+          const mergedChanged=incomingRawSignature!==currentSignature;
+          if(mergedChanged){
             createAutoBackup("Antes de sincronización Firebase");
           }
           db=incoming;
           localStorage.setItem("aulaEPT",JSON.stringify(db));
           autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
-          autoBackupLastSignature=incomingSignature;
-          // Publicamos la fusión para que PC y celular converjan. Si el
-          // registro solo existía en este dispositivo, también viajará a Firebase.
-          saveToFirebase();
+          autoBackupLastSignature=incomingRawSignature;
+          // Solo publicamos cuando la fusión agregó datos locales que la nube
+          // no tenía. Si el snapshot remoto ya es igual, no escribimos de nuevo.
+          const remoteSignature=dbSignature(snap.data().data||{});
+          if(incomingRawSignature!==remoteSignature){
+            window.__aulaEPTApplyingRemote=true;
+            Promise.resolve(saveToFirebase()).finally(()=>{window.__aulaEPTApplyingRemote=false;});
+          }
           // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
           // No reconstruimos el cuadro de texto porque eso hacía que el cursor
           // saltara, el modal se moviera y el usuario perdiera la posición al escribir.
