@@ -1083,7 +1083,9 @@ function startFirebaseSessionsSync(){
           // si llegaron a Firebase, todas las ventanas deben aceptar aquí la
           // misma versión y redibujar la pantalla.
           firebaseCanonicalSessionsLoaded=true;
-          if(typeof render === "function" && me && page!=='registro'){
+          // Las sesiones no afectan la pantalla de Estudiantes. Evitamos
+          // reconstruirla y provocar parpadeos cuando Firebase actualiza sesiones.
+          if(typeof render === "function" && me && page!=='registro' && page!=='students'){
             render();
           }
         }
@@ -1158,7 +1160,10 @@ function startFirebaseSync(){
           Promise.resolve(saveToFirebase()).catch(e=>console.warn("Firebase: publicación de pendiente",e));
         }
       }
-      if(typeof render === "function" && me){
+      // Solo reconstruimos la pantalla si realmente cambió el estado que
+      // corresponde al documento principal. Las instantáneas repetidas de
+      // Firebase (caché/servidor) no deben hacer que la interfaz salte.
+      if(after!==before && typeof render === "function" && me){
         if(page==='registro'){
           const cg=document.getElementById('ceGrade30')?.value;
           const cs=document.getElementById('ceSec30')?.value;
@@ -1174,6 +1179,12 @@ function startFirebaseSync(){
           const active=document.activeElement;
           const editingCY=active && (String(active.id||'').startsWith('cyProject_')||String(active.id||'').startsWith('cyDetail_'));
           if(editingCY) return;
+        }
+        // En Estudiantes no reconstruimos toda la página en cada snapshot.
+        // Solo refrescamos la lista, conservando filtros, búsqueda y posición.
+        if(page==='students'){
+          if(typeof renderStudents23==='function') renderStudents23();
+          return;
         }
         render();
       }
@@ -13401,7 +13412,7 @@ function render(){
   if(me.role==='student' && ['groups','iaEPT','registro','activitiesGrades','participations','behavior','uniform','notebook','folder','exam','project','evalConfig','students','tracking','attendance','recoveries','creaRecovery','incidents','reports','backup','grades','creaEmprende','projectWork'].includes(page)) page='home';
   const titles={home:'Inicio',students:'Estudiantes',groups:'Grupos',aiEPT:'🤖 IA EPT',timers:'⏱️ Cronómetros',courses:me.role==='teacher'?'Cursos':'Mis cursos',creaEmprende:'🏆 Crea y Emprende',creaRecovery:'🏆 Recuperación Crea',materials:'Materiales',activities:'Actividades',registro:'Registro de clase',activitiesGrades:'Actividades evaluadas',participations:'Participación',behavior:'Conducta',uniform:'Uniforme',notebook:'Cuaderno',folder:'Folder',exam:'Examen / Fichas',project:'Proyecto 70 %',projectWork:'🛠️ Trabajo de proyecto',registroAuxiliar:'📒 Registro Auxiliar',submissions:me.role==='teacher'?'Entregas':'Mis entregas',chat:'Mensajes',grades:'Evaluación final',tracking:'Seguimiento',attendance:'Asistencia',recoveries:'Recuperaciones',incidents:'Incidentes',reports:'Reportes',bimesterClose:'Cierre de bimestres',backup:'Respaldo',announcements:'Avisos',evalConfig:'Pesos',registroAuxiliar:'📒 Registro Auxiliar',seating:'💺 Ubicación de asientos'};
   pageTitle.textContent=titles[page]||'Aula Virtual'; pageSub.textContent=me.role==='teacher'?'Panel del docente':'Espacio del estudiante';
-  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,creaRecovery:creaRecovery31,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,registroAuxiliar,submissions,grades,tracking,attendance,recoveries:recoveries31,incidents,reports,bimesterClose:renderBimesterClose30,backup,library,announcements,evalConfig:evaluationConfig,seating}[page];
+  const fn={home,students,groups,aiEPT,timers,courses,creaEmprende,creaRecovery:creaRecovery31,materials,activities,registro:registroClase,activitiesGrades,participations,behavior,uniform,notebook,folder,exam,project,projectWork,registroAuxiliar,submissions,chat,grades,tracking,attendance,recoveries:recoveries31,incidents,reports,bimesterClose:renderBimesterClose30,backup,library,announcements,evalConfig:evaluationConfig,seating}[page];
   content.innerHTML=fn?fn():"<div class='card'><h3>Página no encontrada</h3></div>";
   if(page==='students')setTimeout(()=>{if(typeof renderStudents23==='function')renderStudents23()},0);
   if(page==='registro')setTimeout(renderClass30,0);
