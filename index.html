@@ -80,7 +80,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, onSnapshot
+    getFirestore, doc, getDoc, setDoc, onSnapshot, runTransaction
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -100,6 +100,7 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;ove
   window.firebaseGetDoc = getDoc;
   window.firebaseSetDoc = setDoc;
   window.firebaseOnSnapshot = onSnapshot;
+  window.firebaseRunTransaction = runTransaction;
   window.firebaseReady = true;
 
   window.dispatchEvent(new Event("firebase-ready"));
@@ -569,6 +570,7 @@ function getAutoBackups(){
 // No reemplaza la base; solo publica el estado local actual para que Firebase
 // lo fusione con el otro dispositivo.
 let firebaseDbSyncWatchTimer=null;
+let firebaseRemoteAppliedSignature="";
 function startFirebaseDbSyncWatcher(){
   if(firebaseDbSyncWatchTimer) clearInterval(firebaseDbSyncWatchTimer);
   let lastSignature=dbSignature();
@@ -576,12 +578,14 @@ function startFirebaseDbSyncWatcher(){
     try{
       const currentSignature=dbSignature();
       if(currentSignature && currentSignature!==lastSignature){
+        const remoteChange=(currentSignature===firebaseRemoteAppliedSignature)||!!window.__aulaEPTApplyingRemote;
         lastSignature=currentSignature;
         localStorage.setItem("aulaEPT",JSON.stringify(db));
-        // Solo publica cambios realmente realizados en este dispositivo.
-        // Las actualizaciones recibidas desde Firebase actualizan lastSignature
-        // y no vuelven a entrar en un ciclo de escritura.
-        if(!window.__aulaEPTApplyingRemote) saveToFirebase();
+        if(remoteChange){
+          if(currentSignature===firebaseRemoteAppliedSignature) firebaseRemoteAppliedSignature="";
+        }else{
+          saveToFirebase();
+        }
       }
     }catch(e){ console.warn("Firebase: vigilante de sincronización",e); }
   },1000);
@@ -718,56 +722,118 @@ function markLocalWrite(){
   try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
 }
 
+const FIREBASE_CHUNK_COLLECTION = "aulaEPT_chunks";
+const FIREBASE_CHUNK_BYTES = 700000; // margen amplio bajo el límite de 1 MiB de Firestore
+
+function utf8SizeFirebase(value){
+  try{return new TextEncoder().encode(String(value)).length;}
+  catch(e){return String(value).length*2;}
+}
+
+function splitDbForFirebase(snapshot){
+  const parts=[];
+  let current={};
+  let currentBytes=2;
+  Object.keys(snapshot||{}).forEach(key=>{
+    const piece=JSON.stringify({[key]:snapshot[key]});
+    const bytes=utf8SizeFirebase(piece);
+    if(Object.keys(current).length && currentBytes+bytes>FIREBASE_CHUNK_BYTES){
+      parts.push(current);
+      current={};
+      currentBytes=2;
+    }
+    current[key]=snapshot[key];
+    currentBytes+=bytes;
+  });
+  if(Object.keys(current).length) parts.push(current);
+  return parts.length?parts:[{}];
+}
+
+async function writeChunkedFirebaseSnapshot(snapshot,writeAt){
+  const manifestRef=window.firebaseDoc(window.firebaseDB,"aulaEPT","main");
+  if(typeof window.firebaseRunTransaction !== "function"){
+    const parts=splitDbForFirebase(snapshot);
+    for(let i=0;i<parts.length;i++) await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB,FIREBASE_CHUNK_COLLECTION,`part_${i}`),{data:parts[i],index:i,count:parts.length,updatedAt:writeAt});
+    await window.firebaseSetDoc(manifestRef,{syncVersion:2,chunkCount:parts.length,updatedAt:writeAt});
+    return parts.length;
+  }
+  let finalCount=0;
+  await window.firebaseRunTransaction(window.firebaseDB,async(tx)=>{
+    const manifestSnap=await tx.get(manifestRef);
+    const oldCount=Number(manifestSnap.exists()?(manifestSnap.data()?.chunkCount||0):0);
+    const remote={};
+    for(let i=0;i<oldCount;i++){
+      const partSnap=await tx.get(window.firebaseDoc(window.firebaseDB,FIREBASE_CHUNK_COLLECTION,`part_${i}`));
+      if(partSnap.exists() && partSnap.data()?.data && typeof partSnap.data().data==='object') Object.assign(remote,partSnap.data().data);
+    }
+    // La transacción vuelve a intentarse si otra ventana cambia una parte leída.
+    // Fusionamos registros antes de volver a fragmentar para no perder cambios.
+    const merged=mergeDbSafely(snapshot,remote);
+    const parts=splitDbForFirebase(merged);
+    finalCount=parts.length;
+    for(let i=0;i<parts.length;i++) tx.set(window.firebaseDoc(window.firebaseDB,FIREBASE_CHUNK_COLLECTION,`part_${i}`),{data:parts[i],index:i,count:parts.length,updatedAt:writeAt});
+    tx.set(manifestRef,{syncVersion:2,chunkCount:parts.length,updatedAt:writeAt});
+  });
+  return finalCount;
+}
+async function readChunkedFirebaseSnapshot(manifest){
+  const count=Number(manifest?.chunkCount||0);
+  if(!count) return null;
+  const result={};
+  for(let i=0;i<count;i++){
+    const snap=await window.firebaseGetDoc(
+      window.firebaseDoc(window.firebaseDB,FIREBASE_CHUNK_COLLECTION,`part_${i}`)
+    );
+    if(!snap.exists()) return null;
+    const data=snap.data()?.data;
+    if(!data || typeof data!=='object') return null;
+    Object.assign(result,data);
+  }
+  return result;
+}
+
 function saveToFirebase(){
   if(!window.firebaseReady) return Promise.resolve();
-  // Las escrituras se serializan. Así varios Sí/No consecutivos no abren
-  // varias escrituras simultáneas que puedan llegar en orden incorrecto.
-  const snapshot=JSON.parse(JSON.stringify(db));
+  const fullSnapshot=JSON.parse(JSON.stringify(db));
+  const sessionList=(Array.isArray(fullSnapshot.sessions)?fullSnapshot.sessions:[]).map(s=>({
+    ...s,updatedAt:Number(s.updatedAt||s.createdAt||Date.now())
+  }));
+  const snapshot={...fullSnapshot};
+  delete snapshot.sessions;
   const writeAt=Date.now();
-  // Dejamos una cola local antes de tocar la red. Si Firebase falla o se
-  // corta Internet, el cambio no queda únicamente en memoria.
   try{
     localStorage.setItem("aulaEPT_pendingFirebaseWrite",JSON.stringify({snapshot,writeAt}));
-  }catch(e){ console.warn("No se pudo crear la cola local de Firebase",e); }
+    localStorage.setItem("aulaEPT_lastLocalWriteAt",String(writeAt));
+  }catch(e){console.warn("No se pudo crear la cola local de Firebase",e);}
   lastLocalWriteAt=Math.max(lastLocalWriteAt,writeAt);
-  try{localStorage.setItem("aulaEPT_lastLocalWriteAt",String(lastLocalWriteAt));}catch(e){}
+
   firebaseWriteChain=firebaseWriteChain.then(async()=>{
-    let mainSaved=false;
-    let sessionsSaved=false;
-
-    // IMPORTANTE: el documento principal puede superar el límite de tamaño de
-    // Firestore. Las sesiones se guardan en un documento independiente y NO
-    // deben depender de que el documento principal haya podido escribirse.
+    let saved=false;
     try{
-      await window.firebaseSetDoc(
-        window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-        { data:snapshot, updatedAt:writeAt }
-      );
-      mainSaved=true;
+      await writeChunkedFirebaseSnapshot(snapshot,writeAt);
+      saved=true;
+      console.log("Firebase: datos guardados en partes, evitando el límite de 1 MiB de Firestore.");
     }catch(error){
       window.__firebaseLastError=error;
-      console.error("Firebase: no se pudo guardar el documento principal; se intentará guardar las sesiones por separado.", error);
+      console.error("Firebase: no se pudo guardar la base fragmentada",error);
     }
 
+    // Las sesiones siguen teniendo documento canónico independiente.
     try{
-      // Las sesiones existentes del proyecto están en el documento "Principal".
-      // Guardamos allí para que PC, incógnito y celular lean la misma colección.
-      await window.firebaseSetDoc(
-        window.firebaseDoc(window.firebaseDB, "aulaEPT_sessions", "Principal"),
-        { sessions:Array.isArray(snapshot.sessions)?snapshot.sessions:[], updatedAt:writeAt }
-      );
-      sessionsSaved=true;
+      await saveSessionsOnlyToFirebase();
+      saved=true;
     }catch(error){
       window.__firebaseLastError=error;
-      console.error("Firebase: no se pudieron guardar las sesiones", error);
+      console.error("Firebase: no se pudieron guardar las sesiones",error);
     }
 
-    if(mainSaved || sessionsSaved){
+    if(saved){
       try{
         const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
         if(pending && Number(pending.writeAt)===Number(writeAt)) localStorage.removeItem("aulaEPT_pendingFirebaseWrite");
       }catch(e){}
     }
+    return saved;
   });
   return firebaseWriteChain;
 }
@@ -775,218 +841,344 @@ function saveToFirebase(){
 async function loadFromFirebase(){
   try{
     if(!window.firebaseReady) return false;
-    // Si quedó una escritura pendiente de una sesión anterior, la fusionamos
-    // con la base actual antes de leer Firebase. Nunca se descarta una copia
-    // local pendiente.
+    // La nube es la fuente de verdad al abrir una ventana nueva.
+    // Solo incorporamos una escritura local que siga explícitamente pendiente;
+    // nunca usamos el localStorage antiguo como una versión más nueva de Firebase.
+    let pendingSnapshot=null;
     try{
       const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
-      if(pending && pending.snapshot){
-        db=mergeDbSafely(db,pending.snapshot);
-        localStorage.setItem("aulaEPT",JSON.stringify(db));
-        markLocalWrite();
+      if(pending?.snapshot && Number(pending.writeAt||0)>0){
+        pendingSnapshot=pending.snapshot;
       }
-    }catch(e){ console.warn("No se pudo recuperar la cola local de Firebase",e); }
-    const snap = await window.firebaseGetDoc(
-      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main")
-    );
-    if(snap.exists() && snap.data().data){
-      let remote = snap.data().data || {};
-      // No permitimos que una copia incompleta de Firebase vuelva a borrar
-      // los estudiantes o las notas cerradas del III Bimestre restauradas.
-      const remoteStudents=Array.isArray(remote.users)?remote.users.filter(u=>u&&u.role==="student").length:0;
-      const remoteIII=Object.keys(remote.bimesterFinals?.III||{}).length;
-      if(remoteStudents<290 || remoteIII<290){
-        console.warn("Firebase contiene una copia incompleta; se conserva el respaldo local restaurado.");
-        try{ localStorage.setItem("aulaEPT",JSON.stringify(db)); }catch(e){}
-        if(typeof saveToFirebase==="function") saveToFirebase();
-        if(typeof render==="function" && me) render();
-        return false;
+    }catch(e){console.warn("No se pudo recuperar la cola local",e);}
+
+    const mainSnap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT","main"));
+    let remote=null;
+    if(mainSnap.exists()){
+      const manifest=mainSnap.data()||{};
+      if(Number(manifest.syncVersion)===2){
+        remote=await readChunkedFirebaseSnapshot(manifest);
+      }else if(manifest.data){
+        // Compatibilidad con la versión anterior del sistema.
+        remote=manifest.data;
       }
-      // La Biblioteca tiene una copia local independiente para evitar que
-      // una versión antigua de Firebase borre enlaces recién agregados.
-      let localLibrary=[];
-      try{ localLibrary=JSON.parse(localStorage.getItem(LIBRARY_DRIVE_LOCAL_KEY)||"[]"); }catch(e){}
-      if(!Array.isArray(localLibrary)) localLibrary=[];
-      const remoteLibrary=Array.isArray(remote.libraryDrive)?remote.libraryDrive:[];
-      const mergedMap=new Map();
-      [...remoteLibrary,...localLibrary].forEach(x=>{if(x&&x.id) mergedMap.set(String(x.id),x);});
-      remote.libraryDrive=Array.from(mergedMap.values());
-      // Fusionar antes de reemplazar la base local: conserva registros locales
-      // que todavía no estén en la copia remota.
-      const remoteBeforeMergeSignature=dbSignature(remote);
-      remote = mergeDbSafely(db,remote);
-      remote = mergeLocalAttendanceIntoRemote(remote);
-      const mergedSignature=dbSignature(remote);
-      const needsPublish=mergedSignature!==remoteBeforeMergeSignature;
-      db = remote;
-      // Primero dejamos la fusión segura en almacenamiento local.
-      // Si el navegador se cierra aquí, la información fusionada ya existe.
-      localStorage.setItem("aulaEPT", JSON.stringify(db));
-      localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY, JSON.stringify(db.libraryDrive||[]));
-      autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
-      autoBackupLastSignature=dbSignature(db);
-      // Solo publicamos si la fusión incorporó información local que Firebase
-      // todavía no tenía. Esto evita el ciclo PC → Firebase → PC.
-      if(needsPublish) await saveToFirebase();
-      if(typeof render === "function") render();
-      return true;
     }
+    if(!remote) return false;
+
+    const remoteStudents=Array.isArray(remote.users)?remote.users.filter(u=>u&&u.role==="student").length:0;
+    const remoteIII=Object.keys(remote.bimesterFinals?.III||{}).length;
+    if(remoteStudents<290 || remoteIII<290){
+      console.warn("Firebase contiene una copia incompleta; se conserva el respaldo local.");
+      return false;
+    }
+
+    // Firebase manda sobre la copia local al abrir otra ventana.
+    // Si todavía existe una escritura pendiente, esa es la única excepción:
+    // se fusiona para no perder un cambio que aún no alcanzó la nube.
+    delete remote.sessions;
+    let merged={...remote};
+    if(pendingSnapshot){
+      merged=mergeDbSafely(pendingSnapshot,remote);
+      delete merged.sessions;
+    }
+    merged.sessions=Array.isArray(db.sessions)?db.sessions:[];
+    const remoteSignatureBeforePublish=dbSignature(remote);
+    const mergedSignature=dbSignature(merged);
+    const needsPublish=mergedSignature!==remoteSignatureBeforePublish;
+    db=merged;
+    localStorage.setItem("aulaEPT",JSON.stringify(db));
+    localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY,JSON.stringify(db.libraryDrive||[]));
+    autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+    autoBackupLastSignature=dbSignature(db);
+    if(needsPublish) await saveToFirebase();
+    if(typeof render === "function" && me) render();
+    return true;
   }catch(error){
-    console.error("Firebase: no se pudo cargar", error);
+    console.error("Firebase: no se pudo cargar la base fragmentada",error);
+    return false;
   }
-  return false;
 }
 
 let firebaseUnsubscribe=null;
 let firebaseSessionsUnsubscribe=null;
+// aulaEPT_sessions es la fuente canónica de sesiones entre ventanas/dispositivos.
+let firebaseCanonicalSessionsLoaded=false;
+
+// Escritura inmediata y exclusiva de sesiones. No espera al documento grande
+// aulaEPT/main, porque una escritura grande puede tardar o ser rechazada por
+// Firestore y no debe bloquear la sincronización de una sesión.
+let firebaseSessionsWriteChain=Promise.resolve();
+function saveSessionsOnlyToFirebase(){
+  if(!window.firebaseReady) return Promise.resolve(false);
+  const list=(Array.isArray(db.sessions)?db.sessions:[]).map(x=>({
+    ...x,
+    updatedAt:Number(x.updatedAt||x.createdAt||Date.now())
+  }));
+  const writeAt=Date.now();
+  firebaseSessionsWriteChain=firebaseSessionsWriteChain.then(async()=>{
+    try{
+      const principalRef=window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal");
+      if(typeof window.firebaseRunTransaction === "function"){
+        await window.firebaseRunTransaction(window.firebaseDB,async(tx)=>{
+          const remoteSnap=await tx.get(principalRef);
+          const remoteSessions=remoteSnap.exists()&&Array.isArray(remoteSnap.data()?.sessions)?remoteSnap.data().sessions:[];
+          const mergedSessions=mergeDbSafely({sessions:list},{sessions:remoteSessions}).sessions;
+          tx.set(principalRef,{sessions:mergedSessions,updatedAt:writeAt});
+        });
+      }else{
+        await window.firebaseSetDoc(principalRef,{sessions:list,updatedAt:writeAt});
+      }
+      try{ await window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Director"),{sessions:list,updatedAt:writeAt}); }catch(e){ console.warn("Firebase: espejo Director",e); }
+      window.__firebaseSessionsLastWriteAt=writeAt;
+      return true;
+    }catch(error){
+      window.__firebaseLastError=error;
+      console.error("Firebase: no se pudo guardar inmediatamente la sesión",error);
+      return false;
+    }
+  });
+  return firebaseSessionsWriteChain;
+}
 
 async function loadSessionsFromFirebase(){
   try{
     if(!window.firebaseReady) return false;
-    // El proyecto tiene sesiones históricas repartidas en "Director" y "Principal".
-    // Se leen ambos documentos y se fusionan para que ninguna sesión quede aislada
-    // en un dispositivo o en una ventana privada. "main" queda como compatibilidad.
-    const docNames=["Principal","Director","main"];
-    const remoteLists=[];
-    for(const name of docNames){
+
+    // PRINCIPAL es ahora la copia canónica de sesiones. Director y main se
+    // leen únicamente como fuentes históricas para no perder sesiones antiguas.
+    const readSessionDoc=async(name)=>{
       try{
         const snap=await window.firebaseGetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions",name));
-        if(snap.exists()){
-          const list=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
-          if(list.length) remoteLists.push(list);
+        if(!snap.exists()) return {list:[],docUpdatedAt:0,exists:false};
+        const data=snap.data()||{};
+        return {
+          list:Array.isArray(data.sessions)?data.sessions:[],
+          docUpdatedAt:Number(data.updatedAt||0),
+          exists:true
+        };
+      }catch(e){
+        console.warn("Firebase: no se pudo leer el documento de sesiones",name,e);
+        return {list:[],docUpdatedAt:0,exists:false};
+      }
+    };
+
+    const principal=await readSessionDoc("Principal");
+    const director=await readSessionDoc("Director");
+    const legacy=await readSessionDoc("main");
+
+    // Para registros antiguos sin updatedAt, Principal tiene prioridad sobre
+    // Director. Nunca usamos updatedAt del documento para hacer que una sesión
+    // antigua parezca más nueva que una sesión editada realmente.
+    const byId=new Map();
+    const addList=(list,source)=>{
+      (Array.isArray(list)?list:[]).forEach(raw=>{
+        if(!raw||raw.id==null) return;
+        const x={...raw};
+        const stamp=Number(x.updatedAt||x.savedAt||x.createdAt||0);
+        const prev=byId.get(String(x.id));
+        if(!prev){
+          byId.set(String(x.id),{x,stamp,source});
+          return;
         }
-      }catch(e){ console.warn("Firebase: no se pudo leer el documento de sesiones",name,e); }
-    }
-    const remoteSessions=remoteLists.flat();
+        // La fecha propia de la sesión manda. En empate, Principal manda;
+        // así Director no puede devolver una versión antigua después de editar.
+        if(stamp>prev.stamp || (stamp===prev.stamp && source==='Principal' && prev.source!=='Principal')){
+          byId.set(String(x.id),{x,stamp,source});
+        }
+      });
+    };
+    addList(principal.list,'Principal');
+    addList(director.list,'Director');
+    addList(legacy.list,'main');
+
+    const remoteSessions=Array.from(byId.values()).map(v=>v.x);
+    // Aunque Firebase todavía no tenga sesiones, conservamos las locales.
+    // Esto es importante para una ventana privada que acaba de restaurar la
+    // base de recuperación: no debe quedar reducida únicamente al IV Bimestre.
     if(!remoteSessions.length) return false;
+
     const before=JSON.stringify(db.sessions||[]);
-    db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
-    localStorage.setItem("aulaEPT",JSON.stringify(db));
-    const changed=JSON.stringify(db.sessions)!==before;
-    // Unificamos la copia en "Principal" para que los dispositivos nuevos
-    // puedan recuperar todas las sesiones desde un único documento.
-    if(changed || remoteLists.length>1){
-      try{
-        await window.firebaseSetDoc(
-          window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),
-          {sessions:Array.isArray(db.sessions)?db.sessions:[],updatedAt:Date.now()}
-        );
-      }catch(e){ console.warn("Firebase: no se pudo unificar la copia de sesiones",e); }
+    // PRINCIPAL es la fuente canónica. Al abrir una ventana nueva, su
+    // localStorage puede contener sesiones antiguas; esas sesiones NO deben
+    // ganar solamente por tener una hora de edición distinta.
+    // Conservamos únicamente cambios locales que estén explícitamente pendientes
+    // de subir a Firebase; todo lo demás se reemplaza por la copia canónica.
+    let pendingSessions=[];
+    try{
+      const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
+      if(pending?.snapshot?.sessions && Number(pending.writeAt||0)>0){
+        pendingSessions=Array.isArray(pending.snapshot.sessions)?pending.snapshot.sessions:[];
+      }
+    }catch(e){}
+
+    if(pendingSessions.length){
+      db.sessions=mergeDbSafely(
+        {sessions:remoteSessions},
+        {sessions:pendingSessions}
+      ).sessions;
+    }else{
+      db.sessions=remoteSessions;
     }
+    firebaseCanonicalSessionsLoaded=true;
+    localStorage.setItem("aulaEPT",JSON.stringify(db));
+
+    const changed=JSON.stringify(db.sessions)!==before;
+    // NO reescribimos Principal al terminar una lectura. Si lo hacemos, una
+    // ventana privada con datos antiguos puede volver a publicar esos datos.
+    // Solo se publican cambios desde saveSessionsOnlyToFirebase().
     return changed || remoteSessions.length>0;
-  }catch(e){ console.warn("Firebase: no se pudieron cargar las sesiones separadas",e); return false; }
+  }catch(e){
+    console.warn("Firebase: no se pudieron cargar las sesiones separadas",e);
+    return false;
+  }
 }
 
 function startFirebaseSessionsSync(){
   if(!window.firebaseReady) return;
   try{
     if(typeof firebaseSessionsUnsubscribe === "function") firebaseSessionsUnsubscribe();
-    const unsubs=[];
-    ["Principal","Director"].forEach(docName=>{
-      unsubs.push(window.firebaseOnSnapshot(
-        window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions",docName),
-        (snap)=>{
-          if(!snap.exists()) return;
-          const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
-          if(!remoteSessions.length) return;
-          const before=JSON.stringify(db.sessions||[]);
-          db.sessions=mergeDbSafely({sessions:Array.isArray(db.sessions)?db.sessions:[]},{sessions:remoteSessions}).sessions;
-          if(JSON.stringify(db.sessions)!==before){
-            localStorage.setItem("aulaEPT",JSON.stringify(db));
-            // Publicamos la unión en Principal para que todos los dispositivos
-            // compartan la misma copia completa, sin borrar sesiones históricas.
-            try{ window.firebaseSetDoc(window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal"),{sessions:Array.isArray(db.sessions)?db.sessions:[],updatedAt:Date.now()}); }catch(e){ console.warn("Firebase: no se pudo unificar sesiones en tiempo real",e); }
-            if(typeof render === "function" && me && page!=='registro') render();
+
+    // Solo escuchamos Principal en tiempo real. Director ya no puede competir
+    // con Principal y devolver una versión antigua después de una edición.
+    const ref=window.firebaseDoc(window.firebaseDB,"aulaEPT_sessions","Principal");
+    const unsubscribe=window.firebaseOnSnapshot(
+      ref,
+      (snap)=>{
+        if(!snap.exists()) return;
+        const remoteSessions=Array.isArray(snap.data()?.sessions)?snap.data().sessions:[];
+        if(!remoteSessions.length) return;
+
+        const before=JSON.stringify(db.sessions||[]);
+        // Firebase puede entregar primero una instantánea de caché antigua y
+        // después la de servidor. Nunca reemplazamos ciegamente la lista local.
+        // Fusionamos por ID y updatedAt: una edición nueva gana; una copia vieja
+        // no puede devolver el título anterior.
+        let nextSessions=mergeDbSafely(
+          {sessions:remoteSessions},
+          {sessions:Array.isArray(db.sessions)?db.sessions:[]}
+        ).sessions;
+        try{
+          const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
+          if(pending?.snapshot && Number(pending.writeAt||0)>0){
+            const pendingSessions=Array.isArray(pending.snapshot.sessions)?pending.snapshot.sessions:[];
+            if(pendingSessions.length){
+              nextSessions=mergeDbSafely(
+                {sessions:nextSessions},
+                {sessions:pendingSessions}
+              ).sessions;
+            }
           }
-        },
-        (error)=>console.warn("Firebase: sincronización de sesiones",docName,error)
-      ));
-    });
-    firebaseSessionsUnsubscribe=()=>unsubs.forEach(fn=>{try{if(typeof fn==='function')fn();}catch(e){}});
-  }catch(e){ console.warn("Firebase: no se pudo activar sincronización de sesiones",e); }
+        }catch(e){}
+        const after=JSON.stringify(nextSessions);
+
+        db.sessions=nextSessions;
+        localStorage.setItem("aulaEPT",JSON.stringify(db));
+        firebaseRemoteAppliedSignature=dbSignature(db);
+
+        if(after!==before){
+          // Principal es la fuente canónica. Una ventana privada puede tener
+          // localStorage antiguo y un reloj diferente; no debe volver a
+          // publicar esa copia antigua sobre la versión compartida.
+          // Las ediciones normales ya llaman a saveToFirebase(), por lo que
+          // si llegaron a Firebase, todas las ventanas deben aceptar aquí la
+          // misma versión y redibujar la pantalla.
+          firebaseCanonicalSessionsLoaded=true;
+          if(typeof render === "function" && me && page!=='registro'){
+            render();
+          }
+        }
+      },
+      (error)=>console.warn("Firebase: sincronización de sesiones Principal",error)
+    );
+    firebaseSessionsUnsubscribe=()=>{try{if(typeof unsubscribe==='function')unsubscribe();}catch(e){}};
+  }catch(e){
+    console.warn("Firebase: no se pudo activar sincronización de sesiones",e);
+  }
 }
 
 function startFirebaseSync(){
   if(!window.firebaseReady) return;
   try{
     if(typeof firebaseUnsubscribe === "function") firebaseUnsubscribe();
-    firebaseUnsubscribe=window.firebaseOnSnapshot(
-      window.firebaseDoc(window.firebaseDB, "aulaEPT", "main"),
-      (snap)=>{
-        if(snap.exists() && snap.data().data){
-          let incoming=snap.data().data;
-          const incomingStudents=Array.isArray(incoming.users)?incoming.users.filter(u=>u&&u.role==="student").length:0;
-          const incomingIII=Object.keys(incoming.bimesterFinals?.III||{}).length;
-          if(incomingStudents<290 || incomingIII<290){
-            console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
-            return;
-          }
-          // No descartamos una copia remota por comparar relojes entre dispositivos.
-          // PC y celular pueden tener horas diferentes. La protección real es la
-          // fusión por registros de mergeDbSafely(), que conserva la unión de ambos.
-          const localBefore=JSON.parse(JSON.stringify(db||{}));
-          incoming=mergeDbSafely(localBefore,incoming);
-          incoming=mergeLocalAttendanceIntoRemote(incoming);
-          const incomingRawSignature=dbSignature(incoming);
-          const currentSignature=dbSignature(db);
-          const mergedChanged=incomingRawSignature!==currentSignature;
-          if(mergedChanged){
-            createAutoBackup("Antes de sincronización Firebase");
-          }
-          db=incoming;
-          localStorage.setItem("aulaEPT",JSON.stringify(db));
-          autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
-          autoBackupLastSignature=incomingRawSignature;
-          // Solo publicamos cuando la fusión agregó datos locales que la nube
-          // no tenía. Si el snapshot remoto ya es igual, no escribimos de nuevo.
-          const remoteSignature=dbSignature(snap.data().data||{});
-          if(incomingRawSignature!==remoteSignature){
-            window.__aulaEPTApplyingRemote=true;
-            Promise.resolve(saveToFirebase()).finally(()=>{window.__aulaEPTApplyingRemote=false;});
-          }
-          // Si hay un chat abierto, actualiza SOLO la lista de mensajes.
-          // No reconstruimos el cuadro de texto porque eso hacía que el cursor
-          // saltara, el modal se moviera y el usuario perdiera la posición al escribir.
-          if(window.__openChat22 && typeof refreshOpenChat22 === "function" && me){
-            refreshOpenChat22();
-          }else if(typeof render === "function" && me){
-            // IMPORTANTE: mientras el docente está calificando en Registro de clase
-            // NO reconstruir toda la pantalla por cada sincronización de Firebase.
-            // El redibujado reemplaza los <select> y <input>, haciendo que el
-            // filtro Grado/Sección parezca bloqueado y provocando pérdida de foco.
-            // Guardamos el filtro actual y dejamos intacta la pantalla de evaluación.
-            if(page === 'registro'){
-              const cg=document.getElementById('ceGrade30')?.value;
-              const cs=document.getElementById('ceSec30')?.value;
-              if(cg!==undefined) window._classGradeFilter30=cg;
-              if(cs!==undefined) window._classSectionFilter30=cs;
-              return;
-            }
-            // En Asistencia no reconstruimos toda la página al guardar.
-            // El render completo elimina temporalmente la tabla y desplaza la vista
-            // hasta el panel de alertas. Solo actualizamos la tabla de estudiantes.
-            if(page === 'attendance'){
-              if(typeof renderAttendanceTable25 === 'function') renderAttendanceTable25();
-              return;
-            }
-            // En Crea y Emprende no reconstruimos la tabla mientras el docente
-            // está escribiendo en Proyecto/Detalle. La sincronización Firebase
-            // puede devolver nuestro propio guardado y, si se ejecuta render(),
-            // el <input> se reemplaza y se pierde el foco cada pocos caracteres.
-            if(page === 'creaEmprende'){
-              const active=document.activeElement;
-              const editingCY=active && (
-                String(active.id||'').startsWith('cyProject_') ||
-                String(active.id||'').startsWith('cyDetail_')
-              );
-              if(editingCY) return;
-            }
-            render();
-          }
+    const ref=window.firebaseDoc(window.firebaseDB,"aulaEPT","main");
+    const unsubscribe=window.firebaseOnSnapshot(ref,async(snap)=>{
+      if(!snap.exists()) return;
+      const manifest=snap.data()||{};
+      let remote=null;
+      try{
+        if(Number(manifest.syncVersion)===2){
+          remote=await readChunkedFirebaseSnapshot(manifest);
+        }else if(manifest.data){
+          remote=manifest.data;
         }
-      },
-      (error)=>console.error("Firebase: error de sincronización",error)
-    );
+      }catch(e){
+        console.error("Firebase: no se pudieron leer las partes sincronizadas",e);
+        return;
+      }
+      if(!remote) return;
+      const incomingStudents=Array.isArray(remote.users)?remote.users.filter(u=>u&&u.role==="student").length:0;
+      const incomingIII=Object.keys(remote.bimesterFinals?.III||{}).length;
+      if(incomingStudents<290 || incomingIII<290){
+        console.warn("Firebase: se ignoró una sincronización incompleta para proteger estudiantes y III Bimestre.");
+        return;
+      }
+      delete remote.sessions;
+      // IMPORTANTE: el snapshot remoto es la versión canónica para las demás
+      // ventanas. Una copia local vieja ya no puede ganar por tener un reloj
+      // distinto o por haber sido guardada anteriormente.
+      // Solo se incorpora una escritura local explícitamente pendiente.
+      let incoming={...remote};
+      try{
+        const pending=JSON.parse(localStorage.getItem("aulaEPT_pendingFirebaseWrite")||"null");
+        if(pending?.snapshot && Number(pending.writeAt||0)>0){
+          incoming=mergeDbSafely(pending.snapshot,remote);
+          delete incoming.sessions;
+        }
+      }catch(e){}
+      incoming.sessions=Array.isArray(db.sessions)?db.sessions:[];
+      const beforeMain={...db}; delete beforeMain.sessions;
+      const afterMain={...incoming}; delete afterMain.sessions;
+      const remoteMain={...remote}; delete remoteMain.sessions;
+      const before=dbSignature(beforeMain);
+      const after=dbSignature(afterMain);
+      const remoteSignature=dbSignature(remoteMain);
+      if(after!==before) createAutoBackup("Antes de sincronización Firebase");
+      window.__aulaEPTApplyingRemote=true;
+      db=incoming;
+      try{localStorage.setItem("aulaEPT",JSON.stringify(db));}catch(e){}
+      try{localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY,JSON.stringify(db.libraryDrive||[]));}catch(e){}
+      autoBackupLastSavedDb=JSON.parse(JSON.stringify(db));
+      autoBackupLastSignature=dbSignature(db);
+      window.__aulaEPTApplyingRemote=false;
+      // Solo publicamos si existe una escritura pendiente que realmente cambió
+      // el snapshot remoto. Nunca republicamos una copia local antigua.
+      if(after!==remoteSignature){
+        const pendingNow=localStorage.getItem("aulaEPT_pendingFirebaseWrite");
+        if(pendingNow){
+          Promise.resolve(saveToFirebase()).catch(e=>console.warn("Firebase: publicación de pendiente",e));
+        }
+      }
+      if(typeof render === "function" && me){
+        if(page==='registro'){
+          const cg=document.getElementById('ceGrade30')?.value;
+          const cs=document.getElementById('ceSec30')?.value;
+          if(cg!==undefined) window._classGradeFilter30=cg;
+          if(cs!==undefined) window._classSectionFilter30=cs;
+          return;
+        }
+        if(page==='attendance'){
+          if(typeof renderAttendanceTable25==='function') renderAttendanceTable25();
+          return;
+        }
+        if(page==='creaEmprende'){
+          const active=document.activeElement;
+          const editingCY=active && (String(active.id||'').startsWith('cyProject_')||String(active.id||'').startsWith('cyDetail_'));
+          if(editingCY) return;
+        }
+        render();
+      }
+    },error=>console.error("Firebase: error de sincronización",error));
+    firebaseUnsubscribe=()=>{try{if(typeof unsubscribe==='function')unsubscribe();}catch(e){}};
   }catch(error){
     console.error("Firebase: no se pudo iniciar la sincronización",error);
   }
@@ -3375,7 +3567,7 @@ function saveSession(unitId){
  if(!groups.length){alert("Selecciona al menos un grado y sección.");return}
  const grade=groups.includes("2.º B") ? (groups.includes("2.º A") ? "2.º A · 2.º B" : "2.º B") : (groups.includes("2.º A") ? "2.º A" : "");
  db.sessions.push({
-   id:Date.now()+Math.random(),unit:unitId,number,title,description,date,status,
+   id:Date.now()+Math.random(),unit:unitId,number,title,description,date,status,updatedAt:Date.now(),
    grade:grade||groups.join(" · "),section:"",groups
  });
  save();closeModal();openUnit(unitId);
@@ -3417,7 +3609,8 @@ function saveEditedSession(id){
  x.date=document.getElementById("sesF").value;x.status=document.getElementById("sesS").value;
  x.groups=groups;
  x.grade=groups.join(" · ");x.section="";
- save();closeModal();openUnit(x.unit);
+ x.updatedAt=Date.now();
+ save();saveSessionsOnlyToFirebase();closeModal();openUnit(x.unit);
 }
 function viewSession(id){
  const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
@@ -5384,7 +5577,8 @@ function deleteLibraryDrive(id){
   if(!window.confirm('¿Eliminar "'+String(item.name||'Documento')+'" de Mi biblioteca? Esto NO elimina el archivo de Google Drive.')) return;
   db.libraryDrive=db.libraryDrive.filter(x=>String(x.id)!==String(id));
   try{ localStorage.setItem(LIBRARY_DRIVE_LOCAL_KEY,JSON.stringify(db.libraryDrive)); }catch(e){}
-  try{ localStorage.setItem('aulaEPT',JSON.stringify(db)); }catch(e){}
+  try{ localStorage.setItem('aulaEPT',JSON.stringify(db)); markLocalWrite(); }catch(e){}
+  if(typeof saveToFirebase === 'function') saveToFirebase();
   alert('✅ Enlace eliminado de Mi biblioteca.');
 }
 function copyLibraryDriveLink(url){
@@ -11948,7 +12142,7 @@ function saveSession(unitId, group='1.º A'){
     ['3.º','4.º','5.º'].forEach(g=>{const v=dateByGradeSection[g+'|A']||dateByGradeSection[g+'|B']||'';if(v)dateByGrade[g]=v;});
   }
   const sessionNow=Date.now(); db.sessions.push({id:sessionNow+Math.random(),unit:unitId,number,title,description,desempeno,evidencia,grade,section:sec,date,status,dateByGrade,dateByGradeSection,criteriaSelected,instrument,writtenQuestions,sessionType:sessionType==='recovery'?'recovery':'normal',recoveryOfSession:sessionType==='recovery'?recoveryOfSession:'',adaptations:[],bimester:(bimesterOfUnit31((db.units||[]).find(u=>String(u.id)===String(unitId)))||bimesterForDate31(date)||activeBimester31()||'III'),createdAt:sessionNow,updatedAt:sessionNow});
-  save();openUnit(unitId,group);
+  save(); openUnit(unitId,group);
 }
 function editSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id);if(!x)return;
@@ -12032,6 +12226,10 @@ function saveEditedSession(id){
   if(!title){alert('Completa el título de la sesión.');return}
   x.number=Number(document.getElementById('sesN')?.value)||x.number;
   x.title=title;x.description=description;x.desempeno=desempeno;x.evidencia=evidencia;x.status=status;x.date=date;
+  // Cada edición de una sesión debe tener su propia marca de tiempo.
+  // Sin esto, otro dispositivo podía considerar que su copia antigua era
+  // igual o más reciente y conservar el título anterior.
+  x.updatedAt=Date.now();
   x.criteriaSelected=criteriaSelected;
   x.instrument=instrument;
   x.writtenQuestions=writtenQuestions;
@@ -12045,7 +12243,7 @@ function saveEditedSession(id){
     [['3.º','A','sesF3A'],['3.º','B','sesF3B'],['4.º','A','sesF4A'],['4.º','B','sesF4B'],['5.º','A','sesF5A'],['5.º','B','sesF5B']].forEach(([g,ss,id])=>{const v=document.getElementById(id)?.value||'';if(v)x.dateByGradeSection[g+'|'+ss]=v;});
     ['3.º','4.º','5.º'].forEach(g=>{const v=x.dateByGradeSection[g+'|A']||x.dateByGradeSection[g+'|B']||'';if(v)x.dateByGrade[g]=v;});
   }
-  save();openUnit(x.unit,(String(x.grade)==='1.º'||String(x.grade)==='2.º')?`${x.grade} ${x.section||'A'}`:'3.º-5.º');
+  save(); openUnit(x.unit,(String(x.grade)==='1.º'||String(x.grade)==='2.º')?`${x.grade} ${x.section||'A'}`:'3.º-5.º');
 }
 function deleteSession(id){
   const x=(db.sessions||[]).find(a=>a.id===id); if(!x)return;
